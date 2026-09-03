@@ -90,6 +90,16 @@
   .admin-row .meta{font-size:12.5px;color:var(--mute);margin-top:3px;}
   .admin-empty{font-size:14px;color:var(--mute);margin-top:20px;}
 
+  .colorsys{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:28px;}
+  @media (max-width:640px){.colorsys{grid-template-columns:1fr 1fr;}}
+  .colorchip{border:1px solid var(--border);border-radius:12px;padding:16px 14px;background:var(--surface);}
+  .colorchip .dot{width:22px;height:22px;border-radius:50%;margin-bottom:12px;}
+  .colorchip .dot.rot{background:#D9483C;}
+  .colorchip .dot.gelb{background:#E8B93B;}
+  .colorchip .dot.gruen{background:#4CA766;}
+  .colorchip .dot.blau{background:#3B7FC4;}
+  .colorchip h3{font-size:14px;margin-bottom:4px;}
+  .colorchip p{font-size:12.5px;margin:0;}
   .danke-shell{max-width:480px;margin:100px auto;text-align:center;padding:0 24px;}
   .danke-shell h2{margin:0 0 12px;}
 *{box-sizing:border-box;}
@@ -270,6 +280,9 @@
 
 <div id="progress"></div>
 
+<div style="position:fixed;top:18px;right:70px;z-index:70;display:flex;align-items:center;gap:10px;">
+  <button onclick="showView('admin')" style="border:1px solid var(--border);background:var(--surface);color:var(--body-c);border-radius:100px;padding:10px 16px;font-family:var(--sans-head);font-weight:600;font-size:12.5px;cursor:pointer;box-shadow:0 1px 6px rgba(10,20,20,.1);">Admin</button>
+</div>
 <button id="theme-toggle" onclick="toggleTheme()" aria-label="Darkmode umschalten">
   <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M2.5 12h2.5M19 12h2.5M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8"/></svg>
   <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>
@@ -643,7 +656,7 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
 <script>
   const bar = document.getElementById('progress');
@@ -771,7 +784,7 @@
     localStorage.setItem('cs_auftraege', JSON.stringify(list));
   }
 
-  /* ---------- Excel-Checkliste generieren (SheetJS) ---------- */
+  /* ---------- Excel-Checkliste generieren, 1:1 Layout + Farben wie PFS_Checkliste-Vorlage ---------- */
   function buildChecklistWorkbook(entry){
     const bedrooms = Math.max(0, Math.floor(entry.zimmer) - 2);
     const badCount = Math.max(1, entry.badezimmer || 1);
@@ -780,50 +793,116 @@
       ? Array.from({length:badCount}, (_,i) => (i+1) + '. Badezimmer')
       : ['Badezimmer'];
     const roomCols = ['Eingang','Küche','Wohnen', ...bedroomCols, ...badCols];
+    const isBadCol = c => c === 'Badezimmer' || c.includes('Badezimmer');
 
-    const aoa = [];
-    aoa.push(['Kundenangaben','','','','Reinigungsinformationen']);
-    aoa.push(['Name:', entry.nachname, '', '', 'Reinigungstag:', entry.tage.join(', ') || '—']);
-    aoa.push(['Vorname:', entry.vorname, '', '', 'Reinigungsuhrzeit:', entry.uhrzeit]);
-    aoa.push(['Adresse:', entry.adresse, '', '', 'Reinigungsaufwand:', entry.aufwandText]);
-    aoa.push(['PLZ / Ort:', entry.plzOrt, '', '', 'Bügelservice:', entry.buegelservice]);
-    aoa.push(['Mobile:', entry.mobile, '', '', 'PP:', entry.pp]);
-    aoa.push(['Mail:', entry.mail, '', '', 'Haustiere:', entry.haustiere || '—']);
-    aoa.push(['', '', '', '', 'Alarmanlage:', entry.alarmanlage === 'Ja' ? ('Ja, Code: ' + (entry.alarmCode || '—')) : 'Nein']);
-    aoa.push([]);
-    aoa.push(['Spezielle Vereinbarungen:', entry.vereinbarungen || '']);
-    aoa.push([]);
-    aoa.push(['Zimmer: ' + entry.zimmer + ' Zi']);
-    aoa.push(['Quadratmeter: ' + entry.qm + ' m2']);
-    aoa.push(['Reinigungsfrequenz: ' + entry.frequenzText]);
-    aoa.push([]);
-    aoa.push(['Raumbuch', ...roomCols]);
+    const ws = {};
+    const merges = [];
+    const colLetter = (idx0) => XLSX.utils.encode_col(idx0);
+    const thin = {style:'thin', color:{rgb:'000000'}};
+    const border = {top:thin, bottom:thin, left:thin, right:thin};
+    const bold = {bold:true};
+    const FILL = {
+      grey:{fgColor:{rgb:'D9D9D9'}}, blue:{fgColor:{rgb:'3AA9E0'}}, green:{fgColor:{rgb:'8CC63F'}},
+      yellow:{fgColor:{rgb:'FFFF00'}}, red:{fgColor:{rgb:'FF0000'}}, white:{fgColor:{rgb:'FFFFFF'}}
+    };
 
-    const universal = ['Alle Möbel abstauben (freie Fläche)','Spinnweben an Decke und Wände','Türen inkl. Griffe und Zargen','Boden saugen','Boden feucht aufnehmen'];
-    const eingangOnly = ['Vorleger ausschütteln oder staubsaugen'];
-    const kuecheOnly = ['Dampfabzug aussen + oben (Haare ziehen)','Ablageflächen','Herd aussen','Lavabo','Kühlschrank (aussen)','Schränke, Schubladen, Geräte aussen reinigen'];
-    const kuecheUndBad = ['Wasserhähne und Brausen entkalken'];
-    const badOnly = ['Spiegel (Vorder- und Rückseite)','Kacheln entkalken','Badewanne inkl. Duschscheibe','Lavabo, Zahngläser, Seifenschale','Duschkabine','Toilette'];
-    const allgemein = ['Esstisch inkl. Stühle','Sofa saugen / feucht abwischen','Bettwäsche wechseln','Abfalleimer leeren','Pflanzen giessen'];
-
-    function markRow(label, matchFn){
-      const row = [label];
-      roomCols.forEach(col => row.push(matchFn(col) ? 'x' : ''));
-      aoa.push(row);
+    function cell(addr, v, style){
+      ws[addr] = {t:'s', v: (v===undefined||v===null) ? '' : String(v)};
+      if(style) ws[addr].s = style;
     }
-    const isBad = c => c === 'Badezimmer' || c.includes('Badezimmer');
-    universal.forEach(t => markRow(t, () => true));
-    eingangOnly.forEach(t => markRow(t, c => c === 'Eingang'));
-    kuecheOnly.forEach(t => markRow(t, c => c === 'Küche'));
-    kuecheUndBad.forEach(t => markRow(t, c => c === 'Küche' || isBad(c)));
-    badOnly.forEach(t => markRow(t, c => isBad(c)));
-    allgemein.forEach(t => markRow(t, c => c === 'Wohnen'));
 
-    aoa.push([]);
-    aoa.push(['Unterschrift Kunde:']);
+    const B = 1, C = 2, Q = 16; // 0-based col idx
+    const lastCol = Q + roomCols.length - 1;
 
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = [{wch:36}, ...roomCols.map(() => ({wch:15}))];
+    /* ---- Kundenangaben / Reinigungsinformationen (Zeile 1-8) ---- */
+    cell('B1', 'Kundenangaben', bold);
+    cell('B2', 'Name:', bold);      cell('C2', entry.nachname);
+    cell('B3', 'Vorname:', bold);   cell('C3', entry.vorname);
+    cell('B4', 'Adresse:', bold);   cell('C4', entry.adresse);
+    cell('B5', 'PLZ / Ort:', bold); cell('C5', entry.plzOrt);
+    cell('B6', 'Mobile:', bold);    cell('C6', entry.mobile);
+    cell('B8', 'Mail:', bold);      cell('C8', entry.mail);
+
+    cell('Q1', 'Reinigungsinformationen', bold);
+    cell('Q2', 'Reinigungstag: ' + (entry.tage.join(', ') || '—'));
+    cell('Q3', 'Reinigungsuhrzeit: ' + entry.uhrzeit);
+    cell('Q4', 'Reinigungsaufwand: ' + entry.aufwandText);
+    cell('Q5', 'Bügelservice: ' + entry.buegelservice);
+    cell('Q6', 'PP: ' + entry.pp);
+    cell('Q7', 'Haustiere: ' + (entry.haustiere || '—'));
+    cell('Q8', 'Alarmanlage: ' + (entry.alarmanlage === 'Ja' ? ('Ja, Code: ' + (entry.alarmCode || '—')) : 'Nein'));
+
+    /* ---- Spezielle Vereinbarungen (Zeile 11-13) ---- */
+    cell('B11', 'Spezielle Vereinbarungen:', Object.assign({}, bold, {border, alignment:{vertical:'center'}}));
+    for(let c = C; c <= lastCol; c++) cell(colLetter(c) + '11', '', {border});
+    merges.push({s:{r:10,c:B}, e:{r:10,c:lastCol}});
+    for(let r0 = 12; r0 <= 13; r0++){
+      for(let c = B; c <= lastCol; c++) cell(colLetter(c) + r0, '', {border, fill:FILL.grey});
+    }
+    merges.push({s:{r:11,c:B}, e:{r:12,c:lastCol}});
+
+    /* ---- Zimmer/Quadratmeter/Stockwerk/Reinigungsfrequenz + Raumbuch-Kopf (Zeile 15-19) ---- */
+    const infoStart = 15;
+    const infoLines = ['Zimmer: ' + entry.zimmer + ' Zi','Quadratmeter: ' + entry.qm + ' m2','Stockwerk: ','','Reinigungsfrequenz: ' + entry.frequenzText];
+    infoLines.forEach((txt, idx) => {
+      const r0 = infoStart + idx;
+      cell('B' + r0, txt, Object.assign({}, bold, {fill:FILL.grey, alignment:{vertical:'center'}}));
+      for(let c = C; c < Q; c++) cell(colLetter(c) + r0, '', {fill:FILL.grey});
+      merges.push({s:{r:r0-1,c:B}, e:{r:r0-1,c:Q-1}});
+    });
+
+    const headerRow = infoStart + 1; // Zeile 16: Raumbuch-Titel + gedrehte Spaltenköpfe
+    cell(colLetter(Q) + infoStart, 'Raumbuch', {fill:FILL.grey, font:{bold:true, sz:12}, border, alignment:{horizontal:'center', vertical:'center'}});
+    for(let c = Q+1; c <= lastCol; c++) cell(colLetter(c) + infoStart, '', {fill:FILL.grey, border});
+    merges.push({s:{r:infoStart-1,c:Q}, e:{r:infoStart-1,c:lastCol}});
+
+    roomCols.forEach((col, i) => {
+      cell(colLetter(Q + i) + headerRow, col, {fill:FILL.grey, font:bold, border, alignment:{textRotation:90, horizontal:'center', vertical:'center'}});
+    });
+
+    /* ---- Bodenbeläge ---- */
+    const bodenRow = headerRow + 3;
+    cell('B' + bodenRow, 'Bodenbeläge', bold);
+    cell('B' + (bodenRow+1), 'x', {border});
+
+    /* ---- Aufgaben-Zeilen mit Farben ---- */
+    const universal = ['Alle Möbel abstauben (freie Fläche)','Spinnweben an Decke und Wände','Türen inkl. Griffe und Zargen','Griff-, Schmutzspuren bei Eingangstüre','Vorleger ausschütteln oder staubsaugen','Boden saugen und feucht aufnehmen','Boden saugen','Boden feucht aufnehmen','Esstisch inkl. Stühle'];
+    const monthly = ['Türen inkl. Griffe und Zargen'];
+    const noMarkLabels = ['Griff-, Schmutzspuren bei Eingangstüre','Boden saugen und feucht aufnehmen','Esstisch inkl. Stühle'];
+    const eingangOnlyLabels = ['Vorleger ausschütteln oder staubsaugen'];
+
+    const kueche = ['Dampfabzug aussen + oben (Haare ziehen)','Ablageflächen','Herd aussen','Lavabo','Kühlschrank (aussen)','Schränke, Schubladen, Geräte aussen reinigen'];
+    const gelb = ['Wasserhähnen und Brausen entkalken','Spiegel (vorder- und Rückseite)','Kacheln entkalken','Badewanne inkl. Duschscheibe','Lavabo, Zahngläser, Seifenschale','Duschkabine','Tumbler + Waschmaschine'];
+    const gelbNoMark = ['Tumbler + Waschmaschine'];
+    const rot = ['Toilette'];
+    const grau = ['Sofa saugen / feucht abwischen','Bettwäsche wechseln','Spiegel reinigen','Abfalleimer leeren','Aschenbecher leeren','Pflanzen giessen'];
+
+    let r = bodenRow + 3;
+    function taskRow(label, fillKey, matchFn, noMark){
+      cell('B' + r, label, {fill:FILL[fillKey], border});
+      roomCols.forEach((col, i) => {
+        const mark = (!noMark && matchFn(col)) ? (monthly.includes(label) ? 'M' : 'x') : '';
+        cell(colLetter(Q + i) + r, mark, {fill:FILL[fillKey], border, alignment:{horizontal:'center'}});
+      });
+      r++;
+    }
+    universal.forEach(t => taskRow(t, 'blue', c => eingangOnlyLabels.includes(t) ? c === 'Eingang' : true, noMarkLabels.includes(t)));
+    kueche.forEach(t => taskRow(t, 'green', c => c === 'Küche'));
+    gelb.forEach(t => taskRow(t, 'yellow', c => t === 'Wasserhähnen und Brausen entkalken' ? (c === 'Küche' || isBadCol(c)) : isBadCol(c), gelbNoMark.includes(t)));
+    rot.forEach(t => taskRow(t, 'red', c => isBadCol(c)));
+    grau.forEach(t => taskRow(t, 'grey', c => c === 'Wohnen', true));
+
+    cell('B' + (r + 1), 'Unterschrift Kunde:', bold);
+
+    const lastRow = r + 3;
+    ws['!ref'] = 'A1:' + colLetter(lastCol) + lastRow;
+    ws['!merges'] = merges;
+    const cols = [];
+    for(let i = 0; i <= lastCol; i++) cols.push(i === B ? {wch:34} : (i >= Q ? {wch:5} : {wch:8}));
+    ws['!cols'] = cols;
+    ws['!rows'] = [];
+    ws['!rows'][headerRow - 1] = {hpt:95};
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Checkliste');
     return wb;
