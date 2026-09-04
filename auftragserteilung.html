@@ -28,7 +28,14 @@
     <p>Basierend auf unserem Reinigungskonzept erteilen Sie uns hiermit den Auftrag zur Durchführung der Privathaushaltreinigung und akzeptieren dabei unsere AGB.</p>
 
     <form id="orderForm" onsubmit="return submitOrder(event)">
+      <input type="hidden" id="f-angebotsnr" value="">
       <div class="fgrid">
+        <div class="field"><label>Anrede</label>
+          <select id="f-anrede">
+            <option value="Frau">Frau</option>
+            <option value="Herr">Herr</option>
+          </select>
+        </div>
         <div class="field"><label>Vorname</label><input type="text" id="f-vorname" required></div>
         <div class="field"><label>Nachname</label><input type="text" id="f-nachname" required></div>
         <div class="field span2"><label>Adresse</label><input type="text" id="f-adresse" required></div>
@@ -185,6 +192,16 @@
     applyTheme(saved || 'dark');
   })();
 
+  (function prefillFromLink(){
+    const params = new URLSearchParams(window.location.search);
+    const map = { 'f-anrede':'an', 'f-vorname':'vn', 'f-nachname':'nn', 'f-adresse':'adr', 'f-plzort':'ort', 'f-angebotsnr':'angebotsnr' };
+    Object.keys(map).forEach(id => {
+      const val = params.get(map[id]);
+      const el = document.getElementById(id);
+      if(el && val) el.value = val;
+    });
+  })();
+
   /* ---------- Persönlicher Kunden-Link (kompakt, ein Parameter, code-geschützt) ---------- */
   function b64encode(str){ return btoa(unescape(encodeURIComponent(str))); }
   function b64decode(str){ return decodeURIComponent(escape(atob(str))); }
@@ -326,12 +343,14 @@
     const entry = {
       id: Date.now(),
       timestamp: new Date().toLocaleString('de-CH'),
+      anrede: document.getElementById('f-anrede').value,
       vorname: document.getElementById('f-vorname').value,
       nachname: document.getElementById('f-nachname').value,
       adresse: document.getElementById('f-adresse').value,
       plzOrt: document.getElementById('f-plzort').value,
       mobile: document.getElementById('f-mobile').value,
       mail: document.getElementById('f-mail').value,
+      angebotsnr: document.getElementById('f-angebotsnr').value,
       zimmer: zimmer,
       qm: document.getElementById('f-qm').value,
       badezimmer: parseInt(document.getElementById('f-bad').value) || 1,

@@ -464,7 +464,7 @@
       </div>
 
       <div class="meta-row">
-        <span class="pill">Angebot Nr. 2184</span>
+        <span class="pill" id="hero-angebotsnr">Angebot Nr. 2184</span>
         <span class="pill">3. September 2026</span>
       </div>
       <div class="hero-foot">
@@ -728,12 +728,12 @@
       <h2>Wir freuen uns auf Sie</h2>
       <p>Passt das Konzept zu Ihren Vorstellungen? Dann füllen Sie im nächsten Schritt Ihre Angaben aus — wir kümmern uns um den Rest.</p>
       <div class="cta-card">
-        <div style="font-size:11.5px;color:var(--mute);font-variant-numeric:tabular-nums;">Angebot Nr. 2184</div>
+        <div id="cta-angebotsnr" style="font-size:11.5px;color:var(--mute);font-variant-numeric:tabular-nums;">Angebot Nr. 2184</div>
         <div class="final-price">
           <div class="amt">CHF 78.00</div>
           <div class="per">pro wöchentlichem Einsatz, exkl. MWST</div>
         </div>
-        <a class="btn" href="auftragserteilung.html" style="display:block;text-align:center;text-decoration:none;">Weiter zur Auftragserteilung</a>
+        <a class="btn" href="auftragserteilung.html" id="cta-link" style="display:block;text-align:center;text-decoration:none;">Weiter zur Auftragserteilung</a>
         <div class="fineprint">Dauert rund 2 Minuten.</div>
       </div>
     </section>
@@ -830,8 +830,13 @@
     let parts;
     try{ parts = b64decode(token).split('|'); }catch(err){ return; }
     if(parts.length < 6) return;
-    const [an, vn, nn, adr, ort, code] = parts;
-    __pendingPersonal = {an, vn, nn, adr, ort, code};
+    let an, vn, nn, adr, ort, angebotsnr, code;
+    if(parts.length >= 7){
+      an = parts[0]; vn = parts[1]; nn = parts[2]; adr = parts[3]; ort = parts[4]; angebotsnr = parts[5]; code = parts[6];
+    } else {
+      an = parts[0]; vn = parts[1]; nn = parts[2]; adr = parts[3]; ort = parts[4]; code = parts[5]; angebotsnr = '';
+    }
+    __pendingPersonal = {an, vn, nn, adr, ort, angebotsnr, code};
 
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-codegate').classList.add('active');
@@ -844,13 +849,25 @@
       document.getElementById('gate-error').style.display = 'block';
       return;
     }
-    const { an, vn, nn, adr, ort } = __pendingPersonal;
+    const { an, vn, nn, adr, ort, angebotsnr } = __pendingPersonal;
     const heroName = document.getElementById('hero-name');
     const heroLede = document.getElementById('hero-lede');
     if(heroName) heroName.textContent = an + ' ' + vn + ' ' + nn;
     if(heroLede) heroLede.textContent = 'Ihr persönliches Reinigungskonzept für die Wohnung an der ' + adr + ', ' + ort + '.';
-    const map = { 'f-vorname':vn, 'f-nachname':nn, 'f-adresse':adr, 'f-plzort':ort };
-    Object.keys(map).forEach(id => { const el = document.getElementById(id); if(el && !el.value) el.value = map[id]; });
+
+    if(angebotsnr){
+      const heroNr = document.getElementById('hero-angebotsnr');
+      const ctaNr = document.getElementById('cta-angebotsnr');
+      if(heroNr) heroNr.textContent = 'Angebot Nr. ' + angebotsnr;
+      if(ctaNr) ctaNr.textContent = 'Angebot Nr. ' + angebotsnr;
+    }
+
+    const ctaLink = document.getElementById('cta-link');
+    if(ctaLink){
+      const fwd = new URLSearchParams({ an, vn, nn, adr, ort, angebotsnr: angebotsnr || '' });
+      ctaLink.href = 'auftragserteilung.html?' + fwd.toString();
+    }
+
     showView('konzept');
   }
 

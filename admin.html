@@ -52,6 +52,7 @@
           <input type="text" id="lg-nachname" placeholder="Nachname">
           <input type="text" id="lg-adresse" placeholder="Adresse">
           <input type="text" id="lg-plzort" placeholder="PLZ Ort">
+          <input type="text" id="lg-angebotsnr" maxlength="4" pattern="[0-9]{4}" placeholder="Angebot Nr. (4-stellig)">
           <button class="btn btn-sm" onclick="generateCustomerLink()">Link generieren</button>
         </div>
         <div id="lg-result" style="display:none;margin-top:14px;">
@@ -60,6 +61,16 @@
             <button class="btn btn-sm" onclick="copyCustomerLink()">Kopieren</button>
           </div>
           <p class="crm-linkgen-code">Zugangscode für die Nachricht an den Kunden: <strong id="lg-code"></strong></p>
+        </div>
+      </div>
+
+      <div class="crm-linkgen" id="email-panel" style="display:none;">
+        <h3>Bestätigungsmail</h3>
+        <p class="crm-linkgen-hint">Vorausgefüllt, editierbar. Kopieren oder direkt im E-Mail-Programm öffnen.</p>
+        <div class="field"><textarea id="email-body" style="min-height:260px;font-family:var(--sans-body);"></textarea></div>
+        <div class="crm-linkgen-out" style="margin-top:10px;">
+          <button class="btn btn-sm" onclick="copyEmail()">Text kopieren</button>
+          <a class="btn btn-sm" id="email-mailto" style="background:var(--surface);color:var(--ink);border:1px solid var(--border);text-decoration:none;">Im E-Mail-Programm öffnen</a>
         </div>
       </div>
 
@@ -131,12 +142,14 @@
     const nn = document.getElementById('lg-nachname').value.trim();
     const adr = document.getElementById('lg-adresse').value.trim();
     const ort = document.getElementById('lg-plzort').value.trim();
+    const angebotsnr = document.getElementById('lg-angebotsnr').value.trim();
     if(!vn || !nn || !adr || !ort){ alert('Bitte Vorname, Nachname, Adresse und PLZ/Ort ausfüllen.'); return; }
+    if(!/^[0-9]{4}$/.test(angebotsnr)){ alert('Bitte eine vierstellige Angebotsnummer eingeben.'); return; }
 
     const code = Array.from({length:6}, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join('');
-    const packed = [an, vn, nn, adr, ort, code].join('|');
+    const packed = [an, vn, nn, adr, ort, angebotsnr, code].join('|');
     const token = b64encode(packed).replace(/=+$/, '');
-    const base = window.location.href.split('?')[0].split('#')[0];
+    const base = window.location.href.replace(/admin\.html.*$/, 'index.html');
     const link = base + '?t=' + token;
 
     document.getElementById('lg-link').value = link;
@@ -350,10 +363,53 @@
             '<button class="btn btn-sm" onclick=\'saveAngebotsnr(' + e.id + ')\'>Speichern</button>' +
             '<button class="btn btn-sm" style="background:var(--bg);color:var(--ink);border:1px solid var(--border);" onclick=\'downloadLeistungsverzeichnis(' + e.id + ')\'>PDF</button>' +
             '<button class="btn btn-sm" style="background:var(--bg);color:var(--ink);border:1px solid var(--border);" onclick=\'downloadLeistungsverzeichnisWord(' + e.id + ')\'>Word</button>' +
+            '<button class="btn btn-sm" style="background:var(--bg);color:var(--ink);border:1px solid var(--border);" onclick=\'openEmailPanel(' + e.id + ')\'>Bestätigungsmail</button>' +
           '</div>' +
         '</div>'
       );
     }).join('');
+  }
+
+  function openEmailPanel(id){
+    const list = JSON.parse(localStorage.getItem('cs_auftraege') || '[]');
+    const entry = list.find(x => x.id === id);
+    if(!entry){ alert('Auftrag nicht gefunden.'); return; }
+
+    const gruss = entry.anrede === 'Herr' ? ('Sehr geehrter Herr ' + entry.nachname)
+                : entry.anrede === 'Frau' ? ('Sehr geehrte Frau ' + entry.nachname)
+                : ('Guten Tag ' + entry.vorname + ' ' + entry.nachname);
+
+    const springerHinweis = entry.springerSofort === 'Ja'
+      ? 'Wie gewünscht starten wir bereits jetzt mit unserem Springerteam, während wir parallel die feste Raumpflegerin für Sie organisieren.'
+      : 'Für die Einführung inklusive erster Reinigung benötigen wir in der Regel eine Vorlaufzeit von 10–14 Werktagen. In dieser Zeit organisieren wir sorgfältig die passende Reinigungskraft für Ihre Bedürfnisse und stimmen mit Ihnen die letzten Details ab. Sollte sich der Start dennoch verzögern, bieten wir Ihnen als Übergangslösung gerne unser Springerteam an, damit Sie keinen Unterbruch spüren.';
+
+    const body =
+gruss + '\n\n' +
+'Herzlichen Dank für Ihr Vertrauen und die Erteilung des Auftrags. Wir freuen uns sehr, Sie als neuen Kunden begrüssen zu dürfen, und werden alles daransetzen, dass Sie mit unserer Dienstleistung rundum zufrieden sind.\n\n' +
+springerHinweis + '\n\n' +
+'Im Tagesgeschäft stehen Ihnen Frau Scalone und Herr Moreno aus meinem Administrationsteam zur Seite – sie sind für Sie die direkten Ansprechpartner für sämtliche organisatorischen Anliegen rund um Ihre Reinigung. Unser gesamtes Team steht für Zuverlässigkeit und Sorgfalt, damit Sie sich auf eine konstant hohe Qualität verlassen können. Sollten Sie dennoch einmal nicht zufrieden sein, wenden Sie sich jederzeit direkt an mich persönlich – ich kümmere mich umgehend um eine Lösung.\n\n' +
+'Ich freue mich auf die Zusammenarbeit und melde mich, sobald die Einführung geplant ist.\n\n' +
+'Freundliche Grüsse\n\n' +
+'Cristian Gambale\n' +
+'Bereichsleiter Putzfrauenservice\n' +
+'Direkt 052 557 02 08 / 076 822 00 16\n' +
+'---------------------------------\n' +
+'Clean Service Scaramuzzo AG\n' +
+'Industriestrasse 5\n' +
+'8307 Effretikon\n' +
+'0844 355 355';
+
+    document.getElementById('email-body').value = body;
+    const subject = encodeURIComponent('Auftragsbestätigung – Clean Service Scaramuzzo AG');
+    document.getElementById('email-mailto').href = 'mailto:' + (entry.mail || '') + '?subject=' + subject + '&body=' + encodeURIComponent(body);
+    const panel = document.getElementById('email-panel');
+    panel.style.display = 'block';
+    panel.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+  function copyEmail(){
+    const el = document.getElementById('email-body');
+    el.select();
+    navigator.clipboard.writeText(el.value).catch(() => document.execCommand('copy'));
   }
 
   function saveAngebotsnr(id){
