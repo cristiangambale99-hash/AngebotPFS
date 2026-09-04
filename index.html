@@ -365,6 +365,12 @@
   table.price tr.total td{border-top:2px solid var(--ink);padding-top:18px;font-size:15px;}
   table.price tr.total td.r{font-family:var(--sans-head);font-weight:700;color:var(--teal-deep);font-size:20px;}
   .price-note{font-size:12px;color:var(--mute);margin-top:16px;}
+  .time-table{margin-top:16px;border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  .time-row{display:flex;justify-content:space-between;gap:16px;padding:12px 16px;font-size:13.5px;border-top:1px solid var(--border);}
+  .time-row:first-child{border-top:none;}
+  .time-row .tr-l{color:var(--ink);}
+  .time-row .tr-r{color:var(--mute);text-align:right;white-space:nowrap;}
+  .time-note{font-size:12px;color:var(--mute);margin-top:10px;}
 
   .price-calc{border:1px solid var(--border);border-radius:14px;background:var(--surface);padding:24px;margin-top:28px;}
   .price-calc h3{margin:0 0 4px;font-size:15px;}
@@ -773,7 +779,14 @@
       <p class="secnum"><span class="ln"></span>9.0 — Preise &amp; Konditionen</p>
       <h2>Ihre Investition, auf einen Blick</h2>
       <p>Ein Stundenansatz, keine versteckten Kosten: CHF 39.00 pro Stunde exkl. MWST, abgerechnet sekundengenau über unser Start-/Stopp-System. Dazu kommt einmalig ein Reinigungsset für CHF 70.00, das Reinigungsmittel und Utensilien abdeckt.</p>
-      <p class="price-note">Zeitansatz nach Wohnungsgrösse: bis 3.5 Zimmer 2.0 Std. · 4.0–4.5 Zimmer 2.5 Std. (wöchentlich) bzw. 3.0 Std. (14-täglich) · 5.0–5.5 Zimmer 3.5 bzw. 4.0 Std. Bei grösseren Objekten führen wir vorgängig eine kurze, kostenlose virtuelle Besichtigung durch.</p>
+      <div class="time-table">
+        <div class="time-row"><span class="tr-l">Bis 3.5 Zimmer</span><span class="tr-r">2.0 Std.</span></div>
+        <div class="time-row"><span class="tr-l">4.0 – 4.5 Zimmer, wöchentlich</span><span class="tr-r">2.5 Std.</span></div>
+        <div class="time-row"><span class="tr-l">4.0 – 4.5 Zimmer, 14-täglich</span><span class="tr-r">3.0 Std.</span></div>
+        <div class="time-row"><span class="tr-l">5.0 – 5.5 Zimmer, wöchentlich</span><span class="tr-r">3.5 Std.</span></div>
+        <div class="time-row"><span class="tr-l">5.0 – 5.5 Zimmer, 14-täglich</span><span class="tr-r">4.0 Std.</span></div>
+      </div>
+      <p class="time-note">Bei grösseren Objekten führen wir vorgängig eine kurze, kostenlose virtuelle Besichtigung durch.</p>
 
       <div class="price-calc">
         <h3>Ihr Preis in Sekunden</h3>
