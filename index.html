@@ -247,8 +247,9 @@
   section{padding:76px 0;max-width:660px;position:relative;}
   section.band{
     background:var(--wash);border-radius:22px;padding:52px 44px;
-    max-width:none;overflow:hidden;
+    max-width:none;overflow:hidden;margin:28px 0;
   }
+  section.band:first-child{margin-top:0;}
   section.band > *{max-width:660px;position:relative;z-index:1;}
   section:not(:first-child):not(.band){border-top:1px solid var(--border);}
   @media (max-width:600px){section{padding:56px 0;}section.band{padding:36px 22px;border-radius:16px;}}
@@ -365,6 +366,14 @@
   table.price tr.total td.r{font-family:var(--sans-head);font-weight:700;color:var(--teal-deep);font-size:20px;}
   .price-note{font-size:12px;color:var(--mute);margin-top:16px;}
 
+  .price-calc{border:1px solid var(--border);border-radius:14px;background:var(--surface);padding:24px;margin-top:28px;}
+  .price-calc h3{margin:0 0 4px;font-size:15px;}
+  .price-calc .pc-hint{font-size:12.5px;color:var(--mute);margin:0 0 16px;}
+  .price-calc .pc-fields{display:flex;gap:10px;flex-wrap:wrap;}
+  .price-calc .pc-fields input,.price-calc .pc-fields select{font-family:var(--sans-body);font-size:13.5px;color:var(--ink);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;flex:1;min-width:140px;}
+  .price-calc .pc-result{margin-top:16px;padding:14px 16px;border-radius:10px;background:var(--wash);font-size:13.5px;color:var(--ink);}
+  .price-calc .pc-result strong{color:var(--teal-deep);}
+
   /* accordion, rule-list style */
   .acc{margin-top:30px;}
   .acc-item{border-top:1px solid var(--border);}
@@ -426,13 +435,14 @@
       <a href="#wer-wir-sind" data-n="1.0" class="active"><span class="rn-tip">1.0 Wer wir sind</span></a>
       <a href="#kundenstimmen" data-n="2.0"><span class="rn-tip">2.0 Kundenstimmen</span></a>
       <a href="#team" data-n="3.0"><span class="rn-tip">3.0 Ihr Team</span></a>
-      <a href="#leistungen" data-n="4.0"><span class="rn-tip">4.0 Leistungen</span></a>
-      <a href="#qualitaetssicherung" data-n="5.0"><span class="rn-tip">5.0 Qualität</span></a>
-      <a href="#zusatzleistungen" data-n="6.0"><span class="rn-tip">6.0 Zusatzleistungen</span></a>
-      <a href="#ablauf" data-n="7.0"><span class="rn-tip">7.0 Ablauf</span></a>
-      <a href="#investition" data-n="8.0"><span class="rn-tip">8.0 Preise</span></a>
-      <a href="#zusammenarbeit" data-n="9.0"><span class="rn-tip">9.0 Zusammenarbeit</span></a>
-      <a href="#loslegen" data-n="10.0"><span class="rn-tip">10.0 Auftrag</span></a>
+      <a href="#springerteam" data-n="4.0"><span class="rn-tip">4.0 Springerteam</span></a>
+      <a href="#leistungen" data-n="5.0"><span class="rn-tip">5.0 Leistungen</span></a>
+      <a href="#qualitaetssicherung" data-n="6.0"><span class="rn-tip">6.0 Qualität</span></a>
+      <a href="#zusatzleistungen" data-n="7.0"><span class="rn-tip">7.0 Zusatzleistungen</span></a>
+      <a href="#ablauf" data-n="8.0"><span class="rn-tip">8.0 Ablauf</span></a>
+      <a href="#investition" data-n="9.0"><span class="rn-tip">9.0 Preise</span></a>
+      <a href="#zusammenarbeit" data-n="10.0"><span class="rn-tip">10.0 Zusammenarbeit</span></a>
+      <a href="#loslegen" data-n="11.0"><span class="rn-tip">11.0 Auftrag</span></a>
     </nav>
   </div>
 
@@ -518,19 +528,19 @@
       <p>Öffentlich einsehbare Bewertungen, sinngemäss wiedergegeben.</p>
       <div class="testi-grid">
         <div class="testi-card">
-          <p class="tc-quote">«Seit über zehn Jahren Kunde — bei jedem Einsatz zufrieden mit dem freundlichen und stets kompetenten Team.»</p>
-          <div class="tc-src">Trustindex-Rezension</div>
+          <p class="tc-quote">«Grosse Erleichterung im Alltag — bei den Hausarbeiten fühlen wir uns bestens unterstützt. Unsere Putzfrau haben wir richtig ins Herz geschlossen.»</p>
+          <div class="tc-src">Google-Rezension · Standort Zürich</div>
         </div>
         <div class="testi-card">
-          <p class="tc-quote">«Vom ersten Kontakt an schnell und professionell. Springerteam und feste Raumpflegerin haben pünktlich und sorgfältig überzeugt.»</p>
-          <div class="tc-src">ProvenExpert-Rezension</div>
+          <p class="tc-quote">«Der Putzfrauenservice ist wirklich empfehlenswert — eine super Firma mit zuvorkommenden Leuten.»</p>
+          <div class="tc-src">Google-Rezension · Standort Zürich</div>
         </div>
         <div class="testi-card">
-          <p class="tc-quote">«Absolut begeistert vom Team — zuverlässig, professionell und ausserordentlich freundlich.»</p>
-          <div class="tc-src">local.ch-Rezension</div>
+          <p class="tc-quote">«Seit Jahren zufrieden, nichts auszusetzen — top Service, jederzeit gerne wieder.»</p>
+          <div class="tc-src">Google-Rezension · Standort Zürich</div>
         </div>
       </div>
-      <p class="testi-more"><a href="https://www.google.com/maps/search/?api=1&query=Clean+Service+Scaramuzzo+AG+Industriestrasse+5+8307+Effretikon" target="_blank" rel="noopener">Alle Bewertungen auf Google ansehen →</a></p>
+      <p class="testi-more"><a href="https://www.google.com/maps/search/?api=1&query=Clean+Service+Scaramuzzo+AG+Weinbergstrasse+131+Z%C3%BCrich" target="_blank" rel="noopener">Alle Bewertungen auf Google ansehen →</a></p>
     </section>
 
     <section id="team" class="band reveal" data-num="3">
@@ -562,8 +572,11 @@
           <div class="tt-role">Disponent · Schlüsselmanagement</div>
         </div>
       </div>
+    </section>
 
-      <h3 style="margin-top:40px;font-size:17px;">Unser Springerteam</h3>
+    <section id="springerteam" class="band reveal" data-num="4">
+      <p class="secnum"><span class="ln"></span>4.0 — Springerteam</p>
+      <h2>Unser Springerteam</h2>
       <p>Für Krankheits- und Ferienabwesenheiten Ihrer festen Raumpflegerin steht Ihnen zusätzlich unser Springerteam zur Verfügung, damit Ihre Reinigung ohne Unterbruch weiterläuft. Der Einsatz ist für Sie freiwillig — Sie entscheiden jeweils, ob Sie ihn in Anspruch nehmen.</p>
       <div class="team-tiles">
         <div class="team-tile">
@@ -594,8 +607,8 @@
       </div>
     </section>
 
-    <section id="leistungen" data-num="4" class="reveal">
-      <p class="secnum"><span class="ln"></span>4.0 — Unsere Leistungen</p>
+    <section id="leistungen" data-num="5" class="reveal">
+      <p class="secnum"><span class="ln"></span>5.0 — Unsere Leistungen</p>
       <h2>Leistungen im Detail</h2>
       <p>Abgerechnet sekundengenau nach effektivem Zeitaufwand über unser Start-/Stopp-System, mit biologisch abbaubaren Reinigungsmitteln aus nachhaltiger Produktion.</p>
       <div class="leist-grid">
@@ -653,8 +666,8 @@
       </div>
     </section>
 
-    <section id="qualitaetssicherung" data-num="5" class="reveal">
-      <p class="secnum"><span class="ln"></span>5.0 — Qualitätssicherung</p>
+    <section id="qualitaetssicherung" data-num="6" class="reveal">
+      <p class="secnum"><span class="ln"></span>6.0 — Qualitätssicherung</p>
       <h2>Wie wir Qualität sicherstellen</h2>
       <p>Unser Qualitätssicherungssystem basiert auf drei Säulen: Eigenkontrolle, Dokumentation und einem klaren Reklamationsweg — Teil unseres ISO 9001-zertifizierten Qualitätsmanagements.</p>
       <div class="rlist">
@@ -673,8 +686,8 @@
       </div>
     </section>
 
-    <section id="zusatzleistungen" class="band reveal" data-num="6">
-      <p class="secnum"><span class="ln"></span>6.0 — Zusatzleistungen</p>
+    <section id="zusatzleistungen" class="band reveal" data-num="7">
+      <p class="secnum"><span class="ln"></span>7.0 — Zusatzleistungen</p>
       <h2>Machen Sie es sich noch bequemer</h2>
       <p>Zusätzlich zur Reinigung buchbar, verrechnet nach effektivem Zeitaufwand zu CHF 39.00 pro Stunde exkl. MWST.</p>
       <div class="zusatz-grid">
@@ -711,8 +724,8 @@
       </div>
     </section>
 
-    <section id="ablauf" data-num="7" class="reveal">
-      <p class="secnum"><span class="ln"></span>7.0 — Nächste Schritte</p>
+    <section id="ablauf" data-num="8" class="reveal">
+      <p class="secnum"><span class="ln"></span>8.0 — Nächste Schritte</p>
       <h2>So geht es nach der Zusage weiter</h2>
       <div class="rlist">
         <div class="ritem">
@@ -734,8 +747,8 @@
       </div>
     </section>
 
-    <section id="investition" data-num="8" class="reveal">
-      <p class="secnum"><span class="ln"></span>8.0 — Preise &amp; Konditionen</p>
+    <section id="investition" data-num="9" class="reveal">
+      <p class="secnum"><span class="ln"></span>9.0 — Preise &amp; Konditionen</p>
       <h2>Ihre Investition, auf einen Blick</h2>
       <p>Ein Stundenansatz, keine versteckten Kosten: CHF 39.00 pro Stunde exkl. MWST, abgerechnet sekundengenau über unser Start-/Stopp-System.</p>
       <table class="price">
@@ -744,10 +757,23 @@
         <tr class="total"><td class="l">Ø Monatlich<br><small style="color:inherit;opacity:.75;">bei wöchentlicher Reinigung, 4,3 Einsätze</small></td><td class="r">CHF 337.60</td></tr>
       </table>
       <p class="price-note">Zeitansatz nach Wohnungsgrösse: bis 3.5 Zimmer 2.0 Std. · 4.0–4.5 Zimmer 2.5 Std. (wöchentlich) bzw. 3.0 Std. (14-täglich) · 5.0–5.5 Zimmer 3.5 bzw. 4.0 Std. Bei grösseren Objekten führen wir vorgängig eine kurze, kostenlose virtuelle Besichtigung durch.</p>
+
+      <div class="price-calc">
+        <h3>Ihr Preis in Sekunden</h3>
+        <p class="pc-hint">Zimmerzahl eingeben, Rest berechnen wir automatisch.</p>
+        <div class="pc-fields">
+          <input type="number" id="pc-zimmer" step="0.5" min="1" placeholder="Zimmeranzahl, z. B. 3.5">
+          <select id="pc-frequenz">
+            <option value="woechentlich">Wöchentlich</option>
+            <option value="14-taeglich">14-täglich</option>
+          </select>
+        </div>
+        <div class="pc-result" id="pc-result">Zimmerzahl eingeben, um Ihren Preis pro Einsatz und pro Monat zu sehen.</div>
+      </div>
     </section>
 
-    <section id="zusammenarbeit" class="band reveal" data-num="9">
-      <p class="secnum"><span class="ln"></span>9.0 — Zusammenarbeit &amp; Fragen</p>
+    <section id="zusammenarbeit" class="band reveal" data-num="10">
+      <p class="secnum"><span class="ln"></span>10.0 — Zusammenarbeit &amp; Fragen</p>
       <h2>Rahmenbedingungen &amp; häufige Fragen</h2>
       <p>Klare Konditionen für eine verlässliche Partnerschaft, ein dokumentierter Umgang mit Ihrem Schlüssel und Ihren Angaben — und Antworten auf das, was Kundinnen und Kunden uns am häufigsten fragen.</p>
       <div class="acc">
@@ -794,8 +820,8 @@
       </div>
     </section>
 
-    <section id="loslegen" class="band reveal" data-num="10">
-      <p class="secnum"><span class="ln"></span>10.0 — Auftragserteilung</p>
+    <section id="loslegen" class="band reveal" data-num="11">
+      <p class="secnum"><span class="ln"></span>11.0 — Auftragserteilung</p>
       <h2>Wir freuen uns auf Sie</h2>
       <p>Passt das Konzept zu Ihren Vorstellungen? Dann füllen Sie im nächsten Schritt Ihre Angaben aus — wir kümmern uns um den Rest.</p>
       <div class="cta-card">
@@ -849,6 +875,40 @@
     item.parentElement.querySelectorAll('.acc-item').forEach(i => i.classList.remove('open'));
     if(!wasOpen) item.classList.add('open');
   }
+
+  /* ---------- Preisrechner ---------- */
+  function pcCalcAufwand(zimmer, frequenz){
+    if(!zimmer) return null;
+    if(zimmer <= 3.5) return {std:2.0};
+    if(zimmer <= 4.5) return frequenz === '14-taeglich' ? {std:3.0} : {std:2.5};
+    if(zimmer <= 5.5) return frequenz === '14-taeglich' ? {std:4.0} : {std:null};
+    return {std:null};
+  }
+  function pcUpdate(){
+    const zimmerEl = document.getElementById('pc-zimmer');
+    const freqEl = document.getElementById('pc-frequenz');
+    const out = document.getElementById('pc-result');
+    if(!zimmerEl || !out) return;
+    const zimmer = parseFloat(zimmerEl.value);
+    const frequenz = freqEl.value;
+    if(!zimmer){ out.textContent = 'Zimmerzahl eingeben, um Ihren Preis pro Einsatz und pro Monat zu sehen.'; return; }
+    const a = pcCalcAufwand(zimmer, frequenz);
+    if(!a || !a.std){
+      out.innerHTML = 'Bei dieser Wohnungsgrösse ermitteln wir den Zeitansatz im Rahmen einer kurzen, kostenlosen virtuellen Besichtigung.';
+      return;
+    }
+    const proEinsatz = a.std * 39;
+    const einsaetzeProMonat = frequenz === '14-taeglich' ? 2.15 : 4.3;
+    const proMonat = proEinsatz * einsaetzeProMonat;
+    const freqLabel = frequenz === '14-taeglich' ? '14-täglich' : 'wöchentlich';
+    out.innerHTML = '<strong>CHF ' + proEinsatz.toFixed(2) + '</strong> pro Einsatz (' + a.std.toFixed(1) + ' Std. à CHF 39.00) · <strong>Ø CHF ' + proMonat.toFixed(2) + '</strong> pro Monat bei ' + freqLabel + ' Reinigung, exkl. MWST und einmaligem Reinigungsset (CHF 70.00).';
+  }
+  (function initPriceCalc(){
+    const zimmerEl = document.getElementById('pc-zimmer');
+    const freqEl = document.getElementById('pc-frequenz');
+    if(zimmerEl){ zimmerEl.addEventListener('input', pcUpdate); }
+    if(freqEl){ freqEl.addEventListener('change', pcUpdate); }
+  })();
 
   /* ---------- Darkmode ---------- */
   function applyTheme(t){
