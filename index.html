@@ -2250,7 +2250,7 @@ function checkCode(){
 
   const link = document.getElementById('cta-link');
   if(link){
-    const p = new URLSearchParams({an, vn, nn, adr, ort, angebotsnr: nr || ''});
+    const p = new URLSearchParams({an, vn, nn, adr, ort, angebotsnr: nr || '', code: pending.code || ''});
     link.href = 'auftragserteilung.html?' + p.toString();
   }
 

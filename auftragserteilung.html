@@ -378,7 +378,34 @@
     };
 
     saveEntry(entry);
-    window.location.href = 'danke.html?vn=' + encodeURIComponent(entry.vorname) + '&nn=' + encodeURIComponent(entry.nachname);
+
+    // Eingang melden, BEVOR die Seite wechselt.
+    // Ohne Abwarten bricht der Browser die Anfrage beim Seitenwechsel ab.
+    const weiter = () => {
+      window.location.href = 'danke.html?vn=' + encodeURIComponent(entry.vorname) +
+                             '&nn=' + encodeURIComponent(entry.nachname);
+    };
+
+    const p = new URLSearchParams(location.search);
+    const nutzlast = Object.assign({}, entry, {
+      code: p.get('code') || '',
+      angebotsnr: entry.angebotsnr || p.get('angebotsnr') || ''
+    });
+
+    const btn = document.querySelector('#orderForm button[type="submit"]');
+    if(btn){ btn.disabled = true; btn.textContent = 'Wird gesendet …'; }
+
+    // Höchstens 6 Sekunden warten, danach in jedem Fall weiterleiten
+    const timeout = new Promise(r => setTimeout(r, 6000));
+    const senden = fetch('/api/order-received', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(nutzlast),
+      keepalive: true
+    }).catch(() => {});
+
+    Promise.race([senden, timeout]).then(weiter, weiter);
+
     return false;
   }
 
