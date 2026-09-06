@@ -611,7 +611,8 @@ docx/dist/index.mjs:
           vorname: vn,
           nachname: nn,
           angebotsnr: angebotsnr,
-          link: link
+          link: link,
+          code: document.getElementById('lg-code').textContent.trim()
         })
       });
       const data = await resp.json().catch(() => ({}));
