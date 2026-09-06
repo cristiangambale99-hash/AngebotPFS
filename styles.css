@@ -432,3 +432,7 @@
   footer{padding:56px 0 100px;font-size:12px;color:var(--mute);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;border-top:1px solid var(--border);}
 
   @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto;}}
+
+/* Werkzeugleiste: Knopf soll nicht die ganze Breite einnehmen */
+.crm-toolbar .btn{width:auto;flex:none;white-space:nowrap;padding:10px 18px;}
+.crm-toolbar{align-items:center;}

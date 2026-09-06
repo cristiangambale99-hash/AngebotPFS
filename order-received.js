@@ -43,6 +43,37 @@ export default async function handler(req, res) {
       ergebnis.statusGesetzt = true;
     }
 
+    /* ---- 1b) Die vollständige Auftragserteilung dauerhaft ablegen ---- */
+    // Ohne diesen Schritt sähe das Team die Angaben nur im Browser des Kunden.
+    const auftragId = (b.code || '') || ('A' + Date.now());
+    const auftrag = {
+      code: b.code || '',
+      angebotsnr: b.angebotsnr || '',
+      eingegangenAm: new Date().toISOString(),
+      anrede: b.anrede || '', vorname: b.vorname || '', nachname: b.nachname || '',
+      adresse: b.adresse || '', plzOrt: b.plzOrt || b.ort || '',
+      mobile: b.mobile || '', mail: b.mail || b.email || '',
+      zimmer: String(b.zimmer || ''), qm: String(b.qm || ''), badezimmer: String(b.badezimmer || ''),
+      frequenz: b.frequenz || '', frequenzText: b.frequenzText || '',
+      tage: Array.isArray(b.tage) ? b.tage.join(', ') : String(b.tage || ''),
+      uhrzeit: b.uhrzeit || '', aufwandText: b.aufwandText || '',
+      pp: b.pp || '', haustiere: b.haustiere || '',
+      alarmanlage: b.alarmanlage || '', alarmCode: b.alarmCode || '',
+      fensterOfferte: b.fensterOfferte || '', springerSofort: b.springerSofort || '',
+      zusatzBettbezuege: !!b.zusatzBettbezuege, zusatzWaesche: !!b.zusatzWaesche,
+      buegelservice: b.buegelservice || '', zusatzGeschirrspueler: !!b.zusatzGeschirrspueler,
+      zusatzBackofen: !!b.zusatzBackofen,
+      vereinbarungen: b.vereinbarungen || '',
+      bearbeitet: false
+    };
+    try{
+      await speichern('auftraege', auftragId, auftrag);
+      ergebnis.auftragGespeichert = true;
+    }catch(e){
+      ergebnis.auftragGespeichert = false;
+      ergebnis.speicherFehler = e.message;
+    }
+
     /* ---- 2) Benachrichtigung an das Team ---- */
     const apiKey = process.env.RESEND_API_KEY;
     if (apiKey) {
