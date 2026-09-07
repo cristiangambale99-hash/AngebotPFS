@@ -43,7 +43,7 @@
       <div class="crm-stats">
         <div class="crm-stat"><span class="crm-stat-num" id="stat-total">0</span><span class="crm-stat-lbl">Kunden total</span></div>
         <div class="crm-stat"><span class="crm-stat-num" id="stat-month">0</span><span class="crm-stat-lbl">Diesen Monat</span></div>
-        <div class="crm-stat"><span class="crm-stat-num" id="stat-open">0</span><span class="crm-stat-lbl">Angebote offen</span></div>
+        <div class="crm-stat"><span class="crm-stat-num" id="stat-open">0</span><span class="crm-stat-lbl">Auftrag erhalten</span></div>
         <div class="crm-stat"><span class="crm-stat-num" id="stat-zusatz">0</span><span class="crm-stat-lbl">Aktive Kunden</span></div>
       </div>
 
@@ -134,12 +134,18 @@
         <button class="btn btn-sm" onclick="ladeDaten()" style="background:var(--bg);color:var(--ink);border:1px solid var(--border);">Aktualisieren</button>
         <div class="crm-filter" id="crm-filter">
           <button class="on" data-f="alle" onclick="setFilter('alle')">Alle</button>
-          <button data-f="angebot" onclick="setFilter('angebot')">Offen</button>
-          <button data-f="auftrag" onclick="setFilter('auftrag')">Aufträge</button>
+          <button data-f="neu" onclick="setFilter('neu')">Auftrag erhalten</button>
+          <button data-f="gestartet" onclick="setFilter('gestartet')">Prozess gestartet</button>
           <button data-f="aktiv" onclick="setFilter('aktiv')">Aktiv</button>
           <button data-f="abgesagt" onclick="setFilter('abgesagt')">Abgesagt</button>
         </div>
       </div>
+      <div class="crm-linkgen" style="margin-bottom:18px;">
+        <h3>Auswertung</h3>
+        <p class="crm-linkgen-hint">Gesendete Angebote und eingegangene Aufträge pro Monat und Jahr.</p>
+        <div id="crm-report"></div>
+      </div>
+
       <div class="crm-table-wrap">
         <div class="crm-table-head">
           <span>Kunde</span><span>Adresse</span><span>Datum</span><span>Status</span><span>Angebot Nr.</span><span></span>
@@ -853,59 +859,174 @@ docx/dist/index.mjs:
       alert('Code falsch.');
     }
   }
+  /* ---------- Bearbeitungsstand: Pipeline ---------- */
+  const STUFEN = [
+    { id:'neu',       label:'Auftrag erhalten', klasse:'st-auftrag' },
+    { id:'gestartet', label:'Prozess gestartet', klasse:'st-angebot' },
+    { id:'aktiv',     label:'Aktiv',             klasse:'st-aktiv'   },
+    { id:'abgesagt',  label:'Abgesagt',          klasse:'st-abgesagt'}
+  ];
+  let CRM_FILTER = 'alle';
+
+  function stufeVon(e){
+    const s = (e.stufe || '').trim();
+    return STUFEN.some(x => x.id === s) ? s : 'neu';
+  }
+
+  function setFilter(f){
+    CRM_FILTER = f;
+    document.querySelectorAll('#crm-filter button').forEach(b =>
+      b.classList.toggle('on', b.dataset.f === f));
+    renderAdminList();
+  }
+
+  async function setStufe(id, stufe){
+    const e = CS_AUFTRAEGE.find(x => String(x.id) === String(id));
+    if(!e) return;
+    e.stufe = stufe;
+    renderAdminList();
+    try{
+      const r = await fetch('/api/orders?aktion=update', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ id: id, stufe: stufe })
+      });
+      if(!r.ok) throw new Error('Server ' + r.status);
+    }catch(err){
+      alert('Der Stand konnte nicht gespeichert werden: ' + err.message);
+    }
+  }
+
   function renderAdminList(){
     const wrap = document.getElementById('admin-entries');
     if(!wrap) return;
-    const list = CS_AUFTRAEGE;
+    const alle = CS_AUFTRAEGE;
 
+    /* ---- Kennzahlen ---- */
     const now = new Date();
-    const thisMonthCount = list.filter(e => {
-      const parts = (e.timestamp || '').split(',')[0].split('.');
-      return parts.length === 3 && parseInt(parts[1]) === (now.getMonth() + 1) && parseInt(parts[2]) === now.getFullYear();
+    const imMonat = alle.filter(e => {
+      const d = e.eingegangenAm ? new Date(e.eingegangenAm) : null;
+      return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).length;
-    const openCount = list.filter(e => !e.angebotsnr).length;
-    const zusatzCount = list.filter(e => e.zusatzBuchen === 'Ja').length;
-    document.getElementById('stat-total').textContent = list.length;
-    document.getElementById('stat-month').textContent = thisMonthCount;
-    // Abschlussquote aus den gesendeten Angeboten, sofern verfügbar
+    const aktiv = alle.filter(e => stufeVon(e) === 'aktiv').length;
+    const neu   = alle.filter(e => stufeVon(e) === 'neu').length;
+    const setz = (id, wert) => { const el = document.getElementById(id); if(el) el.textContent = wert; };
+    setz('stat-total', alle.length); setz('stat-month', imMonat);
+    setz('stat-open', neu); setz('stat-zusatz', aktiv);
+
     if(CS_ANGEBOTE && CS_ANGEBOTE.kennzahlen){
       const k = CS_ANGEBOTE.kennzahlen;
       const el = document.getElementById('admin-ladeinfo');
-      if(el && el.style.display === 'none'){
+      if(el){
         el.innerHTML = '<strong>' + k.gesendet + '</strong> Angebote gesendet · ' +
                        '<strong>' + k.auftraege + '</strong> Aufträge erhalten · ' +
-                       '<strong>' + k.offen + '</strong> offen · ' +
+                       '<strong>' + k.offen + '</strong> ohne Rückmeldung · ' +
                        'Abschlussquote <strong>' + k.quote + '%</strong>';
         el.style.display = 'block';
       }
     }
-    document.getElementById('stat-open').textContent = openCount;
-    document.getElementById('stat-zusatz').textContent = zusatzCount;
+    renderReport();
 
-    if(list.length === 0){
-      wrap.innerHTML = '<p class="admin-empty" style="padding:24px;">Noch keine Auftragserteilungen eingegangen.</p>';
+    /* ---- Filtern und suchen ---- */
+    const suche = (document.getElementById('crm-search') || {}).value || '';
+    const q = suche.trim().toLowerCase();
+    let liste = alle.filter(e => CRM_FILTER === 'alle' || stufeVon(e) === CRM_FILTER);
+    if(q){
+      liste = liste.filter(e =>
+        [e.vorname, e.nachname, e.adresse, e.plzOrt, e.angebotsnr, e.mail]
+          .filter(Boolean).join(' ').toLowerCase().includes(q));
+    }
+
+    /* ---- Anzahl je Filter im Knopf ---- */
+    document.querySelectorAll('#crm-filter button').forEach(b => {
+      const f = b.dataset.f;
+      const n = f === 'alle' ? alle.length : alle.filter(e => stufeVon(e) === f).length;
+      const basis = b.dataset.label || b.textContent.replace(/\s*\(\d+\)$/, '');
+      b.dataset.label = basis;
+      b.textContent = basis + ' (' + n + ')';
+    });
+
+    if(liste.length === 0){
+      wrap.innerHTML = '<p class="admin-empty" style="padding:24px;">' +
+        (alle.length === 0 ? 'Noch keine Auftragserteilungen eingegangen.'
+                           : 'Keine Einträge für diese Auswahl.') + '</p>';
       return;
     }
-    wrap.innerHTML = list.slice().reverse().map(e => {
-      const status = e.angebotsnr
-        ? '<span class="crm-status ready">Angebot vergeben</span>'
-        : '<span class="crm-status pending">Nummer ausstehend</span>';
+
+    wrap.innerHTML = liste.map(e => {
+      const st = stufeVon(e);
+      const def = STUFEN.find(x => x.id === st);
+      const naechste = st === 'neu' ? 'gestartet' : (st === 'gestartet' ? 'aktiv' : null);
+      const naechsteLabel = naechste === 'gestartet' ? 'Prozess starten'
+                          : naechste === 'aktiv' ? 'Auf aktiv setzen' : null;
+      const eid = e.id;
+      const hell = 'background:var(--bg);color:var(--ink);border:1px solid var(--border);';
       return (
         '<div class="crm-row">' +
-          '<div class="who">' + e.vorname + ' ' + e.nachname + '</div>' +
-          '<div class="muted">' + e.adresse + ', ' + e.plzOrt + '</div>' +
-          '<div class="muted">' + e.timestamp + '</div>' +
-          '<div>' + status + '</div>' +
-          '<div><input type="text" maxlength="4" pattern="[0-9]{4}" placeholder="0000" value="' + (e.angebotsnr || '') + '" id="anr-' + e.id + '"></div>' +
+          '<div class="who">' + (e.vorname || '') + ' ' + (e.nachname || '') +
+            '<div class="muted" style="font-size:11.5px;font-weight:400;">' + (e.mail || '') + '</div></div>' +
+          '<div class="muted">' + (e.adresse || '') + ', ' + (e.plzOrt || '') + '</div>' +
+          '<div class="muted">' + (e.timestamp || '') + '</div>' +
+          '<div><span class="crm-status ' + def.klasse + '">' + def.label + '</span></div>' +
+          '<div><input type="text" maxlength="4" pattern="[0-9]{4}" placeholder="0000" value="' + (e.angebotsnr || '') + '" id="anr-' + eid + '"></div>' +
           '<div class="crm-row-actions">' +
-            '<button class="btn btn-sm" onclick=\'saveAngebotsnr(\"' + e.id + '\")\'>Speichern</button>' +
-            '<button class="btn btn-sm" style="background:var(--bg);color:var(--ink);border:1px solid var(--border);" onclick=\'openChecklistEditor(\"' + e.id + '\")\'>Checkliste' + (e.checklistOverride ? ' ✎' : '') + '</button>' +
-            '<button class="btn btn-sm" style="background:var(--bg);color:var(--ink);border:1px solid var(--border);" onclick=\'downloadLeistungsverzeichnis(\"' + e.id + '\")\'>PDF</button>' +
-            '<button class="btn btn-sm" style="background:var(--bg);color:var(--ink);border:1px solid var(--border);" onclick=\'downloadLeistungsverzeichnisWord(\"' + e.id + '\")\'>Word</button>' +
-            '<button class="btn btn-sm" style="background:var(--bg);color:var(--ink);border:1px solid var(--border);" onclick=\'openEmailPanel(\"' + e.id + '\")\'>Bestätigungsmail</button>' +
+            (naechste ? '<button class="btn btn-sm" onclick=\'setStufe("' + eid + '","' + naechste + '")\'>' + naechsteLabel + '</button>' : '') +
+            (st !== 'abgesagt'
+              ? '<button class="btn btn-sm" style="' + hell + '" onclick=\'setStufe("' + eid + '","abgesagt")\'>Abgesagt</button>'
+              : '<button class="btn btn-sm" style="' + hell + '" onclick=\'setStufe("' + eid + '","neu")\'>Zurückholen</button>') +
+            '<button class="btn btn-sm" style="' + hell + '" onclick=\'saveAngebotsnr("' + eid + '")\'>Nr. speichern</button>' +
+            '<button class="btn btn-sm" style="' + hell + '" onclick=\'openChecklistEditor("' + eid + '")\'>Checkliste' + (e.checklistOverride ? ' ✎' : '') + '</button>' +
+            '<button class="btn btn-sm" style="' + hell + '" onclick=\'downloadLeistungsverzeichnis("' + eid + '")\'>PDF</button>' +
+            '<button class="btn btn-sm" style="' + hell + '" onclick=\'downloadLeistungsverzeichnisWord("' + eid + '")\'>Word</button>' +
+            '<button class="btn btn-sm" style="' + hell + '" onclick=\'openEmailPanel("' + eid + '")\'>Bestätigungsmail</button>' +
           '</div>' +
         '</div>'
       );
+    }).join('');
+  }
+
+  /* ---------- Auswertung nach Monat und Jahr ---------- */
+  function renderReport(){
+    const box = document.getElementById('crm-report');
+    if(!box) return;
+    const angebote = (CS_ANGEBOTE && CS_ANGEBOTE.angebote) || [];
+    const auftraege = CS_AUFTRAEGE || [];
+    const MON = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+    const jahre = {};
+    function zaehle(datum, feld){
+      if(!datum) return;
+      const d = new Date(datum);
+      if(isNaN(d)) return;
+      const j = d.getFullYear(), m = d.getMonth();
+      jahre[j] = jahre[j] || { gesendet:0, auftraege:0, monate:{} };
+      jahre[j].monate[m] = jahre[j].monate[m] || { gesendet:0, auftraege:0 };
+      jahre[j][feld]++; jahre[j].monate[m][feld]++;
+    }
+    angebote.forEach(a => zaehle(a.gesendetAm, 'gesendet'));
+    auftraege.forEach(a => zaehle(a.eingegangenAm, 'auftraege'));
+
+    const sortiert = Object.keys(jahre).sort((a,b) => b - a);
+    if(!sortiert.length){
+      box.innerHTML = '<p class="crm-linkgen-hint" style="margin:0;">Noch keine Daten für eine Auswertung.</p>';
+      return;
+    }
+
+    box.innerHTML = sortiert.map(j => {
+      const d = jahre[j];
+      const quote = d.gesendet ? Math.round(d.auftraege / d.gesendet * 100) : 0;
+      const monate = Object.keys(d.monate).sort((a,b) => b - a).map(m => {
+        const x = d.monate[m];
+        const q = x.gesendet ? Math.round(x.auftraege / x.gesendet * 100) : 0;
+        return '<div class="rep-row">' +
+          '<span>' + MON[m] + '</span>' +
+          '<span>' + x.gesendet + ' gesendet</span>' +
+          '<span>' + x.auftraege + ' Aufträge</span>' +
+          '<span class="rep-q">' + q + '%</span></div>';
+      }).join('');
+      return '<div class="rep-jahr">' +
+        '<div class="rep-head"><strong>' + j + '</strong>' +
+          '<span>' + d.gesendet + ' gesendet · ' + d.auftraege + ' Aufträge · ' + quote + '% Abschluss</span></div>' +
+        monate + '</div>';
     }).join('');
   }
 

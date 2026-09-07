@@ -436,3 +436,17 @@
 /* Werkzeugleiste: Knopf soll nicht die ganze Breite einnehmen */
 .crm-toolbar .btn{width:auto;flex:none;white-space:nowrap;padding:10px 18px;}
 .crm-toolbar{align-items:center;}
+
+/* Auswertung nach Monat und Jahr */
+.rep-jahr{border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:12px;}
+.rep-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;
+  padding:12px 16px;background:var(--wash);font-size:13.5px;}
+.rep-head strong{font-family:var(--sans-head);font-size:16px;color:var(--ink);}
+.rep-head span{color:var(--mute);font-size:12.5px;}
+.rep-row{display:grid;grid-template-columns:1.2fr 1fr 1fr .6fr;gap:10px;padding:10px 16px;
+  border-top:1px solid var(--border);font-size:13px;color:var(--body-c);align-items:center;}
+.rep-row .rep-q{text-align:right;font-weight:600;color:var(--teal-deep);}
+@media (max-width:640px){
+  .rep-row{grid-template-columns:1fr 1fr;gap:4px 10px;font-size:12.5px;}
+  .rep-row .rep-q{text-align:left;}
+}
