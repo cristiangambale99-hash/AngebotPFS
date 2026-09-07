@@ -8,6 +8,7 @@ import crypto from 'crypto';
 
 const SAMMLUNG = 'angebote';
 const EMPFAENGER = 'putzfrauenservice@clean-service.ch';
+const SPEZIAL = 'spezialreinigung@clean-service.ch';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -63,6 +64,7 @@ export default async function handler(req, res) {
       buegelservice: b.buegelservice || '', zusatzGeschirrspueler: !!b.zusatzGeschirrspueler,
       zusatzBackofen: !!b.zusatzBackofen,
       vereinbarungen: b.vereinbarungen || '',
+      stufe: 'neu',
       bearbeitet: false
     };
     try{
@@ -90,27 +92,45 @@ export default async function handler(req, res) {
         ['Aufwand', b.aufwandText || '']
       ].filter(([, v]) => v);
 
-      const tabelle = zeilen.map(([k, v]) => `
-        <tr>
-          <td style="padding:7px 0;color:#7C8C8B;font-size:13px;width:130px;vertical-align:top;">${k}</td>
-          <td style="padding:7px 0;color:#0E1E1D;font-size:13px;"><strong>${v}</strong></td>
+      const tabelle = zeilen.map(([k, v], i) => `
+        <tr style="background:${i % 2 ? '#FFFFFF' : '#F7FBFB'};">
+          <td style="padding:11px 16px;color:#7C8C8B;font-size:12.5px;width:150px;vertical-align:top;border-bottom:1px solid #EDF3F2;">${k}</td>
+          <td style="padding:11px 16px;color:#0E1E1D;font-size:13.5px;font-weight:600;border-bottom:1px solid #EDF3F2;">${v}</td>
         </tr>`).join('');
 
       const html = `
-      <div style="font-family:Verdana,Arial,sans-serif;color:#0E1E1D;max-width:560px;margin:0 auto;line-height:1.6;">
-        <p style="font-size:15px;"><strong>Neue Auftragserteilung eingegangen</strong></p>
-        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-top:1px solid #E1EAE9;border-bottom:1px solid #E1EAE9;margin:14px 0;">
-          ${tabelle}
-        </table>
-        ${b.vereinbarungen ? `<p style="font-size:13px;"><span style="color:#7C8C8B;">Spezielle Vereinbarungen:</span><br>${b.vereinbarungen}</p>` : ''}
-        <p style="margin-top:22px;">
-          <a href="https://${req.headers.host || 'clean-service.ch'}/admin.html"
-             style="background:#2BB6B7;color:#ffffff;padding:12px 24px;border-radius:100px;text-decoration:none;font-weight:600;display:inline-block;font-size:14px;">Im Admin-Bereich ansehen</a>
-        </p>
-        <hr style="border:none;border-top:1px solid #E1EAE9;margin:24px 0 12px;">
-        <p style="font-size:11.5px;color:#7C8C8B;">
-          Automatische Meldung aus dem Angebotssystem · Clean Service Scaramuzzo AG
-        </p>
+      <div style="background:#F4F8F8;padding:28px 16px;">
+        <div style="max-width:600px;margin:0 auto;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(14,30,29,.07);font-family:Verdana,Arial,sans-serif;">
+
+          <div style="background:linear-gradient(135deg,#2BB6B7,#12797A);padding:26px 28px;">
+            <div style="color:rgba(255,255,255,.82);font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:7px;">Clean Service Scaramuzzo AG</div>
+            <div style="color:#FFFFFF;font-size:20px;font-weight:bold;line-height:1.3;">Neue Auftragserteilung</div>
+            <div style="color:rgba(255,255,255,.9);font-size:14px;margin-top:5px;">${name}${b.angebotsnr ? ' &nbsp;·&nbsp; Angebot Nr. ' + b.angebotsnr : ''}</div>
+          </div>
+
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+            ${tabelle}
+          </table>
+
+          ${b.vereinbarungen ? `
+          <div style="padding:18px 28px;background:#FFF8EC;border-top:1px solid #F2E3C9;">
+            <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#96601A;margin-bottom:6px;">Spezielle Vereinbarungen</div>
+            <div style="font-size:13.5px;color:#0E1E1D;line-height:1.6;">${b.vereinbarungen}</div>
+          </div>` : ''}
+
+          <div style="padding:24px 28px;text-align:center;">
+            <a href="https://${req.headers.host || 'angebot-pfs.vercel.app'}/admin.html"
+               style="background:#2BB6B7;color:#FFFFFF;padding:14px 30px;border-radius:100px;text-decoration:none;font-weight:bold;display:inline-block;font-size:14px;">Im CRM bearbeiten</a>
+          </div>
+
+          <div style="padding:16px 28px 22px;border-top:1px solid #EDF3F2;text-align:center;">
+            <div style="font-size:11px;color:#9AA8A7;line-height:1.6;">
+              Automatische Meldung aus dem Angebotssystem<br>
+              Clean Service Scaramuzzo AG · Industriestrasse 5 · 8307 Effretikon
+            </div>
+          </div>
+
+        </div>
       </div>`;
 
       const r = await fetch('https://api.resend.com/emails', {
@@ -128,6 +148,173 @@ export default async function handler(req, res) {
         })
       });
       ergebnis.mailGesendet = r.ok;
+
+      /* ---- Bestätigung an die Kundschaft ---- */
+      const kundenMail = b.mail || b.email || '';
+      if (kundenMail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(kundenMail)) {
+        const mitSpringer = String(b.springerSofort || '').toLowerCase() === 'ja';
+
+        const gruss = b.anrede === 'Herr' ? `Sehr geehrter Herr ${b.nachname || ''}`
+                    : b.anrede === 'Frau' ? `Sehr geehrte Frau ${b.nachname || ''}`
+                    : `Guten Tag ${[b.vorname, b.nachname].filter(Boolean).join(' ')}`;
+
+        const absatzStart = mitSpringer
+          ? 'Wie von Ihnen gewünscht, starten wir bereits jetzt mit unserem Springerteam, damit Sie nicht warten müssen. Mein Administrationsteam meldet sich in den nächsten Tagen bei Ihnen, um den ersten Einsatz mit Ihnen zu vereinbaren. Parallel dazu organisieren wir sorgfältig Ihre feste Raumpflegerin.'
+          : 'Für die Einführung inklusive erster Reinigung benötigen wir in der Regel eine Vorlaufzeit von 10 bis 14 Werktagen. In dieser Zeit organisieren wir sorgfältig die passende Reinigungskraft für Ihre Bedürfnisse und stimmen mit Ihnen die letzten Details ab. Sollte sich der Start dennoch verzögern, bieten wir Ihnen als Übergangslösung gerne unser Springerteam an, damit Sie keinen Unterbruch spüren.';
+
+        const eckdaten = [
+          ['Objekt', [b.adresse, b.plzOrt || b.ort].filter(Boolean).join(', ')],
+          ['Reinigungsrhythmus', b.frequenzText || b.frequenz || ''],
+          ['Gewünschter Tag', Array.isArray(b.tage) ? b.tage.join(', ') : (b.tage || '')],
+          ['Zeitfenster', b.uhrzeit || ''],
+          ['Aufwand', b.aufwandText || ''],
+          ['Angebot Nr.', b.angebotsnr || '']
+        ].filter(([, v]) => v);
+
+        const eckTabelle = eckdaten.map(([k, v], i) => `
+          <tr style="background:${i % 2 ? '#FFFFFF' : '#F7FBFB'};">
+            <td style="padding:10px 16px;color:#7C8C8B;font-size:12.5px;width:160px;border-bottom:1px solid #EDF3F2;">${k}</td>
+            <td style="padding:10px 16px;color:#0E1E1D;font-size:13.5px;font-weight:600;border-bottom:1px solid #EDF3F2;">${v}</td>
+          </tr>`).join('');
+
+        const kundenHtml = `
+        <div style="background:#F4F8F8;padding:28px 16px;">
+          <div style="max-width:600px;margin:0 auto;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(14,30,29,.07);font-family:Verdana,Arial,sans-serif;">
+
+            <div style="background:linear-gradient(135deg,#2BB6B7,#12797A);padding:28px;">
+              <div style="color:rgba(255,255,255,.82);font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px;">Clean Service Scaramuzzo AG</div>
+              <div style="color:#FFFFFF;font-size:21px;font-weight:bold;line-height:1.3;">Herzlichen Dank für Ihr Vertrauen</div>
+            </div>
+
+            <div style="padding:28px;color:#485655;font-size:14px;line-height:1.7;">
+              <p style="margin:0 0 16px;">${gruss}</p>
+              <p style="margin:0 0 16px;">Herzlichen Dank für Ihr Vertrauen und die Erteilung des Auftrags. Wir freuen uns sehr, Sie als neue Kundschaft begrüssen zu dürfen, und werden alles daransetzen, dass Sie mit unserer Dienstleistung rundum zufrieden sind.</p>
+              <p style="margin:0 0 16px;">${absatzStart}</p>
+              <p style="margin:0 0 16px;">Im Tagesgeschäft stehen Ihnen <strong>Frau Scalone</strong> und <strong>Herr Moreno</strong> aus meinem Administrationsteam zur Seite. Sie sind Ihre direkten Ansprechpersonen für sämtliche organisatorischen Anliegen rund um Ihre Reinigung.</p>
+              <p style="margin:0 0 16px;">Unser gesamtes Team steht für Zuverlässigkeit und Sorgfalt, damit Sie sich auf eine konstant hohe Qualität verlassen können. Sollten Sie dennoch einmal nicht zufrieden sein, wenden Sie sich jederzeit direkt an mich persönlich — ich kümmere mich umgehend um eine Lösung.</p>
+              <p style="margin:0;">Ich freue mich auf die Zusammenarbeit und melde mich, sobald die Einführung geplant ist.</p>
+            </div>
+
+            ${eckTabelle ? `
+            <div style="padding:0 28px 4px;">
+              <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7C8C8B;margin-bottom:8px;">Ihre Angaben im Überblick</div>
+            </div>
+            <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border-top:1px solid #EDF3F2;">
+              ${eckTabelle}
+            </table>` : ''}
+
+            <div style="padding:24px 28px;border-top:1px solid #EDF3F2;">
+              <div style="font-size:14px;color:#0E1E1D;font-weight:bold;">Cristian Gambale</div>
+              <div style="font-size:12.5px;color:#7C8C8B;margin-top:2px;">Bereichsleiter Putzfrauenservice</div>
+              <div style="font-size:12.5px;color:#12797A;margin-top:8px;">T 0844 355 355 · putzfrauenservice@clean-service.ch</div>
+            </div>
+
+            <div style="padding:16px 28px 22px;background:#F7FBFB;text-align:center;">
+              <div style="font-size:11px;color:#9AA8A7;line-height:1.6;">
+                Clean Service Scaramuzzo AG · Industriestrasse 5 · 8307 Effretikon<br>
+                T 0844 355 355 · clean-service.ch
+              </div>
+            </div>
+
+          </div>
+        </div>`;
+
+        const kundenText =
+          `${gruss}\n\n` +
+          'Herzlichen Dank für Ihr Vertrauen und die Erteilung des Auftrags. Wir freuen uns sehr, Sie als neue Kundschaft begrüssen zu dürfen, und werden alles daransetzen, dass Sie mit unserer Dienstleistung rundum zufrieden sind.\n\n' +
+          absatzStart + '\n\n' +
+          'Im Tagesgeschäft stehen Ihnen Frau Scalone und Herr Moreno aus meinem Administrationsteam zur Seite. Sie sind Ihre direkten Ansprechpersonen für sämtliche organisatorischen Anliegen rund um Ihre Reinigung.\n\n' +
+          'Unser gesamtes Team steht für Zuverlässigkeit und Sorgfalt, damit Sie sich auf eine konstant hohe Qualität verlassen können. Sollten Sie dennoch einmal nicht zufrieden sein, wenden Sie sich jederzeit direkt an mich persönlich — ich kümmere mich umgehend um eine Lösung.\n\n' +
+          'Ich freue mich auf die Zusammenarbeit und melde mich, sobald die Einführung geplant ist.\n\n' +
+          (eckdaten.length ? eckdaten.map(([k, v]) => `${k}: ${v}`).join('\n') + '\n\n' : '') +
+          'Freundliche Grüsse\nCristian Gambale\nBereichsleiter Putzfrauenservice\n\n' +
+          'Clean Service Scaramuzzo AG · Industriestrasse 5 · 8307 Effretikon\nT 0844 355 355 · clean-service.ch';
+
+        try {
+          const rk = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              from: 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
+              to: [kundenMail],
+              reply_to: 'putzfrauenservice@clean-service.ch',
+              subject: 'Herzlichen Dank für Ihren Auftrag — Clean Service Scaramuzzo AG',
+              html: kundenHtml,
+              text: kundenText
+            })
+          });
+          ergebnis.kundenmailGesendet = rk.ok;
+        } catch (e) {
+          ergebnis.kundenmailGesendet = false;
+        }
+      }
+
+      /* ---- Fensterreinigung gewünscht: Spezialreinigung informieren ---- */
+      if (String(b.fensterOfferte || '').toLowerCase() === 'ja') {
+        const zeilenF = [
+          ['Kunde', name],
+          ['Adresse', [b.adresse, b.plzOrt || b.ort].filter(Boolean).join(', ')],
+          ['Telefon', b.mobile || ''],
+          ['E-Mail', b.mail || b.email || ''],
+          ['Zimmer', b.zimmer || ''],
+          ['Fläche', b.qm ? b.qm + ' m²' : ''],
+          ['Angebot Nr.', b.angebotsnr || ''],
+          ['Reinigungsrhythmus', b.frequenzText || b.frequenz || '']
+        ].filter(([, v]) => v);
+
+        const tabF = zeilenF.map(([k, v], i) => `
+          <tr style="background:${i % 2 ? '#FFFFFF' : '#F7FBFB'};">
+            <td style="padding:10px 16px;color:#7C8C8B;font-size:12.5px;width:150px;border-bottom:1px solid #EDF3F2;">${k}</td>
+            <td style="padding:10px 16px;color:#0E1E1D;font-size:13.5px;font-weight:600;border-bottom:1px solid #EDF3F2;">${v}</td>
+          </tr>`).join('');
+
+        const htmlF = `
+        <div style="background:#F4F8F8;padding:28px 16px;">
+          <div style="max-width:600px;margin:0 auto;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(14,30,29,.07);font-family:Verdana,Arial,sans-serif;">
+            <div style="background:linear-gradient(135deg,#2BB6B7,#12797A);padding:26px 28px;">
+              <div style="color:rgba(255,255,255,.82);font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:7px;">Anfrage aus dem Putzfrauenservice</div>
+              <div style="color:#FFFFFF;font-size:20px;font-weight:bold;line-height:1.3;">Fensterreinigungsofferte gewünscht</div>
+            </div>
+            <div style="padding:22px 28px 6px;color:#485655;font-size:14px;line-height:1.7;">
+              <p style="margin:0;">Bei der Auftragserteilung für die Privathaushaltreinigung hat die Kundschaft eine <strong>unverbindliche Offerte für die Fensterreinigung</strong> gewünscht. Bitte um Kontaktaufnahme.</p>
+            </div>
+            <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-top:16px;">
+              ${tabF}
+            </table>
+            ${b.vereinbarungen ? `
+            <div style="padding:16px 28px;background:#FFF8EC;border-top:1px solid #F2E3C9;">
+              <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#96601A;margin-bottom:6px;">Hinweise der Kundschaft</div>
+              <div style="font-size:13.5px;color:#0E1E1D;line-height:1.6;">${b.vereinbarungen}</div>
+            </div>` : ''}
+            <div style="padding:16px 28px 22px;background:#F7FBFB;text-align:center;">
+              <div style="font-size:11px;color:#9AA8A7;line-height:1.6;">
+                Automatische Meldung aus dem Angebotssystem · Clean Service Scaramuzzo AG
+              </div>
+            </div>
+          </div>
+        </div>`;
+
+        try {
+          const rf = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              from: 'Angebotssystem PFS <putzfrauenservice@clean-service.ch>',
+              to: [SPEZIAL],
+              cc: [EMPFAENGER],
+              reply_to: b.mail || b.email || EMPFAENGER,
+              subject: `Fensterreinigungsofferte gewünscht — ${name}`,
+              html: htmlF,
+              text: 'Fensterreinigungsofferte gewünscht\n\n' +
+                    zeilenF.map(([k, v]) => `${k}: ${v}`).join('\n') +
+                    '\n\nBitte um Kontaktaufnahme mit der Kundschaft.'
+            })
+          });
+          ergebnis.fenstermailGesendet = rf.ok;
+        } catch (e) {
+          ergebnis.fenstermailGesendet = false;
+        }
+      }
     }
 
     return res.status(200).json({ ok: true, ...ergebnis });

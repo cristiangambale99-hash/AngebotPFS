@@ -40,37 +40,84 @@ export default async function handler(req, res) {
     : anrede === 'Frau' ? ('Sehr geehrte Frau ' + (nachname || ''))
     : ('Guten Tag ' + [vorname, nachname].filter(Boolean).join(' '));
 
-  const subject = 'Ihr persönliches Reinigungskonzept – Clean Service Scaramuzzo AG';
+  const subject = `Ihr persönliches Reinigungsangebot${angebotsnr ? ' — Nr. ' + angebotsnr : ''} · Clean Service Scaramuzzo AG`;
 
   const html = `
-  <div style="font-family:Verdana,Arial,sans-serif;color:#1F2A2B;max-width:560px;margin:0 auto;line-height:1.5;">
-    <p>${anredeText}</p>
-    <p>Vielen Dank für Ihr Interesse an unserem Putzfrauenservice. Ihr persönliches Reinigungskonzept mit allen Details zu Leistungen, Preisen und Ablauf steht ab sofort für Sie bereit.</p>
-    <p style="text-align:center;margin:28px 0 22px;">
-      <a href="${link}" style="background:#2BB6B7;color:#ffffff;padding:14px 28px;border-radius:100px;text-decoration:none;font-weight:600;display:inline-block;">Zu Ihrem persönlichen Angebot</a>
-    </p>
-    ${code ? `
-    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 24px;">
-      <tr><td style="background:#EAF6F6;border:1px solid #CFE6EA;border-radius:12px;padding:18px 20px;text-align:center;">
-        <div style="font-size:12px;color:#7C8C8B;text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px;">Ihr Zugangscode</div>
-        <div style="font-family:'Courier New',monospace;font-size:26px;font-weight:bold;color:#12797A;letter-spacing:.22em;">${code}</div>
-      </td></tr>
-    </table>` : ''}
-    ${angebotsnr ? `<p style="color:#4A5654;font-size:13px;">Angebot Nr. ${angebotsnr}</p>` : ''}
-    <p>Bei Fragen sind wir jederzeit gerne persönlich für Sie da.</p>
-    <p>Freundliche Grüsse<br>Ihr Team der Clean Service Scaramuzzo AG</p>
-    <hr style="border:none;border-top:1px solid #eee;margin:28px 0 16px;">
-    <p style="font-size:12px;color:#878787;">Clean Service Scaramuzzo AG · Industriestrasse 5 · 8307 Effretikon · T 0844 355 355 · clean-service.ch</p>
+  <div style="background:#F4F8F8;padding:28px 16px;">
+    <div style="max-width:600px;margin:0 auto;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(14,30,29,.07);font-family:Verdana,Arial,sans-serif;">
+
+      <div style="background:linear-gradient(135deg,#2BB6B7,#12797A);padding:28px;">
+        <div style="color:rgba(255,255,255,.82);font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px;">Clean Service Scaramuzzo AG · seit 1984</div>
+        <div style="color:#FFFFFF;font-size:21px;font-weight:bold;line-height:1.3;">Ihr persönliches Reinigungsangebot</div>
+        ${angebotsnr ? `<div style="color:rgba(255,255,255,.9);font-size:13.5px;margin-top:6px;">Angebot Nr. ${angebotsnr}</div>` : ''}
+      </div>
+
+      <div style="padding:28px;color:#485655;font-size:14px;line-height:1.7;">
+        <p style="margin:0 0 16px;">${anredeText}</p>
+        <p style="margin:0 0 16px;">Vielen Dank für Ihr Interesse an unserem Putzfrauenservice. Wir haben Ihr Angebot persönlich auf Ihre Wohnung zugeschnitten — mit allen Leistungen, Ihren Konditionen und dem konkreten Ablauf.</p>
+        <p style="margin:0 0 4px;">Sie finden darin unter anderem:</p>
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 20px;">
+          <tr><td style="padding:5px 0;font-size:13.5px;color:#485655;">&nbsp;·&nbsp; Welche Leistungen in Ihrer Reinigung enthalten sind</td></tr>
+          <tr><td style="padding:5px 0;font-size:13.5px;color:#485655;">&nbsp;·&nbsp; Ihren konkreten Preis pro Einsatz und pro Monat</td></tr>
+          <tr><td style="padding:5px 0;font-size:13.5px;color:#485655;">&nbsp;·&nbsp; Das Team, das Sie betreut, und unser Springerteam bei Ausfällen</td></tr>
+          <tr><td style="padding:5px 0;font-size:13.5px;color:#485655;">&nbsp;·&nbsp; Wie wir mit Ihrem Schlüssel und Ihren Angaben umgehen</td></tr>
+        </table>
+
+        <p style="text-align:center;margin:24px 0 20px;">
+          <a href="${link}" style="background:#2BB6B7;color:#ffffff;padding:15px 32px;border-radius:100px;text-decoration:none;font-weight:bold;display:inline-block;font-size:15px;">Angebot jetzt ansehen</a>
+        </p>
+
+        ${code ? `
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 20px;">
+          <tr><td style="background:#EAF6F6;border:1px solid #CFE6EA;border-radius:12px;padding:18px 20px;text-align:center;">
+            <div style="font-size:11px;color:#7C8C8B;text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px;">Ihr persönlicher Zugangscode</div>
+            <div style="font-family:'Courier New',monospace;font-size:26px;font-weight:bold;color:#12797A;letter-spacing:.22em;">${code}</div>
+            <div style="font-size:11.5px;color:#7C8C8B;margin-top:8px;">Bitte geben Sie diesen Code beim Öffnen ein. Das Angebot ist ausschliesslich für Sie bestimmt.</div>
+          </td></tr>
+        </table>` : ''}
+
+        <p style="margin:0;">Das Durchlesen dauert rund fünf Minuten. Wenn Sie Fragen haben oder etwas anders wünschen, rufen Sie mich einfach an — ich bin gerne persönlich für Sie da.</p>
+      </div>
+
+      <div style="padding:0 28px 24px;">
+        <div style="border-top:1px solid #EDF3F2;padding-top:20px;">
+          <div style="font-size:14.5px;color:#0E1E1D;font-weight:bold;">Cristian Gambale</div>
+          <div style="font-size:12.5px;color:#7C8C8B;margin-top:2px;">Bereichsleiter Putzfrauenservice</div>
+          <div style="font-size:12.5px;color:#12797A;margin-top:9px;line-height:1.7;">
+            T 0844 355 355<br>
+            putzfrauenservice@clean-service.ch
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:16px 28px 22px;background:#F7FBFB;text-align:center;">
+        <div style="font-size:11px;color:#9AA8A7;line-height:1.6;">
+          Clean Service Scaramuzzo AG · Industriestrasse 5 · 8307 Effretikon<br>
+          T 0844 355 355 · clean-service.ch · ISO 9001 · ISO 14001 · ISO 45001
+        </div>
+      </div>
+
+    </div>
   </div>`;
 
   const text =
     anredeText + '\n\n' +
-    'Vielen Dank für Ihr Interesse an unserem Putzfrauenservice. Ihr persönliches Angebot steht ab sofort für Sie bereit:\n\n' +
-    link + '\n\n' +
-    (code ? ('Ihr Zugangscode: ' + code + '\n\n') : '') +
+    'Vielen Dank für Ihr Interesse an unserem Putzfrauenservice. Wir haben Ihr Angebot persönlich auf Ihre Wohnung zugeschnitten — mit allen Leistungen, Ihren Konditionen und dem konkreten Ablauf.\n\n' +
+    'Sie finden darin unter anderem:\n' +
+    '· Welche Leistungen in Ihrer Reinigung enthalten sind\n' +
+    '· Ihren konkreten Preis pro Einsatz und pro Monat\n' +
+    '· Das Team, das Sie betreut, und unser Springerteam bei Ausfällen\n' +
+    '· Wie wir mit Ihrem Schlüssel und Ihren Angaben umgehen\n\n' +
+    'Angebot ansehen:\n' + link + '\n\n' +
+    (code ? ('Ihr persönlicher Zugangscode: ' + code + '\n' +
+             'Bitte geben Sie diesen Code beim Öffnen ein. Das Angebot ist ausschliesslich für Sie bestimmt.\n\n') : '') +
     (angebotsnr ? ('Angebot Nr. ' + angebotsnr + '\n\n') : '') +
-    'Freundliche Grüsse\nIhr Team der Clean Service Scaramuzzo AG\n\n' +
-    'Clean Service Scaramuzzo AG · Industriestrasse 5 · 8307 Effretikon · T 0844 355 355 · clean-service.ch';
+    'Das Durchlesen dauert rund fünf Minuten. Wenn Sie Fragen haben oder etwas anders wünschen, rufen Sie mich einfach an.\n\n' +
+    'Freundliche Grüsse\n' +
+    'Cristian Gambale\n' +
+    'Bereichsleiter Putzfrauenservice\n' +
+    'T 0844 355 355 · putzfrauenservice@clean-service.ch\n\n' +
+    'Clean Service Scaramuzzo AG · Industriestrasse 5 · 8307 Effretikon · clean-service.ch';
 
   try {
     const resendRes = await fetch('https://api.resend.com/emails', {
@@ -80,7 +127,8 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
+        from: 'Cristian Gambale · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
+        reply_to: 'putzfrauenservice@clean-service.ch',
         to: [to],
         subject,
         html,
