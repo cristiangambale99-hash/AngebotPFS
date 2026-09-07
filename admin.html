@@ -904,8 +904,11 @@ docx/dist/index.mjs:
       const f = d.faellig || [];
       if(nurPruefen){
         if(!f.length){
-          info.innerHTML = '<strong>Nichts fällig.</strong> ' + d.geprueft +
-            ' Angebote geprüft — derzeit steht keine Erinnerung an.';
+          const det = (d.details || []).map(x =>
+            '· ' + x.kunde + (x.tage !== null && x.tage !== undefined ? ' (' + x.tage + ' Tage)' : '') +
+            ' — ' + x.grund).join('<br>');
+          info.innerHTML = '<strong>Nichts fällig.</strong> ' + d.geprueft + ' Angebote geprüft.' +
+            (det ? '<br><br><span style="color:var(--mute);font-size:12.5px;">' + det + '</span>' : '');
           return;
         }
         const zeilen = f.map(x => {
