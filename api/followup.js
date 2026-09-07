@@ -102,7 +102,11 @@ export default async function handler(req, res) {
         await speichern(SAMMLUNG, a.code, neu);
         stufe === 1 ? bericht.erste++ : bericht.zweite++;
       } catch (e) {
-        bericht.fehler.push({ code: a.code, meldung: e.message });
+        bericht.fehler.push({
+          code: a.code,
+          empfaenger: a.email || '(keine)',
+          meldung: (e && e.message) ? e.message.slice(0, 300) : String(e)
+        });
       }
     }
 
