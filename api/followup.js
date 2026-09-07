@@ -19,13 +19,16 @@ const SAMMLUNG = 'angebote';
 
 export default async function handler(req, res) {
   // Zugriffsschutz: Vercel sendet den Cron-Schlüssel im Authorization-Header
+  // Zugriff: entweder per Cron-Schlüssel (Vercel) oder aus dem Admin-Bereich
   const geheim = process.env.CRON_SECRET;
-  if (geheim) {
-    const kopf = req.headers.authorization || '';
-    if (kopf !== `Bearer ${geheim}`) {
-      return res.status(401).json({ error: 'Nicht berechtigt' });
-    }
+  const kopf = req.headers.authorization || '';
+  const vonCron = geheim && kopf === `Bearer ${geheim}`;
+  const vonAdmin = req.method === 'POST' &&
+                   req.body && req.body.adminCode === 'Clean+26';
+  if (geheim && !vonCron && !vonAdmin) {
+    return res.status(401).json({ error: 'Nicht berechtigt' });
   }
+  const nurPruefen = vonAdmin && req.body.nurPruefen === true;
 
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'RESEND_API_KEY fehlt.' });
@@ -44,6 +47,13 @@ export default async function handler(req, res) {
 
       // Nach 50 Tagen ohne Rückmeldung gilt das Angebot als abgelaufen
       if (tage >= 50) {
+        if (nurPruefen) {
+          bericht.faellig = bericht.faellig || [];
+          bericht.faellig.push({ kunde: [a.vorname, a.nachname].filter(Boolean).join(' '),
+                                 tage, stufe: 'ablauf' });
+          bericht.abgelaufen++;
+          continue;
+        }
         const neuA = { ...a };
         delete neuA._id; delete neuA.tage;
         neuA.status = 'abgesagt';
@@ -59,6 +69,13 @@ export default async function handler(req, res) {
       else if (tage >= 5 && !a.erinnerung1) stufe = 1;
       if (!stufe) { bericht.uebersprungen++; continue; }
 
+      if (nurPruefen) {
+        bericht.faellig = bericht.faellig || [];
+        bericht.faellig.push({ kunde: [a.vorname, a.nachname].filter(Boolean).join(' '),
+                               email: a.email, tage, stufe });
+        stufe === 1 ? bericht.erste++ : bericht.zweite++;
+        continue;
+      }
       try {
         await sendeErinnerung(apiKey, a, stufe);
         const neu = { ...a };
@@ -72,7 +89,7 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).json({ ok: true, ...bericht });
+    return res.status(200).json({ ok: true, probelauf: !!nurPruefen, ...bericht });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
