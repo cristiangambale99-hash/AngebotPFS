@@ -47,7 +47,7 @@ export default async function handler(req, res) {
 
       const neu = { ...vorhanden };
       delete neu._id;
-      ['angebotsnr', 'notiz', 'vereinbarungen'].forEach(f => {
+      ['angebotsnr', 'notiz', 'vereinbarungen', 'stufe'].forEach(f => {
         if (typeof b[f] === 'string') neu[f] = b[f];
       });
       if (typeof b.bearbeitet === 'boolean') neu.bearbeitet = b.bearbeitet;
