@@ -75,6 +75,16 @@ export default async function handler(req, res) {
       ergebnis.speicherFehler = e.message;
     }
 
+    /* ---- 1c) Auftragserteilung ins ReportingPFS ---- */
+    try {
+      ergebnis.reporting = await reportingEintragen('erteilungen', {
+        kunde: [b.vorname, b.nachname].filter(Boolean).join(' '),
+        datum: new Date().toISOString().slice(0, 10),
+        dienstleistung: repDienstleistung(b.frequenz),
+        wer: (angebot && angebot.erfasstVon) || ''
+      });
+    } catch (e) { ergebnis.reporting = { geschrieben: false, grund: e.message }; }
+
     /* ---- 2) Benachrichtigung an das Team ---- */
     const apiKey = process.env.RESEND_API_KEY;
     if (apiKey) {
@@ -92,46 +102,18 @@ export default async function handler(req, res) {
         ['Aufwand', b.aufwandText || '']
       ].filter(([, v]) => v);
 
-      const tabelle = zeilen.map(([k, v], i) => `
-        <tr style="background:${i % 2 ? '#FFFFFF' : '#F7FBFB'};">
-          <td style="padding:11px 16px;color:#7C8C8B;font-size:12.5px;width:150px;vertical-align:top;border-bottom:1px solid #EDF3F2;">${k}</td>
-          <td style="padding:11px 16px;color:#0E1E1D;font-size:13.5px;font-weight:600;border-bottom:1px solid #EDF3F2;">${v}</td>
-        </tr>`).join('');
+      const inhaltT = `
+        <p style="margin:0 0 16px;">Über das Angebotssystem ist eine neue Auftragserteilung eingegangen.</p>
+        ${csTabelle(zeilen)}
+        ${b.vereinbarungen ? `
+        <div style="background:#FDF8EE;border-left:3px solid #E0B454;padding:12px 16px;margin:0 0 18px;">
+          <div style="font-size:11px;color:#8A6A2A;letter-spacing:.06em;margin-bottom:5px;">BESONDERE WÜNSCHE</div>
+          <div style="font-size:13px;color:#333333;">${b.vereinbarungen}</div>
+        </div>` : ''}
+        ${csKnopf('Im CRM bearbeiten', 'https://' + (req.headers.host || 'angebot-pfs.vercel.app') + '/admin.html')}`;
 
-      const html = `
-      <div style="background:#F4F8F8;padding:28px 16px;">
-        <div style="max-width:600px;margin:0 auto;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(14,30,29,.07);font-family:Verdana,Arial,sans-serif;">
-
-          <div style="background:linear-gradient(135deg,#2BB6B7,#12797A);padding:26px 28px;">
-            <div style="color:rgba(255,255,255,.82);font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:7px;">Clean Service Scaramuzzo AG</div>
-            <div style="color:#FFFFFF;font-size:20px;font-weight:bold;line-height:1.3;">Neue Auftragserteilung</div>
-            <div style="color:rgba(255,255,255,.9);font-size:14px;margin-top:5px;">${name}${b.angebotsnr ? ' &nbsp;·&nbsp; Angebot Nr. ' + b.angebotsnr : ''}</div>
-          </div>
-
-          <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
-            ${tabelle}
-          </table>
-
-          ${b.vereinbarungen ? `
-          <div style="padding:18px 28px;background:#FFF8EC;border-top:1px solid #F2E3C9;">
-            <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#96601A;margin-bottom:6px;">Spezielle Vereinbarungen</div>
-            <div style="font-size:13.5px;color:#0E1E1D;line-height:1.6;">${b.vereinbarungen}</div>
-          </div>` : ''}
-
-          <div style="padding:24px 28px;text-align:center;">
-            <a href="https://${req.headers.host || 'angebot-pfs.vercel.app'}/admin.html"
-               style="background:#2BB6B7;color:#FFFFFF;padding:14px 30px;border-radius:100px;text-decoration:none;font-weight:bold;display:inline-block;font-size:14px;">Im CRM bearbeiten</a>
-          </div>
-
-          <div style="padding:16px 28px 22px;border-top:1px solid #EDF3F2;text-align:center;">
-            <div style="font-size:11px;color:#9AA8A7;line-height:1.6;">
-              Automatische Meldung aus dem Angebotssystem<br>
-              Clean Service Scaramuzzo AG · Industriestrasse 5 · 8307 Effretikon
-            </div>
-          </div>
-
-        </div>
-      </div>`;
+      const html = csRahmen('Neue Auftragserteilung', inhaltT,
+        'Automatische Meldung aus dem Angebotssystem. Antworten gehen direkt an die Kundschaft.');
 
       const r = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -171,53 +153,19 @@ export default async function handler(req, res) {
           ['Angebot Nr.', b.angebotsnr || '']
         ].filter(([, v]) => v);
 
-        const eckTabelle = eckdaten.map(([k, v], i) => `
-          <tr style="background:${i % 2 ? '#FFFFFF' : '#F7FBFB'};">
-            <td style="padding:10px 16px;color:#7C8C8B;font-size:12.5px;width:160px;border-bottom:1px solid #EDF3F2;">${k}</td>
-            <td style="padding:10px 16px;color:#0E1E1D;font-size:13.5px;font-weight:600;border-bottom:1px solid #EDF3F2;">${v}</td>
-          </tr>`).join('');
+        const inhaltK = `
+          <p style="margin:0 0 14px;">${gruss}</p>
+          <p style="margin:0 0 14px;">Herzlichen Dank für Ihr Vertrauen und die Erteilung des Auftrags. Wir freuen uns sehr, Sie als neue Kundschaft begrüssen zu dürfen, und werden alles daransetzen, dass Sie mit unserer Dienstleistung rundum zufrieden sind.</p>
+          <p style="margin:0 0 14px;">${absatzStart}</p>
+          <p style="margin:0 0 14px;">Im Tagesgeschäft stehen Ihnen <strong>Frau Scalone</strong> und <strong>Herr Moreno</strong> aus meinem Administrationsteam zur Seite. Sie sind Ihre direkten Ansprechpersonen für sämtliche organisatorischen Anliegen rund um Ihre Reinigung.</p>
+          <p style="margin:0 0 14px;">Unser gesamtes Team steht für Zuverlässigkeit und Sorgfalt, damit Sie sich auf eine konstant hohe Qualität verlassen können. Sollten Sie dennoch einmal nicht zufrieden sein, wenden Sie sich jederzeit direkt an mich persönlich.</p>
+          <p style="margin:0 0 18px;">Ich freue mich auf die Zusammenarbeit und melde mich, sobald die Einführung geplant ist.</p>
+          ${eckdaten.length ? `
+          <div style="font-family:Verdana,Geneva,sans-serif;font-size:11px;color:#767676;letter-spacing:.08em;margin:20px 0 2px;">IHRE ANGABEN IM ÜBERBLICK</div>
+          ${csTabelle(eckdaten)}` : ''}`;
 
-        const kundenHtml = `
-        <div style="background:#F4F8F8;padding:28px 16px;">
-          <div style="max-width:600px;margin:0 auto;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(14,30,29,.07);font-family:Verdana,Arial,sans-serif;">
-
-            <div style="background:linear-gradient(135deg,#2BB6B7,#12797A);padding:28px;">
-              <div style="color:rgba(255,255,255,.82);font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px;">Clean Service Scaramuzzo AG</div>
-              <div style="color:#FFFFFF;font-size:21px;font-weight:bold;line-height:1.3;">Herzlichen Dank für Ihr Vertrauen</div>
-            </div>
-
-            <div style="padding:28px;color:#485655;font-size:14px;line-height:1.7;">
-              <p style="margin:0 0 16px;">${gruss}</p>
-              <p style="margin:0 0 16px;">Herzlichen Dank für Ihr Vertrauen und die Erteilung des Auftrags. Wir freuen uns sehr, Sie als neue Kundschaft begrüssen zu dürfen, und werden alles daransetzen, dass Sie mit unserer Dienstleistung rundum zufrieden sind.</p>
-              <p style="margin:0 0 16px;">${absatzStart}</p>
-              <p style="margin:0 0 16px;">Im Tagesgeschäft stehen Ihnen <strong>Frau Scalone</strong> und <strong>Herr Moreno</strong> aus meinem Administrationsteam zur Seite. Sie sind Ihre direkten Ansprechpersonen für sämtliche organisatorischen Anliegen rund um Ihre Reinigung.</p>
-              <p style="margin:0 0 16px;">Unser gesamtes Team steht für Zuverlässigkeit und Sorgfalt, damit Sie sich auf eine konstant hohe Qualität verlassen können. Sollten Sie dennoch einmal nicht zufrieden sein, wenden Sie sich jederzeit direkt an mich persönlich — ich kümmere mich umgehend um eine Lösung.</p>
-              <p style="margin:0;">Ich freue mich auf die Zusammenarbeit und melde mich, sobald die Einführung geplant ist.</p>
-            </div>
-
-            ${eckTabelle ? `
-            <div style="padding:0 28px 4px;">
-              <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7C8C8B;margin-bottom:8px;">Ihre Angaben im Überblick</div>
-            </div>
-            <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border-top:1px solid #EDF3F2;">
-              ${eckTabelle}
-            </table>` : ''}
-
-            <div style="padding:24px 28px;border-top:1px solid #EDF3F2;">
-              <div style="font-size:14px;color:#0E1E1D;font-weight:bold;">Cristian Gambale</div>
-              <div style="font-size:12.5px;color:#7C8C8B;margin-top:2px;">Bereichsleiter Putzfrauenservice</div>
-              <div style="font-size:12.5px;color:#12797A;margin-top:8px;">T 0844 355 355 · putzfrauenservice@clean-service.ch</div>
-            </div>
-
-            <div style="padding:16px 28px 22px;background:#F7FBFB;text-align:center;">
-              <div style="font-size:11px;color:#9AA8A7;line-height:1.6;">
-                Clean Service Scaramuzzo AG · Industriestrasse 5 · 8307 Effretikon<br>
-                T 0844 355 355 · clean-service.ch
-              </div>
-            </div>
-
-          </div>
-        </div>`;
+        const kundenHtml = csRahmen('Herzlichen Dank für Ihren Auftrag', inhaltK,
+          'Diese Bestätigung wurde automatisch erstellt. Sie können direkt darauf antworten.');
 
         const kundenText =
           `${gruss}\n\n` +
@@ -262,37 +210,17 @@ export default async function handler(req, res) {
           ['Reinigungsrhythmus', b.frequenzText || b.frequenz || '']
         ].filter(([, v]) => v);
 
-        const tabF = zeilenF.map(([k, v], i) => `
-          <tr style="background:${i % 2 ? '#FFFFFF' : '#F7FBFB'};">
-            <td style="padding:10px 16px;color:#7C8C8B;font-size:12.5px;width:150px;border-bottom:1px solid #EDF3F2;">${k}</td>
-            <td style="padding:10px 16px;color:#0E1E1D;font-size:13.5px;font-weight:600;border-bottom:1px solid #EDF3F2;">${v}</td>
-          </tr>`).join('');
+        const inhaltF = `
+          <p style="margin:0 0 16px;">Bei der Auftragserteilung für die Privathaushaltreinigung wurde eine <strong>unverbindliche Offerte für die Fensterreinigung</strong> gewünscht. Wir bitten um Kontaktaufnahme mit der Kundschaft.</p>
+          ${csTabelle(zeilenF)}
+          ${b.vereinbarungen ? `
+          <div style="background:#FDF8EE;border-left:3px solid #E0B454;padding:12px 16px;margin:0 0 6px;">
+            <div style="font-size:11px;color:#8A6A2A;letter-spacing:.06em;margin-bottom:5px;">HINWEISE DER KUNDSCHAFT</div>
+            <div style="font-size:13px;color:#333333;">${b.vereinbarungen}</div>
+          </div>` : ''}`;
 
-        const htmlF = `
-        <div style="background:#F4F8F8;padding:28px 16px;">
-          <div style="max-width:600px;margin:0 auto;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(14,30,29,.07);font-family:Verdana,Arial,sans-serif;">
-            <div style="background:linear-gradient(135deg,#2BB6B7,#12797A);padding:26px 28px;">
-              <div style="color:rgba(255,255,255,.82);font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:7px;">Anfrage aus dem Putzfrauenservice</div>
-              <div style="color:#FFFFFF;font-size:20px;font-weight:bold;line-height:1.3;">Fensterreinigungsofferte gewünscht</div>
-            </div>
-            <div style="padding:22px 28px 6px;color:#485655;font-size:14px;line-height:1.7;">
-              <p style="margin:0;">Bei der Auftragserteilung für die Privathaushaltreinigung hat die Kundschaft eine <strong>unverbindliche Offerte für die Fensterreinigung</strong> gewünscht. Bitte um Kontaktaufnahme.</p>
-            </div>
-            <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-top:16px;">
-              ${tabF}
-            </table>
-            ${b.vereinbarungen ? `
-            <div style="padding:16px 28px;background:#FFF8EC;border-top:1px solid #F2E3C9;">
-              <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#96601A;margin-bottom:6px;">Hinweise der Kundschaft</div>
-              <div style="font-size:13.5px;color:#0E1E1D;line-height:1.6;">${b.vereinbarungen}</div>
-            </div>` : ''}
-            <div style="padding:16px 28px 22px;background:#F7FBFB;text-align:center;">
-              <div style="font-size:11px;color:#9AA8A7;line-height:1.6;">
-                Automatische Meldung aus dem Angebotssystem · Clean Service Scaramuzzo AG
-              </div>
-            </div>
-          </div>
-        </div>`;
+        const htmlF = csRahmen('Fensterreinigungsofferte gewünscht', inhaltF,
+          'Automatische Meldung aus dem Angebotssystem Putzfrauenservice. Antworten gehen direkt an die Kundschaft.');
 
         try {
           const rf = await fetch('https://api.resend.com/emails', {
@@ -480,3 +408,223 @@ async function loeschen(sammlung, id) {
   return res.ok;
 }
 /* ===== Ende Firestore-Anbindung ===== */
+
+/* ==========================================================================
+   Einheitliche E-Mail-Vorlage — Verdana 10pt, Geschäftsbriefcharakter
+   ========================================================================== */
+const CS_FARBE = '#2BB6B7', CS_DUNKEL = '#12797A', CS_TEXT = '#333333', CS_GRAU = '#767676';
+
+function csSignatur(){
+  return `
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin-top:26px;">
+    <tr><td style="padding-top:18px;border-top:2px solid ${CS_FARBE};">
+      <div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.55;color:${CS_TEXT};">
+        <strong>Cristian Gambale</strong><br>
+        Bereichsleiter Putzfrauenservice<br>
+        Direkt 052 557 02 08 / 076 822 00 16
+      </div>
+      <div style="border-top:1px solid #D8D8D8;margin:12px 0;width:220px;"></div>
+      <div style="font-family:Verdana,Geneva,sans-serif;font-size:12px;line-height:1.55;color:${CS_GRAU};">
+        <strong style="color:${CS_TEXT};">Clean Service Scaramuzzo AG</strong><br>
+        Industriestrasse 5<br>
+        8307 Effretikon<br>
+        0844 355 355<br>
+        <a href="https://clean-service.ch" style="color:${CS_DUNKEL};text-decoration:none;">clean-service.ch</a>
+      </div>
+    </td></tr>
+  </table>`;
+}
+
+function csRahmen(titel, inhalt, hinweis){
+  return `
+<div style="background:#F2F4F4;padding:24px 12px;font-family:Verdana,Geneva,sans-serif;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;margin:0 auto;background:#FFFFFF;border:1px solid #DDE2E1;">
+    <tr><td style="padding:22px 32px 18px;border-bottom:3px solid ${CS_FARBE};">
+      <div style="font-family:Verdana,Geneva,sans-serif;font-size:15px;font-weight:bold;color:${CS_DUNKEL};letter-spacing:.02em;">CLEAN SERVICE SCARAMUZZO AG</div>
+      <div style="font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};margin-top:3px;">Putzfrauenservice · seit 1984</div>
+    </td></tr>
+    <tr><td style="padding:26px 32px 8px;">
+      <div style="font-family:Verdana,Geneva,sans-serif;font-size:16px;font-weight:bold;color:${CS_TEXT};line-height:1.4;">${titel}</div>
+    </td></tr>
+    <tr><td style="padding:12px 32px 26px;font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.7;color:${CS_TEXT};">
+      ${inhalt}
+      ${csSignatur()}
+    </td></tr>
+    ${hinweis ? `<tr><td style="padding:14px 32px;background:#F7F9F9;border-top:1px solid #E5E9E8;font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};line-height:1.6;">${hinweis}</td></tr>` : ''}
+  </table>
+</div>`;
+}
+
+function csTabelle(zeilen){
+  const r = zeilen.filter(([, v]) => v).map(([k, v]) => `
+    <tr>
+      <td style="padding:8px 0;font-family:Verdana,Geneva,sans-serif;font-size:12px;color:${CS_GRAU};width:170px;vertical-align:top;border-bottom:1px solid #EDEFEF;">${k}</td>
+      <td style="padding:8px 0;font-family:Verdana,Geneva,sans-serif;font-size:13px;color:${CS_TEXT};font-weight:bold;border-bottom:1px solid #EDEFEF;">${v}</td>
+    </tr>`).join('');
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:6px 0 18px;">${r}</table>`;
+}
+
+function csKnopf(text, link){
+  return `
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+    <tr><td style="background:${CS_FARBE};">
+      <a href="${link}" style="display:inline-block;padding:13px 30px;font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:bold;color:#FFFFFF;text-decoration:none;">${text}</a>
+    </td></tr>
+  </table>`;
+}
+
+function csSignaturText(){
+  return '\n\nFreundliche Grüsse\n\n' +
+    'Cristian Gambale\n' +
+    'Bereichsleiter Putzfrauenservice\n' +
+    'Direkt 052 557 02 08 / 076 822 00 16\n' +
+    '---------------------------------\n' +
+    'Clean Service Scaramuzzo AG\n' +
+    'Industriestrasse 5\n' +
+    '8307 Effretikon\n' +
+    '0844 355 355\n' +
+    'clean-service.ch';
+}
+
+/* ==========================================================================
+   Anbindung an ReportingPFS
+   Schreibt Anfragen und Auftragserteilungen in das bestehende Reporting.
+   Aufbau dort: ein Dokument je Abteilung und Monat, z. B.
+   "pfs-reporting:pfs:2026-09" mit den Feldern key und value.
+   value enthält als Text: { "anfragen": [...], "erteilungen": [...] }
+
+   Sicherheit: gelesen wird zuerst, ergänzt wird nur, wenn das Format
+   erkannt wurde. Bei jeder Unklarheit wird NICHT geschrieben — lieber
+   ein fehlender Eintrag als ein zerstörter Monat.
+
+   Umgebungsvariablen:
+     REPORTING_PROJECT_ID · REPORTING_CLIENT_EMAIL · REPORTING_PRIVATE_KEY
+   ========================================================================== */
+const REP_SAMMLUNG = 'pfs_storage';
+const REP_ABTEILUNG = 'pfs';
+let repTokenCache = { token: null, ablauf: 0 };
+
+async function repToken(){
+  const jetzt = Math.floor(Date.now() / 1000);
+  if (repTokenCache.token && repTokenCache.ablauf > jetzt + 60) return repTokenCache.token;
+  const email = process.env.REPORTING_CLIENT_EMAIL;
+  let key = (process.env.REPORTING_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+  if (!email || !key) throw new Error('Reporting-Zugangsdaten fehlen');
+
+  const b64 = s => Buffer.from(s).toString('base64')
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  const header = b64(JSON.stringify({ alg:'RS256', typ:'JWT' }));
+  const claim = b64(JSON.stringify({
+    iss: email, scope: 'https://www.googleapis.com/auth/datastore',
+    aud: 'https://oauth2.googleapis.com/token', exp: jetzt + 3600, iat: jetzt
+  }));
+  const signer = crypto.createSign('RSA-SHA256');
+  signer.update(`${header}.${claim}`);
+  const sig = signer.sign(key, 'base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body: new URLSearchParams({
+      grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: `${header}.${claim}.${sig}`
+    })
+  });
+  const d = await res.json();
+  if (!res.ok) throw new Error('Reporting-Anmeldung fehlgeschlagen');
+  repTokenCache = { token: d.access_token, ablauf: jetzt + (d.expires_in || 3600) };
+  return repTokenCache.token;
+}
+
+function repUrl(dokument){
+  const pid = process.env.REPORTING_PROJECT_ID;
+  if (!pid) throw new Error('REPORTING_PROJECT_ID fehlt');
+  return `https://firestore.googleapis.com/v1/projects/${pid}/databases/(default)/documents/` +
+         `${REP_SAMMLUNG}/${encodeURIComponent(dokument)}`;
+}
+
+function repDienstleistung(frequenz){
+  const m = { 'woechentlich':'wöchentlich', '14-taeglich':'14-täglich', 'monatlich':'monatlich' };
+  return m[frequenz] || frequenz || '';
+}
+
+function repId(){
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+/**
+ * Trägt einen Datensatz ins Reporting ein.
+ * @param {'anfragen'|'erteilungen'} bereich
+ * @param {object} satz  { kunde, datum, dienstleistung, anfrageart, quelle, wer }
+ * @returns {Promise<object>} Ergebnisbericht
+ */
+async function reportingEintragen(bereich, satz){
+  const bericht = { bereich, geschrieben: false };
+  if (!process.env.REPORTING_PROJECT_ID) { bericht.grund = 'nicht eingerichtet'; return bericht; }
+  if (!satz || !satz.kunde || !satz.datum) { bericht.grund = 'unvollständige Daten'; return bericht; }
+
+  try {
+    const monat = String(satz.datum).slice(0, 7);            // z. B. 2026-09
+    const dok = `pfs-reporting:${REP_ABTEILUNG}:${monat}`;
+    const token = await repToken();
+
+    // 1) Bestehenden Stand lesen
+    const res = await fetch(repUrl(dok), { headers: { Authorization: `Bearer ${token}` } });
+    let inhalt = { anfragen: [], erteilungen: [] };
+    let vorhanden = false;
+
+    if (res.ok) {
+      const doc = await res.json();
+      const roh = doc?.fields?.value?.stringValue;
+      if (typeof roh === 'string' && roh.trim()) {
+        let geparst;
+        try { geparst = JSON.parse(roh); }
+        catch (e) {
+          bericht.grund = 'Inhalt nicht lesbar — es wurde nichts geschrieben';
+          return bericht;                                     // Schutz: nicht überschreiben
+        }
+        if (!geparst || typeof geparst !== 'object' ||
+            !Array.isArray(geparst.anfragen) || !Array.isArray(geparst.erteilungen)) {
+          bericht.grund = 'unerwartetes Format — es wurde nichts geschrieben';
+          return bericht;                                     // Schutz
+        }
+        inhalt = geparst;
+        vorhanden = true;
+      }
+    } else if (res.status !== 404) {
+      bericht.grund = 'Lesen fehlgeschlagen (' + res.status + ')';
+      return bericht;
+    }
+
+    // 2) Doppelte Einträge vermeiden
+    const schonDa = inhalt[bereich].some(x =>
+      x.kunde === satz.kunde && x.datum === satz.datum);
+    if (schonDa) { bericht.grund = 'bereits erfasst'; bericht.geschrieben = true; return bericht; }
+
+    // 3) Ergänzen
+    inhalt[bereich].push(Object.assign({ id: repId() }, satz));
+
+    // 4) Zurückschreiben — nur die beiden bekannten Felder
+    const speichern = await fetch(repUrl(dok) + '?updateMask.fieldPaths=key&updateMask.fieldPaths=value', {
+      method:'PATCH',
+      headers:{ Authorization:`Bearer ${token}`, 'Content-Type':'application/json' },
+      body: JSON.stringify({ fields: {
+        key:   { stringValue: dok },
+        value: { stringValue: JSON.stringify(inhalt) }
+      }})
+    });
+    if (!speichern.ok) {
+      bericht.grund = 'Schreiben fehlgeschlagen (' + speichern.status + ')';
+      return bericht;
+    }
+
+    bericht.geschrieben = true;
+    bericht.dokument = dok;
+    bericht.anzahlNachher = inhalt[bereich].length;
+    bericht.dokumentWarVorhanden = vorhanden;
+    return bericht;
+
+  } catch (err) {
+    bericht.grund = err.message;
+    return bericht;
+  }
+}
