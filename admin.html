@@ -154,7 +154,6 @@
       <div class="crm-toolbar">
         <input type="search" id="crm-search" placeholder="Suchen: Name, Ort, Angebotsnummer …" oninput="renderAdminList()">
         <button class="btn btn-sm" onclick="ladeDaten()" style="background:var(--bg);color:var(--ink);border:1px solid var(--border);">Aktualisieren</button>
-        <button class="btn btn-sm" onclick="pruefeNachfassen(true)" style="background:var(--bg);color:var(--ink);border:1px solid var(--border);">Nachfassen prüfen</button>
         <div class="crm-filter" id="crm-filter">
           <button class="on" data-f="alle" onclick="setFilter('alle')">Alle</button>
           <button data-f="gesendet" onclick="setFilter('gesendet')">Angebot gesendet</button>
@@ -887,55 +886,6 @@ docx/dist/index.mjs:
       if(r2.ok) CS_ANGEBOTE = await r2.json();
     }catch(e){ CS_ANGEBOTE = null; }
     renderAdminList();
-  }
-
-  /* ---------- Nachfassen prüfen und auslösen ---------- */
-  async function pruefeNachfassen(nurPruefen){
-    const info = document.getElementById('admin-ladeinfo');
-    if(info){ info.textContent = nurPruefen ? 'Wird geprüft …' : 'Erinnerungen werden gesendet …'; info.style.display = 'block'; }
-    try{
-      const r = await fetch('/api/followup', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ adminCode:'Clean+26', nurPruefen: !!nurPruefen })
-      });
-      const d = await r.json();
-      if(!r.ok) throw new Error(d.error || ('Fehler ' + r.status));
-
-      const f = d.faellig || [];
-      if(nurPruefen){
-        if(!f.length){
-          const det = (d.details || []).map(x =>
-            '· ' + x.kunde + (x.tage !== null && x.tage !== undefined ? ' (' + x.tage + ' Tage)' : '') +
-            ' — ' + x.grund).join('<br>');
-          info.innerHTML = '<strong>Nichts fällig.</strong> ' + d.geprueft + ' Angebote geprüft.' +
-            (det ? '<br><br><span style="color:var(--mute);font-size:12.5px;">' + det + '</span>' : '');
-          return;
-        }
-        const zeilen = f.map(x => {
-          const was = x.stufe === 'ablauf' ? 'läuft ab (auf Abgesagt)'
-                    : x.stufe === 1 ? '1. Erinnerung' : '2. Erinnerung';
-          return '· ' + x.kunde + ' — vor ' + x.tage + ' Tagen gesendet → ' + was;
-        }).join('<br>');
-        info.innerHTML = '<strong>' + f.length + ' Vorgang' + (f.length > 1 ? 'e' : '') +
-          ' fällig:</strong><br>' + zeilen +
-          '<br><br><button class="btn btn-sm" onclick="pruefeNachfassen(false)">Jetzt wirklich senden</button>';
-      } else {
-        const fehler = d.fehler || [];
-        if(fehler.length){
-          info.innerHTML = '<span style="color:#B4232C;"><strong>Versand fehlgeschlagen.</strong></span><br>' +
-            fehler.map(x => '· ' + (x.code || '') + ': ' + x.meldung).join('<br>');
-        } else if(!d.erste && !d.zweite && !d.abgelaufen){
-          info.innerHTML = '<strong>Nichts gesendet.</strong> Es war kein Vorgang fällig.';
-        } else {
-          info.innerHTML = '<strong>Erledigt.</strong> ' +
-            d.erste + ' erste Erinnerung(en) · ' + d.zweite + ' zweite · ' +
-            d.abgelaufen + ' auf Abgesagt gesetzt.';
-          setTimeout(ladeDaten, 1200);
-        }
-      }
-    }catch(err){
-      if(info) info.innerHTML = '<span style="color:#B4232C;">Prüfung fehlgeschlagen: ' + err.message + '</span>';
-    }
   }
 
   function unlockAdmin(){
