@@ -319,19 +319,42 @@ function csSignatur(){
 function csRahmen(titel, inhalt, hinweis){
   return `
 <div style="background:#F2F4F4;padding:24px 12px;font-family:Verdana,Geneva,sans-serif;">
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;margin:0 auto;background:#FFFFFF;border:1px solid #DDE2E1;">
-    <tr><td style="padding:22px 32px 18px;border-bottom:3px solid ${CS_FARBE};">
-      <div style="font-family:Verdana,Geneva,sans-serif;font-size:15px;font-weight:bold;color:${CS_DUNKEL};letter-spacing:.02em;">CLEAN SERVICE SCARAMUZZO AG</div>
-      <div style="font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};margin-top:3px;">Putzfrauenservice · seit 1984</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;margin:0 auto;background:#FFFFFF;border:1px solid #DDE2E1;border-top:none;">
+    <tr><td style="padding:0;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;">
+        <tr>
+          <td style="background:#FFFFFF;padding:26px 36px 20px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="vertical-align:middle;padding-right:14px;">
+                  <div style="width:38px;height:38px;background:${CS_FARBE};border-radius:50%;text-align:center;line-height:38px;">
+                    <span style="font-family:Georgia,serif;font-size:20px;color:#FFFFFF;font-weight:bold;">C</span>
+                  </div>
+                </td>
+                <td style="vertical-align:middle;">
+                  <div style="font-family:Verdana,Geneva,sans-serif;font-size:16px;font-weight:bold;color:${CS_DUNKEL};letter-spacing:.04em;line-height:1.2;">CLEAN SERVICE</div>
+                  <div style="font-family:Verdana,Geneva,sans-serif;font-size:10.5px;color:${CS_GRAU};letter-spacing:.16em;margin-top:2px;">BY SCARAMUZZO</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+          <td style="background:#FFFFFF;padding:26px 36px 20px;text-align:right;vertical-align:middle;">
+            <div style="font-family:Verdana,Geneva,sans-serif;font-size:10.5px;color:${CS_GRAU};line-height:1.6;">
+              Putzfrauenservice<br>seit 1984
+            </div>
+          </td>
+        </tr>
+      </table>
+      <div style="height:3px;background:${CS_FARBE};font-size:0;line-height:0;">&nbsp;</div>
     </td></tr>
-    <tr><td style="padding:26px 32px 8px;">
+    <tr><td style="padding:30px 36px 8px;">
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:16px;font-weight:bold;color:${CS_TEXT};line-height:1.4;">${titel}</div>
     </td></tr>
-    <tr><td style="padding:12px 32px 26px;font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.7;color:${CS_TEXT};">
+    <tr><td style="padding:12px 36px 30px;font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.7;color:${CS_TEXT};">
       ${inhalt}
       ${csSignatur()}
     </td></tr>
-    ${hinweis ? `<tr><td style="padding:14px 32px;background:#F7F9F9;border-top:1px solid #E5E9E8;font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};line-height:1.6;">${hinweis}</td></tr>` : ''}
+    ${hinweis ? `<tr><td style="padding:16px 36px;background:#F7F9F9;border-top:1px solid #E5E9E8;font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};line-height:1.6;">${hinweis}</td></tr>` : ''}
   </table>
 </div>`;
 }
