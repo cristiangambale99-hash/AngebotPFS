@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   try {
     const alle = await alleLesen(SAMMLUNG, 500);
     const jetzt = Date.now();
-    const bericht = { geprueft: alle.length, erste: 0, zweite: 0, uebersprungen: 0, fehler: [] };
+    const bericht = { geprueft: alle.length, erste: 0, zweite: 0, abgelaufen: 0, uebersprungen: 0, fehler: [] };
 
     for (const a of alle) {
       if (a.status !== 'gesendet' || a.erinnerungAus || !a.email || !a.gesendetAm) {
@@ -42,8 +42,20 @@ export default async function handler(req, res) {
       }
       const tage = Math.floor((jetzt - new Date(a.gesendetAm).getTime()) / 86400000);
 
+      // Nach 50 Tagen ohne Rückmeldung gilt das Angebot als abgelaufen
+      if (tage >= 50) {
+        const neuA = { ...a };
+        delete neuA._id; delete neuA.tage;
+        neuA.status = 'abgesagt';
+        neuA.abgesagtAm = new Date().toISOString();
+        neuA.abgesagtGrund = 'Keine Rückmeldung innert 50 Tagen';
+        await speichern(SAMMLUNG, a.code, neuA);
+        bericht.abgelaufen++;
+        continue;
+      }
+
       let stufe = 0;
-      if (tage >= 10 && !a.erinnerung2) stufe = 2;
+      if (tage >= 30 && !a.erinnerung2) stufe = 2;
       else if (tage >= 5 && !a.erinnerung1) stufe = 1;
       if (!stufe) { bericht.uebersprungen++; continue; }
 
@@ -73,47 +85,36 @@ async function sendeErinnerung(apiKey, a, stufe) {
 
   const betreff = stufe === 1
     ? 'Ihr Reinigungsangebot — dürfen wir kurz nachfragen?'
-    : 'Ihr Reinigungsangebot — letzte Erinnerung';
+    : 'Ihr Reinigungsangebot — noch Interesse?';
 
   const text = stufe === 1
     ? 'vor einigen Tagen haben wir Ihnen Ihr persönliches Reinigungsangebot zugestellt. Wir wollten kurz nachfragen, ob Sie noch Fragen haben oder etwas unklar geblieben ist.'
-    : 'Ihr persönliches Reinigungsangebot ist noch für kurze Zeit gültig. Falls sich Ihre Pläne geändert haben, ist das selbstverständlich in Ordnung — eine kurze Rückmeldung genügt.';
+    : 'vor einiger Zeit haben wir Ihnen ein persönliches Reinigungsangebot zugestellt. Da wir bisher nichts von Ihnen gehört haben, möchten wir uns ein letztes Mal melden. Falls sich Ihre Pläne geändert haben, ist das selbstverständlich in Ordnung.';
 
   const schluss = stufe === 1
     ? 'Gerne bespreche ich Ihre Wünsche auch persönlich am Telefon.'
-    : 'Wenn Sie zu einem späteren Zeitpunkt Interesse haben, melden Sie sich jederzeit gerne.';
+    : 'Ihr Angebot bleibt noch bis auf Weiteres abrufbar. Melden Sie sich jederzeit gerne, auch zu einem späteren Zeitpunkt.';
 
-  const html = `
-  <div style="font-family:Verdana,Arial,sans-serif;color:#0E1E1D;max-width:560px;margin:0 auto;line-height:1.6;">
-    <p>${anrede},</p>
-    <p>${text}</p>
-    ${a.link ? `
-    <p style="text-align:center;margin:26px 0 20px;">
-      <a href="${a.link}" style="background:#2BB6B7;color:#ffffff;padding:14px 28px;border-radius:100px;text-decoration:none;font-weight:600;display:inline-block;">Angebot erneut ansehen</a>
-    </p>` : ''}
+  const inhalt = `
+    <p style="margin:0 0 14px;">${anrede},</p>
+    <p style="margin:0 0 14px;">${text}</p>
+    ${a.link ? csKnopf('Angebot erneut ansehen', a.link) : ''}
     ${a.code ? `
-    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 22px;">
-      <tr><td style="background:#EAF6F6;border:1px solid #CFE6EA;border-radius:12px;padding:16px 18px;text-align:center;">
-        <div style="font-size:11.5px;color:#7C8C8B;text-transform:uppercase;letter-spacing:.12em;margin-bottom:7px;">Ihr Zugangscode</div>
-        <div style="font-family:'Courier New',monospace;font-size:24px;font-weight:bold;color:#12797A;letter-spacing:.2em;">${a.code}</div>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:4px 0 16px;">
+      <tr><td style="background:#F4F8F8;border:1px solid #D5E2E1;padding:14px 18px;">
+        <div style="font-family:Verdana,Geneva,sans-serif;font-size:11px;color:#767676;letter-spacing:.08em;margin-bottom:5px;">IHR ZUGANGSCODE</div>
+        <div style="font-family:Verdana,Geneva,sans-serif;font-size:19px;font-weight:bold;color:#12797A;letter-spacing:.18em;">${a.code}</div>
       </td></tr>
     </table>` : ''}
-    <p>${schluss}</p>
-    <p>Freundliche Grüsse<br>
-       <strong>Cristian Gambale</strong><br>
-       <span style="color:#7C8C8B;font-size:13px;">Bereichsleiter Putzfrauenservice</span></p>
-    <hr style="border:none;border-top:1px solid #E1EAE9;margin:26px 0 14px;">
-    <p style="font-size:11.5px;color:#7C8C8B;">
-      Clean Service Scaramuzzo AG · Industriestrasse 5 · 8307 Effretikon<br>
-      T 0844 355 355 · putzfrauenservice@clean-service.ch · clean-service.ch
-    </p>
-  </div>`;
+    <p style="margin:0;">${schluss}</p>`;
+
+  const html = csRahmen(stufe === 1 ? 'Dürfen wir kurz nachfragen?' : 'Besteht weiterhin Interesse?', inhalt,
+    'Diese Nachricht wurde automatisch erstellt. Sie können direkt darauf antworten.');
 
   const klartext = `${anrede},\n\n${text}\n\n` +
     (a.link ? `${a.link}\n\n` : '') +
     (a.code ? `Ihr Zugangscode: ${a.code}\n\n` : '') +
-    `${schluss}\n\nFreundliche Grüsse\nCristian Gambale\nBereichsleiter Putzfrauenservice\n\n` +
-    'Clean Service Scaramuzzo AG · T 0844 355 355 · clean-service.ch';
+    schluss + csSignaturText();
 
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -288,3 +289,80 @@ async function loeschen(sammlung, id) {
   return res.ok;
 }
 /* ===== Ende Firestore-Anbindung ===== */
+
+/* ==========================================================================
+   Einheitliche E-Mail-Vorlage — Verdana 10pt, Geschäftsbriefcharakter
+   ========================================================================== */
+const CS_FARBE = '#2BB6B7', CS_DUNKEL = '#12797A', CS_TEXT = '#333333', CS_GRAU = '#767676';
+
+function csSignatur(){
+  return `
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin-top:26px;">
+    <tr><td style="padding-top:18px;border-top:2px solid ${CS_FARBE};">
+      <div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.55;color:${CS_TEXT};">
+        <strong>Cristian Gambale</strong><br>
+        Bereichsleiter Putzfrauenservice<br>
+        Direkt 052 557 02 08 / 076 822 00 16
+      </div>
+      <div style="border-top:1px solid #D8D8D8;margin:12px 0;width:220px;"></div>
+      <div style="font-family:Verdana,Geneva,sans-serif;font-size:12px;line-height:1.55;color:${CS_GRAU};">
+        <strong style="color:${CS_TEXT};">Clean Service Scaramuzzo AG</strong><br>
+        Industriestrasse 5<br>
+        8307 Effretikon<br>
+        0844 355 355<br>
+        <a href="https://clean-service.ch" style="color:${CS_DUNKEL};text-decoration:none;">clean-service.ch</a>
+      </div>
+    </td></tr>
+  </table>`;
+}
+
+function csRahmen(titel, inhalt, hinweis){
+  return `
+<div style="background:#F2F4F4;padding:24px 12px;font-family:Verdana,Geneva,sans-serif;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;margin:0 auto;background:#FFFFFF;border:1px solid #DDE2E1;">
+    <tr><td style="padding:22px 32px 18px;border-bottom:3px solid ${CS_FARBE};">
+      <div style="font-family:Verdana,Geneva,sans-serif;font-size:15px;font-weight:bold;color:${CS_DUNKEL};letter-spacing:.02em;">CLEAN SERVICE SCARAMUZZO AG</div>
+      <div style="font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};margin-top:3px;">Putzfrauenservice · seit 1984</div>
+    </td></tr>
+    <tr><td style="padding:26px 32px 8px;">
+      <div style="font-family:Verdana,Geneva,sans-serif;font-size:16px;font-weight:bold;color:${CS_TEXT};line-height:1.4;">${titel}</div>
+    </td></tr>
+    <tr><td style="padding:12px 32px 26px;font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.7;color:${CS_TEXT};">
+      ${inhalt}
+      ${csSignatur()}
+    </td></tr>
+    ${hinweis ? `<tr><td style="padding:14px 32px;background:#F7F9F9;border-top:1px solid #E5E9E8;font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};line-height:1.6;">${hinweis}</td></tr>` : ''}
+  </table>
+</div>`;
+}
+
+function csTabelle(zeilen){
+  const r = zeilen.filter(([, v]) => v).map(([k, v]) => `
+    <tr>
+      <td style="padding:8px 0;font-family:Verdana,Geneva,sans-serif;font-size:12px;color:${CS_GRAU};width:170px;vertical-align:top;border-bottom:1px solid #EDEFEF;">${k}</td>
+      <td style="padding:8px 0;font-family:Verdana,Geneva,sans-serif;font-size:13px;color:${CS_TEXT};font-weight:bold;border-bottom:1px solid #EDEFEF;">${v}</td>
+    </tr>`).join('');
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:6px 0 18px;">${r}</table>`;
+}
+
+function csKnopf(text, link){
+  return `
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+    <tr><td style="background:${CS_FARBE};">
+      <a href="${link}" style="display:inline-block;padding:13px 30px;font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:bold;color:#FFFFFF;text-decoration:none;">${text}</a>
+    </td></tr>
+  </table>`;
+}
+
+function csSignaturText(){
+  return '\n\nFreundliche Grüsse\n\n' +
+    'Cristian Gambale\n' +
+    'Bereichsleiter Putzfrauenservice\n' +
+    'Direkt 052 557 02 08 / 076 822 00 16\n' +
+    '---------------------------------\n' +
+    'Clean Service Scaramuzzo AG\n' +
+    'Industriestrasse 5\n' +
+    '8307 Effretikon\n' +
+    '0844 355 355\n' +
+    'clean-service.ch';
+}
