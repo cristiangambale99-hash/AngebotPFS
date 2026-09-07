@@ -43,7 +43,7 @@
       <div class="crm-stats">
         <div class="crm-stat"><span class="crm-stat-num" id="stat-total">0</span><span class="crm-stat-lbl">Kunden total</span></div>
         <div class="crm-stat"><span class="crm-stat-num" id="stat-month">0</span><span class="crm-stat-lbl">Diesen Monat</span></div>
-        <div class="crm-stat"><span class="crm-stat-num" id="stat-open">0</span><span class="crm-stat-lbl">Auftrag erhalten</span></div>
+        <div class="crm-stat"><span class="crm-stat-num" id="stat-open">0</span><span class="crm-stat-lbl">Offen / nachgefasst</span></div>
         <div class="crm-stat"><span class="crm-stat-num" id="stat-zusatz">0</span><span class="crm-stat-lbl">Aktive Kunden</span></div>
       </div>
 
@@ -62,6 +62,28 @@
           <select id="lg-frequenz">
             <option value="woechentlich">Wöchentlich</option>
             <option value="14-taeglich">14-täglich</option>
+            <option value="monatlich">Monatlich</option>
+          </select>
+          <select id="lg-anfrageart">
+            <option value="">Anfrageart …</option>
+            <option value="Homepage">Homepage</option>
+            <option value="Telefonisch">Telefonisch</option>
+            <option value="E-Mail">E-Mail</option>
+          </select>
+          <select id="lg-quelle">
+            <option value="">Quelle des Kontakts …</option>
+            <option value="Suchmaschine">Suchmaschine</option>
+            <option value="Social Media">Social Media</option>
+            <option value="Weiterempfehlung">Weiterempfehlung</option>
+            <option value="Fahrzeugwerbung">Fahrzeugwerbung</option>
+            <option value="Cross-Selling">Cross-Selling</option>
+          </select>
+          <select id="lg-von">
+            <option value="">Erfasst von …</option>
+            <option value="Cristian">Cristian</option>
+            <option value="Fiorella">Fiorella</option>
+            <option value="Tayron">Tayron</option>
+            <option value="Loris">Loris</option>
           </select>
           <button class="btn btn-sm" onclick="generateCustomerLink()">Link generieren</button>
         </div>
@@ -134,8 +156,9 @@
         <button class="btn btn-sm" onclick="ladeDaten()" style="background:var(--bg);color:var(--ink);border:1px solid var(--border);">Aktualisieren</button>
         <div class="crm-filter" id="crm-filter">
           <button class="on" data-f="alle" onclick="setFilter('alle')">Alle</button>
-          <button data-f="neu" onclick="setFilter('neu')">Auftrag erhalten</button>
-          <button data-f="gestartet" onclick="setFilter('gestartet')">Prozess gestartet</button>
+          <button data-f="gesendet" onclick="setFilter('gesendet')">Angebot gesendet</button>
+          <button data-f="nachgefasst" onclick="setFilter('nachgefasst')">Nachgefasst</button>
+          <button data-f="auftrag" onclick="setFilter('auftrag')">Auftragserteilung</button>
           <button data-f="aktiv" onclick="setFilter('aktiv')">Aktiv</button>
           <button data-f="abgesagt" onclick="setFilter('abgesagt')">Abgesagt</button>
         </div>
@@ -148,7 +171,7 @@
 
       <div class="crm-table-wrap">
         <div class="crm-table-head">
-          <span>Kunde</span><span>Adresse</span><span>Datum</span><span>Status</span><span>Angebot Nr.</span><span></span>
+          <span>Kunde</span><span>Adresse</span><span>Gesendet</span><span>Stand</span><span>Angebot Nr.</span><span></span>
         </div>
         <div id="admin-entries"></div>
       </div>
@@ -572,6 +595,11 @@ docx/dist/index.mjs:
     const angebotsnr = document.getElementById('lg-angebotsnr').value.trim();
     if(!vn || !nn || !adr || !ort){ alert('Bitte Vorname, Nachname, Adresse und PLZ/Ort ausfüllen.'); return; }
     if(!/^[0-9]{4}$/.test(angebotsnr)){ alert('Bitte eine vierstellige Angebotsnummer eingeben.'); return; }
+    if(!document.getElementById('lg-anfrageart').value || !document.getElementById('lg-quelle').value ||
+       !document.getElementById('lg-von').value){
+      alert('Bitte Anfrageart, Quelle und erfassende Person angeben — diese Angaben werden für das Reporting benötigt.');
+      return;
+    }
 
     const code = Array.from({length:6}, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join('');
     const zimmer = (document.getElementById('lg-zimmer').value || '').trim();
@@ -639,6 +667,9 @@ docx/dist/index.mjs:
             email: mail,
             zimmer: (document.getElementById('lg-zimmer').value || '').trim(),
             frequenz: document.getElementById('lg-frequenz').value,
+            anfrageart: document.getElementById('lg-anfrageart').value,
+            quelle: document.getElementById('lg-quelle').value,
+            erfasstVon: document.getElementById('lg-von').value,
             link: link
           })
         });
@@ -859,36 +890,104 @@ docx/dist/index.mjs:
       alert('Code falsch.');
     }
   }
-  /* ---------- Bearbeitungsstand: Pipeline ---------- */
+  /* ---------- Pipeline: Angebote und Aufträge zusammengeführt ---------- */
   const STUFEN = [
-    { id:'neu',       label:'Auftrag erhalten', klasse:'st-auftrag' },
-    { id:'gestartet', label:'Prozess gestartet', klasse:'st-angebot' },
-    { id:'aktiv',     label:'Aktiv',             klasse:'st-aktiv'   },
-    { id:'abgesagt',  label:'Abgesagt',          klasse:'st-abgesagt'}
+    { id:'gesendet',    label:'Angebot gesendet',      klasse:'st-angebot' },
+    { id:'nachgefasst', label:'Nachgefasst',           klasse:'st-nachgefasst' },
+    { id:'auftrag',     label:'Auftragserteilung',     klasse:'st-auftrag' },
+    { id:'aktiv',       label:'Aktiv',                 klasse:'st-aktiv' },
+    { id:'abgesagt',    label:'Abgesagt',              klasse:'st-abgesagt' }
   ];
   let CRM_FILTER = 'alle';
+  let CS_LISTE = [];          // zusammengeführte Ansicht
+  let CRM_OFFEN = null;       // geöffneter Kunde
 
-  function stufeVon(e){
-    const s = (e.stufe || '').trim();
-    return STUFEN.some(x => x.id === s) ? s : 'neu';
+  function tageSeit(iso){
+    if(!iso) return null;
+    return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  }
+
+  /* Angebote und Aufträge zu einer Liste verschmelzen.
+     Ein Angebot ohne Auftrag durchläuft: gesendet → nachgefasst → abgesagt
+     Sobald die Auftragserteilung da ist: auftrag → aktiv */
+  function baueListe(){
+    const auftraege = CS_AUFTRAEGE || [];
+    const angebote = (CS_ANGEBOTE && CS_ANGEBOTE.angebote) || [];
+    const nachCode = {};
+    auftraege.forEach(a => { if(a.code) nachCode[a.code] = a; });
+
+    const liste = [];
+
+    angebote.forEach(ang => {
+      const auf = nachCode[ang.code];
+      if(auf){
+        liste.push(Object.assign({}, ang, auf, {
+          quelle:'auftrag', id: auf.id || auf._id || ang.code,
+          stufe: (auf.stufe === 'aktiv') ? 'aktiv' : 'auftrag',
+          datum: auf.eingegangenAm || ang.gesendetAm,
+          tage: tageSeit(ang.gesendetAm)
+        }));
+        delete nachCode[ang.code];
+      } else {
+        let stufe = 'gesendet';
+        if(ang.status === 'abgesagt') stufe = 'abgesagt';
+        else if(ang.erinnerung1 || ang.erinnerung2) stufe = 'nachgefasst';
+        liste.push(Object.assign({}, ang, {
+          quelle:'angebot', id: ang.code,
+          stufe: stufe,
+          datum: ang.gesendetAm,
+          tage: tageSeit(ang.gesendetAm),
+          erinnerungen: (ang.erinnerung1 ? 1 : 0) + (ang.erinnerung2 ? 1 : 0)
+        }));
+      }
+    });
+
+    // Aufträge ohne zugehöriges Angebot (z. B. Direkteingang)
+    Object.values(nachCode).forEach(auf => {
+      liste.push(Object.assign({}, auf, {
+        quelle:'auftrag', id: auf.id || auf._id,
+        stufe: (auf.stufe === 'aktiv') ? 'aktiv' : 'auftrag',
+        datum: auf.eingegangenAm,
+        tage: tageSeit(auf.eingegangenAm)
+      }));
+    });
+
+    liste.sort((a,b) => String(b.datum || '').localeCompare(String(a.datum || '')));
+    CS_LISTE = liste;
   }
 
   function setFilter(f){
     CRM_FILTER = f;
+    CRM_OFFEN = null;
     document.querySelectorAll('#crm-filter button').forEach(b =>
       b.classList.toggle('on', b.dataset.f === f));
     renderAdminList();
   }
 
-  async function setStufe(id, stufe){
-    const e = CS_AUFTRAEGE.find(x => String(x.id) === String(id));
+  function oeffneKunde(id){
+    CRM_OFFEN = (CRM_OFFEN === id) ? null : id;
+    renderAdminList();
+  }
+
+  async function setStufe(id, stufe, ev){
+    if(ev) ev.stopPropagation();
+    const e = CS_LISTE.find(x => String(x.id) === String(id));
     if(!e) return;
     e.stufe = stufe;
+
+    // In der Ursprungsliste ebenfalls setzen, damit ein Neuaufbau stimmt
+    const auf = (CS_AUFTRAEGE || []).find(x => String(x.id) === String(id) || x.code === e.code);
+    if(auf) auf.stufe = stufe;
     renderAdminList();
+
     try{
-      const r = await fetch('/api/orders?aktion=update', {
+      const ziel = e.quelle === 'auftrag' ? '/api/orders?aktion=update' : '/api/offers?aktion=status';
+      const rumpf = e.quelle === 'auftrag'
+        ? { id: id, stufe: stufe }
+        : { code: e.code, status: stufe === 'abgesagt' ? 'abgesagt' : 'gesendet' };
+      const r = await fetch(ziel, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ id: id, stufe: stufe })
+        body: JSON.stringify(rumpf)
       });
       if(!r.ok) throw new Error('Server ' + r.status);
     }catch(err){
@@ -899,47 +998,45 @@ docx/dist/index.mjs:
   function renderAdminList(){
     const wrap = document.getElementById('admin-entries');
     if(!wrap) return;
-    const alle = CS_AUFTRAEGE;
+    baueListe();
+    const alle = CS_LISTE;
 
     /* ---- Kennzahlen ---- */
     const now = new Date();
     const imMonat = alle.filter(e => {
-      const d = e.eingegangenAm ? new Date(e.eingegangenAm) : null;
+      const d = e.datum ? new Date(e.datum) : null;
       return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).length;
-    const aktiv = alle.filter(e => stufeVon(e) === 'aktiv').length;
-    const neu   = alle.filter(e => stufeVon(e) === 'neu').length;
+    const zaehl = s => alle.filter(e => e.stufe === s).length;
     const setz = (id, wert) => { const el = document.getElementById(id); if(el) el.textContent = wert; };
-    setz('stat-total', alle.length); setz('stat-month', imMonat);
-    setz('stat-open', neu); setz('stat-zusatz', aktiv);
+    setz('stat-total', alle.length);
+    setz('stat-month', imMonat);
+    setz('stat-open', zaehl('gesendet') + zaehl('nachgefasst'));
+    setz('stat-zusatz', zaehl('aktiv'));
 
-    if(CS_ANGEBOTE && CS_ANGEBOTE.kennzahlen){
-      const k = CS_ANGEBOTE.kennzahlen;
-      const el = document.getElementById('admin-ladeinfo');
-      if(el){
-        el.innerHTML = '<strong>' + k.gesendet + '</strong> Angebote gesendet · ' +
-                       '<strong>' + k.auftraege + '</strong> Aufträge erhalten · ' +
-                       '<strong>' + k.offen + '</strong> ohne Rückmeldung · ' +
+    const k = (CS_ANGEBOTE && CS_ANGEBOTE.kennzahlen) || null;
+    const info = document.getElementById('admin-ladeinfo');
+    if(info && k){
+      info.innerHTML = '<strong>' + k.gesendet + '</strong> Angebote gesendet · ' +
+                       '<strong>' + (zaehl('auftrag') + zaehl('aktiv')) + '</strong> Aufträge · ' +
+                       '<strong>' + zaehl('nachgefasst') + '</strong> nachgefasst · ' +
                        'Abschlussquote <strong>' + k.quote + '%</strong>';
-        el.style.display = 'block';
-      }
+      info.style.display = 'block';
     }
     renderReport();
 
     /* ---- Filtern und suchen ---- */
-    const suche = (document.getElementById('crm-search') || {}).value || '';
-    const q = suche.trim().toLowerCase();
-    let liste = alle.filter(e => CRM_FILTER === 'alle' || stufeVon(e) === CRM_FILTER);
-    if(q){
+    const suche = ((document.getElementById('crm-search') || {}).value || '').trim().toLowerCase();
+    let liste = alle.filter(e => CRM_FILTER === 'alle' || e.stufe === CRM_FILTER);
+    if(suche){
       liste = liste.filter(e =>
-        [e.vorname, e.nachname, e.adresse, e.plzOrt, e.angebotsnr, e.mail]
-          .filter(Boolean).join(' ').toLowerCase().includes(q));
+        [e.vorname, e.nachname, e.adresse, e.plzOrt, e.ort, e.angebotsnr, e.email, e.mail]
+          .filter(Boolean).join(' ').toLowerCase().includes(suche));
     }
 
-    /* ---- Anzahl je Filter im Knopf ---- */
     document.querySelectorAll('#crm-filter button').forEach(b => {
       const f = b.dataset.f;
-      const n = f === 'alle' ? alle.length : alle.filter(e => stufeVon(e) === f).length;
+      const n = f === 'alle' ? alle.length : zaehl(f);
       const basis = b.dataset.label || b.textContent.replace(/\s*\(\d+\)$/, '');
       b.dataset.label = basis;
       b.textContent = basis + ' (' + n + ')';
@@ -947,88 +1044,153 @@ docx/dist/index.mjs:
 
     if(liste.length === 0){
       wrap.innerHTML = '<p class="admin-empty" style="padding:24px;">' +
-        (alle.length === 0 ? 'Noch keine Auftragserteilungen eingegangen.'
-                           : 'Keine Einträge für diese Auswahl.') + '</p>';
+        (alle.length === 0 ? 'Noch keine Angebote gesendet.' : 'Keine Einträge für diese Auswahl.') + '</p>';
       return;
     }
 
+    const hell = 'background:var(--bg);color:var(--ink);border:1px solid var(--border);';
     wrap.innerHTML = liste.map(e => {
-      const st = stufeVon(e);
-      const def = STUFEN.find(x => x.id === st);
-      const naechste = st === 'neu' ? 'gestartet' : (st === 'gestartet' ? 'aktiv' : null);
-      const naechsteLabel = naechste === 'gestartet' ? 'Prozess starten'
-                          : naechste === 'aktiv' ? 'Auf aktiv setzen' : null;
-      const eid = e.id;
-      const hell = 'background:var(--bg);color:var(--ink);border:1px solid var(--border);';
-      return (
-        '<div class="crm-row">' +
+      const def = STUFEN.find(x => x.id === e.stufe) || STUFEN[0];
+      const offen = String(CRM_OFFEN) === String(e.id);
+      const mail = e.email || e.mail || '';
+      const ort = e.plzOrt || e.ort || '';
+      const dat = e.datum ? new Date(e.datum).toLocaleDateString('de-CH') : '';
+      const tageTxt = (e.tage !== null && e.tage !== undefined)
+        ? (e.tage === 0 ? 'heute' : e.tage + ' Tage') : '';
+
+      // Weiterschieben nur dort, wo es fachlich Sinn ergibt
+      let weiter = '';
+      if(e.stufe === 'auftrag')
+        weiter = '<button class="btn btn-sm" onclick=\'setStufe("' + e.id + '","aktiv",event)\'>Auf aktiv setzen</button>';
+      else if(e.stufe === 'aktiv')
+        weiter = '<span class="crm-status st-aktiv">Kunde aktiv</span>';
+
+      const kopf =
+        '<div class="crm-row" onclick=\'oeffneKunde("' + e.id + '")\'>' +
           '<div class="who">' + (e.vorname || '') + ' ' + (e.nachname || '') +
-            '<div class="muted" style="font-size:11.5px;font-weight:400;">' + (e.mail || '') + '</div></div>' +
-          '<div class="muted">' + (e.adresse || '') + ', ' + (e.plzOrt || '') + '</div>' +
-          '<div class="muted">' + (e.timestamp || '') + '</div>' +
-          '<div><span class="crm-status ' + def.klasse + '">' + def.label + '</span></div>' +
-          '<div><input type="text" maxlength="4" pattern="[0-9]{4}" placeholder="0000" value="' + (e.angebotsnr || '') + '" id="anr-' + eid + '"></div>' +
-          '<div class="crm-row-actions">' +
-            (naechste ? '<button class="btn btn-sm" onclick=\'setStufe("' + eid + '","' + naechste + '")\'>' + naechsteLabel + '</button>' : '') +
-            (st !== 'abgesagt'
-              ? '<button class="btn btn-sm" style="' + hell + '" onclick=\'setStufe("' + eid + '","abgesagt")\'>Abgesagt</button>'
-              : '<button class="btn btn-sm" style="' + hell + '" onclick=\'setStufe("' + eid + '","neu")\'>Zurückholen</button>') +
-            '<button class="btn btn-sm" style="' + hell + '" onclick=\'saveAngebotsnr("' + eid + '")\'>Nr. speichern</button>' +
-            '<button class="btn btn-sm" style="' + hell + '" onclick=\'openChecklistEditor("' + eid + '")\'>Checkliste' + (e.checklistOverride ? ' ✎' : '') + '</button>' +
-            '<button class="btn btn-sm" style="' + hell + '" onclick=\'downloadLeistungsverzeichnis("' + eid + '")\'>PDF</button>' +
-            '<button class="btn btn-sm" style="' + hell + '" onclick=\'downloadLeistungsverzeichnisWord("' + eid + '")\'>Word</button>' +
-            '<button class="btn btn-sm" style="' + hell + '" onclick=\'openEmailPanel("' + eid + '")\'>Bestätigungsmail</button>' +
+            '<div class="muted" style="font-size:11.5px;font-weight:400;">' + mail + '</div></div>' +
+          '<div class="muted">' + (e.adresse || '') + (ort ? ', ' + ort : '') + '</div>' +
+          '<div class="muted">' + dat + (tageTxt ? '<br><span style="font-size:11px;">vor ' + tageTxt + '</span>' : '') + '</div>' +
+          '<div><span class="crm-status ' + def.klasse + '">' + def.label + '</span>' +
+            (e.erinnerungen ? '<div class="muted" style="font-size:11px;margin-top:3px;">' + e.erinnerungen + '× nachgefasst</div>' : '') + '</div>' +
+          '<div class="muted" style="font-variant-numeric:tabular-nums;">' + (e.angebotsnr || '—') + '</div>' +
+          '<div class="open-hint">' + (offen ? 'Schliessen ▲' : 'Öffnen ▾') + '</div>' +
+        '</div>';
+
+      if(!offen) return kopf;
+
+      const zeile = (a, b2) => b2 ? '<div><h4>' + a + '</h4><p>' + b2 + '</p></div>' : '';
+      const detail =
+        '<div class="crm-detail">' +
+          '<div class="detail-grid">' +
+            zeile('Kontakt', (e.mobile || '') + (mail ? '<br>' + mail : '')) +
+            zeile('Objekt', (e.zimmer ? e.zimmer + ' Zimmer' : '') +
+                  (e.qm ? ' · ' + e.qm + ' m²' : '') + (e.badezimmer ? ' · ' + e.badezimmer + ' Bad' : '')) +
+            zeile('Rhythmus', (e.frequenzText || e.frequenz || '') +
+                  (e.tage_wunsch ? ' · ' + e.tage_wunsch : '')) +
+            zeile('Aufwand', e.aufwandText || '') +
+            zeile('Wunschtag', Array.isArray(e.tage) ? e.tage.join(', ') : '') +
+            zeile('Zeitfenster', e.uhrzeit || '') +
+            zeile('Parkplatz', e.pp || '') +
+            zeile('Haustiere', e.haustiere || '') +
+            zeile('Alarmanlage', e.alarmanlage === 'Ja' ? ('Ja' + (e.alarmCode ? ' (' + e.alarmCode + ')' : '')) : e.alarmanlage || '') +
+            zeile('Fensterofferte', e.fensterOfferte || '') +
+            zeile('Bügelservice', (e.buegelservice && e.buegelservice !== 'Nein') ? e.buegelservice : '') +
           '</div>' +
-        '</div>'
-      );
+          (e.vereinbarungen ? '<div class="detail-note"><strong>Besondere Wünsche:</strong> ' + e.vereinbarungen + '</div>' : '') +
+          '<div class="crm-row-actions" style="margin-top:16px;">' +
+            weiter +
+            (e.quelle === 'auftrag'
+              ? '<button class="btn btn-sm" style="' + hell + '" onclick=\'openChecklistEditor("' + e.id + '")\'>Checkliste</button>' +
+                '<button class="btn btn-sm" style="' + hell + '" onclick=\'downloadLeistungsverzeichnis("' + e.id + '")\'>PDF</button>' +
+                '<button class="btn btn-sm" style="' + hell + '" onclick=\'downloadLeistungsverzeichnisWord("' + e.id + '")\'>Word</button>' +
+                '<button class="btn btn-sm" style="' + hell + '" onclick=\'openEmailPanel("' + e.id + '")\'>Bestätigungsmail</button>'
+              : (e.link ? '<a class="btn btn-sm" style="' + hell + 'text-decoration:none;" href="' + e.link + '" target="_blank">Angebot ansehen</a>' : '')) +
+            (e.stufe !== 'abgesagt'
+              ? '<button class="btn btn-sm btn-danger" onclick=\'setStufe("' + e.id + '","abgesagt",event)\'>Abgesagt</button>'
+              : '<button class="btn btn-sm" style="' + hell + '" onclick=\'setStufe("' + e.id + '","' + (e.quelle === 'auftrag' ? 'auftrag' : 'gesendet') + '",event)\'>Zurückholen</button>') +
+          '</div>' +
+        '</div>';
+      return kopf + detail;
     }).join('');
   }
 
-  /* ---------- Auswertung nach Monat und Jahr ---------- */
+  /* ---------- Reporting: Monat, Jahr und Kategorien ---------- */
   function renderReport(){
     const box = document.getElementById('crm-report');
     if(!box) return;
     const angebote = (CS_ANGEBOTE && CS_ANGEBOTE.angebote) || [];
-    const auftraege = CS_AUFTRAEGE || [];
+    const liste = CS_LISTE || [];
     const MON = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 
-    const jahre = {};
-    function zaehle(datum, feld){
-      if(!datum) return;
-      const d = new Date(datum);
-      if(isNaN(d)) return;
-      const j = d.getFullYear(), m = d.getMonth();
-      jahre[j] = jahre[j] || { gesendet:0, auftraege:0, monate:{} };
-      jahre[j].monate[m] = jahre[j].monate[m] || { gesendet:0, auftraege:0 };
-      jahre[j][feld]++; jahre[j].monate[m][feld]++;
-    }
-    angebote.forEach(a => zaehle(a.gesendetAm, 'gesendet'));
-    auftraege.forEach(a => zaehle(a.eingegangenAm, 'auftraege'));
-
-    const sortiert = Object.keys(jahre).sort((a,b) => b - a);
-    if(!sortiert.length){
+    if(!angebote.length){
       box.innerHTML = '<p class="crm-linkgen-hint" style="margin:0;">Noch keine Daten für eine Auswertung.</p>';
       return;
     }
 
-    box.innerHTML = sortiert.map(j => {
-      const d = jahre[j];
-      const quote = d.gesendet ? Math.round(d.auftraege / d.gesendet * 100) : 0;
-      const monate = Object.keys(d.monate).sort((a,b) => b - a).map(m => {
-        const x = d.monate[m];
-        const q = x.gesendet ? Math.round(x.auftraege / x.gesendet * 100) : 0;
-        return '<div class="rep-row">' +
-          '<span>' + MON[m] + '</span>' +
-          '<span>' + x.gesendet + ' gesendet</span>' +
-          '<span>' + x.auftraege + ' Aufträge</span>' +
-          '<span class="rep-q">' + q + '%</span></div>';
-      }).join('');
-      return '<div class="rep-jahr">' +
-        '<div class="rep-head"><strong>' + j + '</strong>' +
-          '<span>' + d.gesendet + ' gesendet · ' + d.auftraege + ' Aufträge · ' + quote + '% Abschluss</span></div>' +
-        monate + '</div>';
+    /* ---- Zeitraum wählen ---- */
+    const jahre = [...new Set(angebote.map(a => (a.gesendetAm || '').slice(0,4)).filter(Boolean))].sort().reverse();
+    const jahr = window.REP_JAHR || jahre[0];
+    window.REP_JAHR = jahr;
+
+    const imJahr = angebote.filter(a => (a.gesendetAm || '').startsWith(jahr));
+    const auftragCodes = new Set(liste.filter(e => e.stufe === 'auftrag' || e.stufe === 'aktiv').map(e => e.code));
+
+    /* ---- Monatstabelle ---- */
+    const monate = {};
+    imJahr.forEach(a => {
+      const m = new Date(a.gesendetAm).getMonth();
+      monate[m] = monate[m] || { gesendet:0, auftraege:0 };
+      monate[m].gesendet++;
+      if(auftragCodes.has(a.code)) monate[m].auftraege++;
+    });
+    const zeilen = Object.keys(monate).sort((x,y) => y - x).map(m => {
+      const d = monate[m];
+      const q = d.gesendet ? Math.round(d.auftraege / d.gesendet * 100) : 0;
+      return '<div class="rep-row"><span>' + MON[m] + '</span>' +
+             '<span>' + d.gesendet + ' Anfragen</span>' +
+             '<span>' + d.auftraege + ' Aufträge</span>' +
+             '<span class="rep-q">' + q + '%</span></div>';
     }).join('');
+    const gesJ = imJahr.length;
+    const aufJ = imJahr.filter(a => auftragCodes.has(a.code)).length;
+
+    /* ---- Verteilung je Kategorie ---- */
+    function verteilung(feld, titel){
+      const z = {};
+      imJahr.forEach(a => { const v = a[feld] || 'Ohne Angabe'; z[v] = (z[v] || 0) + 1; });
+      const summe = imJahr.length || 1;
+      const eintraege = Object.entries(z).sort((x,y) => y[1] - x[1]).map(([k, n]) => {
+        const pct = Math.round(n / summe * 100);
+        return '<div class="rep-bar">' +
+          '<span class="rb-l">' + k + '</span>' +
+          '<span class="rb-t"><span class="rb-f" style="width:' + pct + '%"></span></span>' +
+          '<span class="rb-n">' + n + '</span></div>';
+      }).join('');
+      return '<div class="rep-cat"><h4>' + titel + '</h4>' + eintraege + '</div>';
+    }
+
+    const jahrWahl = jahre.length > 1
+      ? '<select onchange="window.REP_JAHR=this.value;renderReport();" style="font-size:12.5px;padding:5px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--ink);">' +
+        jahre.map(j => '<option' + (j === jahr ? ' selected' : '') + '>' + j + '</option>').join('') + '</select>'
+      : '';
+
+    box.innerHTML =
+      '<div class="rep-jahr">' +
+        '<div class="rep-head"><strong>' + jahr + '</strong>' +
+          '<span>' + gesJ + ' Anfragen · ' + aufJ + ' Aufträge · ' +
+          (gesJ ? Math.round(aufJ / gesJ * 100) : 0) + '% Abschluss ' + jahrWahl + '</span></div>' +
+        zeilen +
+      '</div>' +
+      '<div class="rep-cats">' +
+        verteilung('frequenz', 'Dienstleistung') +
+        verteilung('anfrageart', 'Anfrageart') +
+        verteilung('quelle', 'Quelle des Kontakts') +
+        verteilung('erfasstVon', 'Erfasst von') +
+      '</div>';
   }
+
+
 
   function openEmailPanel(id){
     const list = CS_AUFTRAEGE;
