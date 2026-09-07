@@ -207,6 +207,13 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
           <input type="number" id="f-bad" min="1" value="1" required></div>
       </div>
 
+      <div class="row two">
+        <div><label class="fl" for="f-stockwerk">Stockwerk</label>
+          <input type="text" id="f-stockwerk" placeholder="z. B. 2. OG"></div>
+        <div><label class="fl" for="f-boden">Bodenbeläge</label>
+          <input type="text" id="f-boden" placeholder="z. B. Parkett, Fliesen"></div>
+      </div>
+
       <div class="row" style="margin-bottom:0;">
         <div><label class="fl" for="f-frequenz">Reinigungsrhythmus</label>
           <select id="f-frequenz">
@@ -215,6 +222,25 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
             <option value="monatlich">Monatlich</option>
           </select></div>
       </div>
+
+      <label class="fl" style="margin-top:16px;">Bodenbeläge in Ihrer Wohnung</label>
+      <p class="hint" style="margin:0 0 10px;">Mehrfachauswahl — es genügt anzugeben, welche Beläge im Objekt vorhanden sind. Nicht pro Zimmer nötig.</p>
+      <div class="opts">
+        <label class="opt"><input type="checkbox" class="f-boden" value="Parkett versiegelt">Parkett versiegelt</label>
+        <label class="opt"><input type="checkbox" class="f-boden" value="Parkett geölt">Parkett geölt</label>
+        <label class="opt"><input type="checkbox" class="f-boden" value="Laminat">Laminat</label>
+        <label class="opt"><input type="checkbox" class="f-boden" value="Plättli / Keramik">Plättli / Keramik</label>
+        <label class="opt"><input type="checkbox" class="f-boden" value="Naturstein">Naturstein</label>
+        <label class="opt"><input type="checkbox" class="f-boden" value="Teppich">Teppich</label>
+        <label class="opt"><input type="checkbox" class="f-boden" value="Linoleum">Linoleum</label>
+        <label class="opt"><input type="checkbox" class="f-boden" id="f-boden-andere" value="Andere" onchange="bodenAndere()">Andere</label>
+      </div>
+      <div class="folds hidden" id="boden-feld">
+        <label class="fl" for="f-boden-text">Welcher Belag?</label>
+        <input type="text" id="f-boden-text" placeholder="z. B. Kork, Vinyl">
+      </div>
+
+      
 
       <div class="sum" id="aufwand-box" style="display:none;">
         <div class="l">Voraussichtlicher Aufwand</div>
@@ -389,6 +415,11 @@ function toggleFenster(){
 document.querySelectorAll('input[name="f-fenster"]').forEach(r =>
   r.addEventListener('change', toggleFenster));
 
+function bodenAndere(){
+  document.getElementById('boden-feld').classList
+    .toggle('hidden', !document.getElementById('f-boden-andere').checked);
+}
+
 function tierKeine(){
   if(document.getElementById('f-tier-keine').checked){
     document.querySelectorAll('.f-tier').forEach(c => c.checked = false);
@@ -467,6 +498,11 @@ function submitOrder(e){
     angebotsnr: document.getElementById('f-angebotsnr').value,
     zimmer: zimmer,
     qm: document.getElementById('f-qm').value,
+    bodenbelaege: (() => {
+      const gewaehlt = [...document.querySelectorAll('.f-boden:checked')].map(c => c.value);
+      const frei = (document.getElementById('f-boden-text').value || '').trim();
+      return gewaehlt.map(v => (v === 'Andere' && frei) ? ('Andere: ' + frei) : v).join(', ');
+    })(),
     badezimmer: parseInt(document.getElementById('f-bad').value) || 1,
     frequenz: frequenz,
     frequenzText: FREQUENZ_LABEL[frequenz],
