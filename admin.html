@@ -829,10 +829,15 @@ jspdf/dist/jspdf.es.min.js:
           : '',
         mail: a.mail || '',
         tage: a.tage ? String(a.tage).split(',').map(s => s.trim()).filter(Boolean) : [],
+        // Angepasste Checkliste: bevorzugt als Feld, sonst aus der alten
+        // Textfassung. Ohne beides bleibt sie unverändert (null = Standard).
         checklistOverride: (() => {
-          if(!a.checkliste) return null;
-          try{ const p = JSON.parse(a.checkliste); return Array.isArray(p) && p.length ? p : null; }
-          catch(e){ return null; }
+          if(Array.isArray(a.checklistOverride) && a.checklistOverride.length) return a.checklistOverride;
+          if(a.checkliste){
+            try{ const p = JSON.parse(a.checkliste); return Array.isArray(p) && p.length ? p : null; }
+            catch(e){ return null; }
+          }
+          return null;
         })()
       }));
       if(info) info.style.display = 'none';
@@ -1656,6 +1661,31 @@ function baueDokument(entry){
     zellen: raeume.map(r => istAktiv(auf, r) ? (auf.frequenz === 'M' ? 'M' : stdFreq) : '')
   })).filter(z => z.zellen.some(c => c));
 
+  /* Selbst ergänzte Aufgaben aus dem Checklisten-Editor anhängen.
+     Sie stehen nicht in der Standardliste, gehören aber ins Dokument. */
+  if(override){
+    const bekannt = new Set(AUFGABEN.map(a2 => a2.text));
+    const eigene = new Map();          // Text -> Set der Räume
+    override.forEach(sec => {
+      if(sec.isZusatz) return;
+      (sec.rows || []).forEach(t => {
+        if(bekannt.has(t)) return;
+        if(!eigene.has(t)) eigene.set(t, new Set());
+        eigene.get(t).add(sec.title);
+      });
+    });
+    eigene.forEach((wo, t) => {
+      const zellen = raeume.map(r => wo.has(r.kurz.toUpperCase()) ? stdFreq : '');
+      if(zellen.some(c => c)){
+        // Farbe vom ersten Raum übernehmen, in dem die Aufgabe vorkommt
+        const idx = zellen.findIndex(c => c);
+        const typ = raeume[idx].typ;
+        const fk = { kue:'green', bad:'yellow' }[typ] || 'blue';
+        matrixZeilen.push({ text: t, uebersetzung: '', farbe: docFarbe(fk), zellen });
+      }
+    });
+  }
+
   const zusatzZeilen = [];
   sections.filter(s => s.isZusatz).forEach(s =>
     s.rows.forEach(t => zusatzZeilen.push({ text: t, uebersetzung: ZUS_TR[t] || '' })));
@@ -1768,7 +1798,7 @@ function downloadLeistungsverzeichnis(id){
 
   /* ---------------- Titel, darunter Angaben über die volle Breite ---------------- */
   pdf.setFont(SCHRIFT,'bold').setFontSize(G.titel).setTextColor(...F.ink.rgb);
-  pdf.text(doc.kopf.titel, ML, y + 4); y += 7.5;
+  pdf.text(doc.kopf.titel, ML, y + 4); y += 11;
 
   if(doc.kopf.objekt || doc.kopf.kunde){
     pdf.setFont(SCHRIFT,'normal').setFontSize(G.untertitel).setTextColor(...F.dunkel.rgb);
@@ -1781,50 +1811,56 @@ function downloadLeistungsverzeichnis(id){
     }
     y += 4.2;
   }
-  y += 0.5;
+  y += 2;
 
   /* Angaben in drei Spalten, damit sie flach bleiben */
   // Bodenbeläge in eine eigene, volle Zeile — sie sind zu lang für eine Spalte
-  const alleAng = doc.angaben.links.zeilen.concat(doc.angaben.rechts.zeilen);
-  const boden = alleAng.find(z => z[0] === 'Bodenbeläge');
-  const angZeilen = alleAng.filter(z => z[0] !== 'Bodenbeläge');
-  const SPALTEN_N = 2;
-  const proSp = Math.ceil(angZeilen.length / SPALTEN_N);
-  const spBr = (BREITE - 6) / SPALTEN_N;
+  /* Zwei klar getrennte Blöcke nebeneinander:
+     links die Kundendaten, rechts alles zum Objekt und zur Reinigung. */
+  const kundeZeilen  = doc.angaben.links.zeilen;
+  const objektAlle   = doc.angaben.rechts.zeilen;
+  const boden        = objektAlle.find(z => z[0] === 'Bodenbeläge');
+  const objektZeilen = objektAlle.filter(z => z[0] !== 'Bodenbeläge');
+
+  const SPALT_K = 6;
+  const KB = (BREITE - SPALT_K) * 0.42;          // Kundenblock
+  const OB = BREITE - SPALT_K - KB;              // Objektblock
 
   pdf.setFont(SCHRIFT,'normal').setFontSize(7.2);
-  const bodenZeilen = boden ? pdf.splitTextToSize(String(boden[1]), BREITE - 30) : [];
-  const hBoden = bodenZeilen.length ? (bodenZeilen.length * 3.3 + 1.2) : 0;
-  const hAng = 4.2 + proSp * 3.3 + hBoden + 1.6;
+  const bodenZeilen = boden ? pdf.splitTextToSize(String(boden[1]), OB - 24) : [];
 
-  pdf.setFillColor(...F.zart.rgb).setDrawColor(...F.linie.rgb).setLineWidth(0.25);
-  pdf.rect(ML, y, BREITE, hAng, 'FD');
-  pdf.setFont(SCHRIFT,'bold').setFontSize(G.label).setTextColor(...F.dunkel.rgb);
-  pdf.text('KUNDE UND OBJEKT', ML + 3, y + 4);
+  const hKunde  = 4.6 + kundeZeilen.length * 3.4 + 2;
+  const hObjekt = 4.6 + objektZeilen.length * 3.4 + Math.max(1, bodenZeilen.length) * 3.2 + 4;
+  const hKopf   = Math.max(hKunde, hObjekt);
 
-  angZeilen.forEach((zz, i) => {
-    const sp = Math.floor(i / proSp);
-    const zi = i % proSp;
-    const xx = ML + 3 + sp * spBr;
-    const yy = y + 7.4 + zi * 3.3;
-    pdf.setFont(SCHRIFT,'normal').setFontSize(6.3).setTextColor(...F.mute.rgb);
-    pdf.text(zz[0] + ':', xx, yy);
-    pdf.setFontSize(7.2).setTextColor(...F.ink.rgb);
-    // Lange Werte wie die Bodenbeläge dürfen in die Nachbarspalte reichen
-    const w = pdf.splitTextToSize(String(zz[1]), spBr - 24);
-    pdf.text(w[0] || '', xx + 22, yy);
-  });
+  function blockZeichnen(x, br, titel, zeilen, extraZeilen, extraLabel){
+    pdf.setFillColor(...F.zart.rgb).setDrawColor(...F.linie.rgb).setLineWidth(0.25);
+    pdf.rect(x, y, br, hKopf, 'FD');
+    pdf.setFont(SCHRIFT,'bold').setFontSize(G.label).setTextColor(...F.dunkel.rgb);
+    pdf.text(titel, x + 3, y + 4);
 
-  // Bodenbeläge über die volle Kastenbreite
-  if(bodenZeilen.length){
-    const by = y + 7.5 + proSp * 3.3 + 0.6;
-    pdf.setFont(SCHRIFT,'normal').setFontSize(6.3).setTextColor(...F.mute.rgb);
-    pdf.text('Bodenbeläge:', ML + 3, by);
-    pdf.setFontSize(7.2).setTextColor(...F.ink.rgb);
-    bodenZeilen.forEach((bz, i) => pdf.text(bz, ML + 25, by + i * 3.3));
+    let yy = y + 8;
+    zeilen.forEach(zz => {
+      pdf.setFont(SCHRIFT,'normal').setFontSize(6.3).setTextColor(...F.mute.rgb);
+      pdf.text(zz[0] + ':', x + 3, yy);
+      pdf.setFontSize(7.2).setTextColor(...F.ink.rgb);
+      const w = pdf.splitTextToSize(String(zz[1]), br - 24);
+      pdf.text(w[0] || '', x + 21, yy);
+      yy += 3.4;
+    });
+    if(extraZeilen && extraZeilen.length){
+      pdf.setFont(SCHRIFT,'normal').setFontSize(6.3).setTextColor(...F.mute.rgb);
+      pdf.text(extraLabel + ':', x + 3, yy);
+      pdf.setFontSize(7.2).setTextColor(...F.ink.rgb);
+      pdf.text(extraZeilen, x + 21, yy);
+    }
   }
-  y += hAng + 1.5;
 
+  blockZeichnen(ML, KB, 'KUNDE', kundeZeilen);
+  blockZeichnen(ML + KB + SPALT_K, OB, 'OBJEKT UND REINIGUNG', objektZeilen,
+                bodenZeilen, 'Bodenbeläge');
+
+  y += hKopf + 3;
 
   /* ---------------- Besondere Hinweise ---------------- */
   if(doc.hinweis){
