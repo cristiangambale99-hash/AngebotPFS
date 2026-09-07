@@ -103,18 +103,14 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal)!important;
     </header>
 
     <div id="admin-gate" class="admin-gate">
-      <p class="secnum" style="justify-content:center;"><span class="ln"></span>Anmeldung</p>
+      <p class="secnum" style="justify-content:center;"><span class="ln"></span>Zugang</p>
       <h2>Verwaltung Putzfrauenservice</h2>
-      <p>Bitte melden Sie sich mit Ihren persönlichen Zugangsdaten an.</p>
-      <div class="field" style="margin-bottom:10px;">
-        <input type="text" id="lg-benutzer" placeholder="Benutzername" autocomplete="username"
-               onkeydown="if(event.key==='Enter')document.getElementById('lg-passwort').focus()">
-      </div>
+      <p>Bitte Code eingeben.</p>
       <div class="field">
-        <input type="password" id="lg-passwort" placeholder="Passwort" autocomplete="current-password"
+        <input type="password" id="admin-code" placeholder="Code" autocomplete="current-password"
                onkeydown="if(event.key==='Enter')anmelden()">
       </div>
-      <button class="btn" style="margin-top:14px;" id="lg-btn" onclick="anmelden()">Anmelden</button>
+      <button class="btn" style="margin-top:14px;" id="lg-btn" onclick="anmelden()">Entsperren</button>
       <p id="lg-fehler" style="display:none;margin-top:12px;font-size:13px;color:#B4232C;"></p>
     </div>
 
@@ -962,14 +958,13 @@ jspdf/dist/jspdf.es.min.js:
   let CS_TOKEN = sessionStorage.getItem('cs_token') || '';
 
   async function anmelden(){
-    const benutzer = (document.getElementById('lg-benutzer').value || '').trim();
-    const passwort = document.getElementById('lg-passwort').value || '';
+    const code = document.getElementById('admin-code').value || '';
     const fehler = document.getElementById('lg-fehler');
     const btn = document.getElementById('lg-btn');
     fehler.style.display = 'none';
 
-    if(!benutzer || !passwort){
-      fehler.textContent = 'Bitte Benutzername und Passwort eingeben.';
+    if(!code){
+      fehler.textContent = 'Bitte Code eingeben.';
       fehler.style.display = 'block';
       return;
     }
@@ -977,23 +972,21 @@ jspdf/dist/jspdf.es.min.js:
     try{
       const r = await fetch('/api/login', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ benutzer, passwort })
+        body: JSON.stringify({ code })
       });
       const d = await r.json();
-      if(!r.ok) throw new Error(d.error || 'Anmeldung fehlgeschlagen.');
+      if(!r.ok) throw new Error(d.error || 'Zugang verweigert.');
       CS_TOKEN = d.token || '';
       sessionStorage.setItem('cs_token', CS_TOKEN);
       document.getElementById('admin-gate').style.display = 'none';
       document.getElementById('admin-list').style.display = 'block';
-      const wer = document.querySelector('.adm-top .s');
-      if(wer) wer.textContent = 'Angemeldet als ' + d.benutzer;
       ladeDaten();
     }catch(err){
       fehler.textContent = err.message;
       fehler.style.display = 'block';
-      document.getElementById('lg-passwort').value = '';
+      document.getElementById('admin-code').value = '';
     }finally{
-      btn.disabled = false; btn.textContent = 'Anmelden';
+      btn.disabled = false; btn.textContent = 'Entsperren';
     }
   }
 
