@@ -1,8 +1,9 @@
 // api/login.js
-// Anmeldung für den Admin-Bereich.
+// Zugang zum Admin-Bereich per Code.
 //
-// Die Zugangsdaten liegen als Umgebungsvariable in Vercel, nie im Seitenquelltext:
-//   ADMIN_USERS = "cristian:GeheimesWort,fiorella:AnderesWort,tayron:DrittesWort"
+// Der Code liegt als Umgebungsvariable in Vercel und ist damit im
+// Seitenquelltext nicht einsehbar:
+//   ADMIN_CODE = "euer Code"
 //   SESSION_SECRET = eine lange, zufällige Zeichenfolge
 //
 // Nach erfolgreicher Anmeldung wird ein signiertes Sitzungsmerkmal ausgestellt.
@@ -65,40 +66,26 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { benutzer, passwort } = req.body || {};
-  if (!benutzer || !passwort) {
-    return res.status(400).json({ error: 'Benutzername und Passwort erforderlich.' });
+  const { code } = req.body || {};
+  if (!code) return res.status(400).json({ error: 'Bitte Code eingeben.' });
+
+  const richtig = process.env.ADMIN_CODE;
+  if (!richtig || !process.env.SESSION_SECRET) {
+    return res.status(500).json({ error: 'Zugang ist noch nicht eingerichtet.' });
   }
 
-  const liste = process.env.ADMIN_USERS;
-  if (!liste || !process.env.SESSION_SECRET) {
-    return res.status(500).json({ error: 'Anmeldung ist noch nicht eingerichtet.' });
-  }
+  // Zeitkonstanter Vergleich, damit sich der Code nicht Zeichen für Zeichen erraten lässt
+  const a = Buffer.from(String(code));
+  const b = Buffer.from(richtig);
+  const stimmt = a.length === b.length && crypto.timingSafeEqual(a, b);
 
-  // Eintrag suchen, Vergleich zeitkonstant
-  const eintraege = liste.split(',').map(s => s.trim()).filter(Boolean);
-  let gefunden = false;
-  let name = '';
-  for (const e of eintraege) {
-    const i = e.indexOf(':');
-    if (i < 0) continue;
-    const u = e.slice(0, i).trim();
-    const p = e.slice(i + 1).trim();
-    if (u.toLowerCase() !== String(benutzer).trim().toLowerCase()) continue;
-    const a = Buffer.from(p), b = Buffer.from(String(passwort));
-    if (a.length === b.length && crypto.timingSafeEqual(a, b)) { gefunden = true; name = u; }
-    break;
-  }
+  // Immer gleich lange antworten
+  await new Promise(r => setTimeout(r, 300));
 
-  // Immer gleich lange antworten, damit sich gültige Namen nicht erraten lassen
-  await new Promise(r => setTimeout(r, 350));
+  if (!stimmt) return res.status(401).json({ error: 'Code ist nicht korrekt.' });
 
-  if (!gefunden) {
-    return res.status(401).json({ error: 'Benutzername oder Passwort ist falsch.' });
-  }
-
-  const token = tokenErstellen(name);
+  const token = tokenErstellen('admin');
   res.setHeader('Set-Cookie',
     `cs_session=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${12 * 3600}`);
-  return res.status(200).json({ ok: true, benutzer: name, token });
+  return res.status(200).json({ ok: true, token });
 }
