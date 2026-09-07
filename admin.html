@@ -11,6 +11,77 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Mulish:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<style>
+/* ===== Admin im hellen Layout, passend zur Angebotsseite ===== */
+/* Alte fixierte Kopfzeile ausblenden — der Bereich hat jetzt eine eigene */
+#crm-back-link, header.site-header, .crm-head, #theme-toggle{display:none!important;}
+
+:root{
+  --cd-haupt:#2BB6B7; --teal:#2BB6B7; --teal-deep:#1C7878;
+  --bg:#FCFDFD; --surface:#FFFFFF; --wash:#F2F8F8; --tint:#EAF6F6;
+  --border:#E1EAE9; --border-soft:#E8F0EF;
+  --ink:#0E1E1D; --body-c:#485655; --mute:#7C8C8B;
+}
+html,body{background:var(--bg)!important;color:var(--body-c)!important;}
+body::before,body::after{display:none!important;}
+.crm-body{max-width:1180px;margin:0 auto;padding:0 22px 80px;}
+
+/* Kopfleiste */
+.adm-top{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:22px 0 18px;border-bottom:1px solid var(--border);margin-bottom:24px;flex-wrap:wrap;}
+.adm-top .t{font-family:var(--sans-head);font-weight:700;font-size:17px;color:var(--ink);}
+.adm-top .s{font-size:12.5px;color:var(--mute);margin-top:2px;}
+
+/* Reiter */
+.adm-tabs{display:flex;gap:6px;margin-bottom:22px;border-bottom:1px solid var(--border);}
+.adm-tabs button{background:none;border:none;cursor:pointer;padding:11px 18px;
+  font-family:var(--sans-head);font-weight:600;font-size:14px;color:var(--mute);
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s;}
+.adm-tabs button:hover{color:var(--ink);}
+.adm-tabs button.on{color:var(--teal-deep);border-bottom-color:var(--teal);}
+.adm-panel{display:none;} .adm-panel.on{display:block;}
+
+/* Karten und Flächen */
+.crm-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
+@media (max-width:820px){.crm-stats{grid-template-columns:1fr 1fr;}}
+.crm-stat{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;
+  padding:18px 20px;box-shadow:0 1px 3px rgba(14,30,29,.04);}
+.crm-stat-val{font-family:var(--sans-head);font-weight:700;font-size:26px;color:var(--ink);}
+.crm-stat-lbl{font-size:12px;color:var(--mute);margin-top:3px;display:block;}
+.crm-linkgen{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;
+  padding:22px;margin-bottom:16px;box-shadow:0 1px 3px rgba(14,30,29,.04);}
+.crm-linkgen h3{color:var(--ink);}
+.crm-linkgen-hint{color:var(--mute);}
+.crm-table-wrap{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;
+  overflow:hidden;box-shadow:0 1px 3px rgba(14,30,29,.04);}
+.crm-table-head{background:var(--wash);color:var(--mute);border-bottom:1px solid var(--border);}
+.crm-row{border-top:1px solid var(--border-soft);}
+.crm-row:hover{background:var(--wash);}
+.crm-row .who{color:var(--ink);}
+.crm-detail{background:var(--wash);border-top:1px solid var(--border);}
+
+/* Eingabefelder */
+input[type=text],input[type=tel],input[type=email],input[type=number],select,textarea{
+  background:#fff!important;border:1.5px solid var(--border)!important;color:var(--ink)!important;
+  border-radius:9px!important;}
+input:focus,select:focus,textarea:focus{border-color:var(--teal)!important;
+  box-shadow:0 0 0 3px rgba(43,182,183,.13)!important;outline:none!important;}
+.btn{background:linear-gradient(135deg,var(--cd-haupt),var(--teal-deep))!important;color:#fff!important;
+  border:none!important;border-radius:10px!important;}
+.crm-filter{background:var(--wash);border:1px solid var(--border);}
+.crm-filter button{color:var(--mute);}
+.crm-filter button.on{background:var(--surface);color:var(--ink);
+  box-shadow:0 1px 3px rgba(14,30,29,.08);}
+#admin-gate{background:var(--bg);}
+.admin-card{background:var(--surface);border:1px solid var(--border);
+  box-shadow:0 10px 40px -20px rgba(14,30,29,.25);}
+#admin-ladeinfo{background:var(--tint)!important;border-color:#CFE6EA!important;color:var(--body-c)!important;}
+.rep-jahr,.rep-cat{border-color:var(--border);}
+.rep-head{background:var(--wash);}
+.cl-section{border-color:var(--border);}
+.cl-head{background:var(--wash);border-color:var(--border);}
+.cl-add{background:var(--wash);}
+</style>
 </head>
 <body class="admin-standalone">
 
@@ -32,14 +103,37 @@
     </header>
 
     <div id="admin-gate" class="admin-gate">
-      <p class="secnum" style="justify-content:center;"><span class="ln"></span>Zugang</p>
-      <h2>Eingegangene Auftragserteilungen</h2>
-      <p>Bitte Code eingeben.</p>
-      <div class="field"><input type="password" id="admin-code" placeholder="Code"></div>
-      <button class="btn" style="margin-top:14px;" onclick="unlockAdmin()">Entsperren</button>
+      <p class="secnum" style="justify-content:center;"><span class="ln"></span>Anmeldung</p>
+      <h2>Verwaltung Putzfrauenservice</h2>
+      <p>Bitte melden Sie sich mit Ihren persönlichen Zugangsdaten an.</p>
+      <div class="field" style="margin-bottom:10px;">
+        <input type="text" id="lg-benutzer" placeholder="Benutzername" autocomplete="username"
+               onkeydown="if(event.key==='Enter')document.getElementById('lg-passwort').focus()">
+      </div>
+      <div class="field">
+        <input type="password" id="lg-passwort" placeholder="Passwort" autocomplete="current-password"
+               onkeydown="if(event.key==='Enter')anmelden()">
+      </div>
+      <button class="btn" style="margin-top:14px;" id="lg-btn" onclick="anmelden()">Anmelden</button>
+      <p id="lg-fehler" style="display:none;margin-top:12px;font-size:13px;color:#B4232C;"></p>
     </div>
 
     <div id="admin-list" class="crm-body" style="display:none;">
+
+      <div class="adm-top">
+        <div>
+          <div class="t">Putzfrauenservice — Verwaltung</div>
+          <div class="s">Angebote erstellen, Aufträge verfolgen, Auswertung</div>
+        </div>
+        <div style="display:flex;gap:16px;align-items:center;"><a href="index.html" style="font-size:13px;color:var(--mute);text-decoration:none;">← Zum Angebot</a><button onclick="abmelden()" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--mute);font-family:inherit;">Abmelden</button></div>
+      </div>
+
+      <div class="adm-tabs">
+        <button class="on" data-tab="crm" onclick="zeigeTab('crm')">Kundenübersicht</button>
+        <button data-tab="neu" onclick="zeigeTab('neu')">Neues Angebot erstellen</button>
+      </div>
+
+      <div class="adm-panel on" id="tab-crm">
       <div class="crm-stats">
         <div class="crm-stat"><span class="crm-stat-num" id="stat-total">0</span><span class="crm-stat-lbl">Kunden total</span></div>
         <div class="crm-stat"><span class="crm-stat-num" id="stat-month">0</span><span class="crm-stat-lbl">Diesen Monat</span></div>
@@ -47,66 +141,9 @@
         <div class="crm-stat"><span class="crm-stat-num" id="stat-zusatz">0</span><span class="crm-stat-lbl">Aktive Kunden</span></div>
       </div>
 
-      <div class="crm-linkgen">
-        <h3>Neuen Kunden-Link erstellen</h3>
-        <p class="crm-linkgen-hint">Erstellt eine persönliche Version des Konzepts für einen konkreten Interessenten — Name und Adresse erscheinen automatisch oben auf der Seite.</p>
-        <div class="crm-linkgen-fields">
-          <select id="lg-anrede"><option value="Herr">Herr</option><option value="Frau">Frau</option></select>
-          <input type="text" id="lg-vorname" placeholder="Vorname">
-          <input type="text" id="lg-nachname" placeholder="Nachname">
-          <input type="text" id="lg-adresse" placeholder="Adresse">
-          <input type="text" id="lg-plzort" placeholder="PLZ Ort">
-          <input type="email" id="lg-email" placeholder="E-Mail des Kunden">
-          <input type="text" id="lg-angebotsnr" maxlength="4" pattern="[0-9]{4}" placeholder="Angebot Nr. (4-stellig)">
-          <input type="number" id="lg-zimmer" step="0.5" min="1" placeholder="Zimmer (z. B. 4.5)">
-          <select id="lg-frequenz">
-            <option value="woechentlich">Wöchentlich</option>
-            <option value="14-taeglich">14-täglich</option>
-            <option value="monatlich">Monatlich</option>
-          </select>
-          <select id="lg-anfrageart">
-            <option value="">Anfrageart …</option>
-            <option value="Homepage">Homepage</option>
-            <option value="Telefonisch">Telefonisch</option>
-            <option value="E-Mail">E-Mail</option>
-          </select>
-          <select id="lg-quelle">
-            <option value="">Quelle des Kontakts …</option>
-            <option value="Suchmaschine">Suchmaschine</option>
-            <option value="Social Media">Social Media</option>
-            <option value="Weiterempfehlung">Weiterempfehlung</option>
-            <option value="Fahrzeugwerbung">Fahrzeugwerbung</option>
-            <option value="Cross-Selling">Cross-Selling</option>
-          </select>
-          <select id="lg-von">
-            <option value="">Erfasst von …</option>
-            <option value="Cristian">Cristian</option>
-            <option value="Fiorella">Fiorella</option>
-            <option value="Tayron">Tayron</option>
-            <option value="Loris">Loris</option>
-          </select>
-          <button class="btn btn-sm" onclick="generateCustomerLink()">Link generieren</button>
-        </div>
-        <div id="lg-result" style="display:none;margin-top:14px;">
-          <div class="crm-linkgen-out">
-            <input type="text" id="lg-link" readonly>
-            <button class="btn btn-sm" onclick="copyCustomerLink()">Kopieren</button>
-            <button class="btn btn-sm" onclick="sendOfferEmail()">Jetzt senden</button>
-          </div>
-          <p class="crm-linkgen-code">Zugangscode für die Nachricht an den Kunden: <strong id="lg-code"></strong></p>
-          <p class="crm-linkgen-hint" id="lg-send-status" style="display:none;margin-top:8px;"></p>
-        </div>
-      </div>
 
-      <div class="crm-linkgen" id="email-panel" style="display:none;">
-        <h3>Bestätigungsmail</h3>
-        <p class="crm-linkgen-hint">Vorausgefüllt, editierbar. Kopieren oder direkt im E-Mail-Programm öffnen.</p>
-        <div class="field"><textarea id="email-body" style="min-height:260px;font-family:var(--sans-body);"></textarea></div>
-        <div class="crm-linkgen-out" style="margin-top:10px;">
-          <button class="btn btn-sm" onclick="copyEmail()">Text kopieren</button>
-          <a class="btn btn-sm" id="email-mailto" style="background:var(--surface);color:var(--ink);border:1px solid var(--border);text-decoration:none;">Im E-Mail-Programm öffnen</a>
-        </div>
-      </div>
+
+
 
       <div class="crm-linkgen" id="checklist-panel" style="display:none;">
         <h3>Checkliste — <span id="checklist-kunde"></span></h3>
@@ -175,6 +212,63 @@
         </div>
         <div id="admin-entries"></div>
       </div>
+
+      </div><!-- /tab-crm -->
+
+      <div class="adm-panel" id="tab-neu">
+      <div class="crm-linkgen">
+        <h3>Neuen Kunden-Link erstellen</h3>
+        <p class="crm-linkgen-hint">Erstellt eine persönliche Version des Konzepts für einen konkreten Interessenten — Name und Adresse erscheinen automatisch oben auf der Seite.</p>
+        <div class="crm-linkgen-fields">
+          <select id="lg-anrede"><option value="Herr">Herr</option><option value="Frau">Frau</option></select>
+          <input type="text" id="lg-vorname" placeholder="Vorname">
+          <input type="text" id="lg-nachname" placeholder="Nachname">
+          <input type="text" id="lg-adresse" placeholder="Adresse">
+          <input type="text" id="lg-plzort" placeholder="PLZ Ort">
+          <input type="email" id="lg-email" placeholder="E-Mail des Kunden">
+          <input type="text" id="lg-angebotsnr" maxlength="4" pattern="[0-9]{4}" placeholder="Angebot Nr. (4-stellig)">
+          <input type="number" id="lg-zimmer" step="0.5" min="1" placeholder="Zimmer (z. B. 4.5)">
+          <select id="lg-frequenz">
+            <option value="woechentlich">Wöchentlich</option>
+            <option value="14-taeglich">14-täglich</option>
+            <option value="monatlich">Monatlich</option>
+          </select>
+          <select id="lg-anfrageart">
+            <option value="">Anfrageart …</option>
+            <option value="Homepage">Homepage</option>
+            <option value="Telefonisch">Telefonisch</option>
+            <option value="E-Mail">E-Mail</option>
+          </select>
+          <select id="lg-quelle">
+            <option value="">Quelle des Kontakts …</option>
+            <option value="Suchmaschine">Suchmaschine</option>
+            <option value="Social Media">Social Media</option>
+            <option value="Weiterempfehlung">Weiterempfehlung</option>
+            <option value="Fahrzeugwerbung">Fahrzeugwerbung</option>
+            <option value="Cross-Selling">Cross-Selling</option>
+          </select>
+          <select id="lg-von">
+            <option value="">Erfasst von …</option>
+            <option value="Cristian">Cristian</option>
+            <option value="Fiorella">Fiorella</option>
+            <option value="Tayron">Tayron</option>
+            <option value="Loris">Loris</option>
+          </select>
+          <button class="btn btn-sm" onclick="generateCustomerLink()">Link generieren</button>
+        </div>
+        <div id="lg-result" style="display:none;margin-top:14px;">
+          <div class="crm-linkgen-out">
+            <input type="text" id="lg-link" readonly>
+            <button class="btn btn-sm" onclick="copyCustomerLink()">Kopieren</button>
+            <button class="btn btn-sm" onclick="sendOfferEmail()">Jetzt senden</button>
+          </div>
+          <p class="crm-linkgen-code">Zugangscode für die Nachricht an den Kunden: <strong id="lg-code"></strong></p>
+          <p class="crm-linkgen-hint" id="lg-send-status" style="display:none;margin-top:8px;"></p>
+        </div>
+      </div>
+
+      </div><!-- /tab-neu -->
+
     </div>
   </div>
 
@@ -856,16 +950,68 @@ jspdf/dist/jspdf.es.min.js:
     renderAdminList();
   }
 
-  function unlockAdmin(){
-    const code = document.getElementById('admin-code').value;
-    if(code === 'Clean+26'){
+  /* Reiter umschalten */
+  function zeigeTab(name){
+    document.querySelectorAll('.adm-tabs button').forEach(b =>
+      b.classList.toggle('on', b.dataset.tab === name));
+    document.querySelectorAll('.adm-panel').forEach(p =>
+      p.classList.toggle('on', p.id === 'tab-' + name));
+  }
+
+  /* ---------- Anmeldung ---------- */
+  let CS_TOKEN = sessionStorage.getItem('cs_token') || '';
+
+  async function anmelden(){
+    const benutzer = (document.getElementById('lg-benutzer').value || '').trim();
+    const passwort = document.getElementById('lg-passwort').value || '';
+    const fehler = document.getElementById('lg-fehler');
+    const btn = document.getElementById('lg-btn');
+    fehler.style.display = 'none';
+
+    if(!benutzer || !passwort){
+      fehler.textContent = 'Bitte Benutzername und Passwort eingeben.';
+      fehler.style.display = 'block';
+      return;
+    }
+    btn.disabled = true; btn.textContent = 'Wird geprüft …';
+    try{
+      const r = await fetch('/api/login', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ benutzer, passwort })
+      });
+      const d = await r.json();
+      if(!r.ok) throw new Error(d.error || 'Anmeldung fehlgeschlagen.');
+      CS_TOKEN = d.token || '';
+      sessionStorage.setItem('cs_token', CS_TOKEN);
       document.getElementById('admin-gate').style.display = 'none';
       document.getElementById('admin-list').style.display = 'block';
+      const wer = document.querySelector('.adm-top .s');
+      if(wer) wer.textContent = 'Angemeldet als ' + d.benutzer;
       ladeDaten();
-    } else {
-      alert('Code falsch.');
+    }catch(err){
+      fehler.textContent = err.message;
+      fehler.style.display = 'block';
+      document.getElementById('lg-passwort').value = '';
+    }finally{
+      btn.disabled = false; btn.textContent = 'Anmelden';
     }
   }
+
+  function abmelden(){
+    sessionStorage.removeItem('cs_token');
+    CS_TOKEN = '';
+    location.reload();
+  }
+
+  /* Alle Serveraufrufe tragen das Sitzungsmerkmal */
+  const urspruenglichesFetch = window.fetch.bind(window);
+  window.fetch = function(url, opt){
+    opt = opt || {};
+    if(typeof url === 'string' && url.startsWith('/api/') && CS_TOKEN){
+      opt.headers = Object.assign({}, opt.headers, { 'Authorization': 'Bearer ' + CS_TOKEN });
+    }
+    return urspruenglichesFetch(url, opt);
+  };
   /* ---------- Pipeline: Angebote und Aufträge zusammengeführt ---------- */
   const STUFEN = [
     { id:'gesendet',    label:'Angebot gesendet',      klasse:'st-angebot' },
@@ -1079,8 +1225,7 @@ jspdf/dist/jspdf.es.min.js:
             weiter +
             (e.quelle === 'auftrag'
               ? '<button class="btn btn-sm" style="' + hell + '" onclick=\'openChecklistEditor("' + e.id + '")\'>Checkliste</button>' +
-                '<button class="btn btn-sm" style="' + hell + '" onclick=\'downloadLeistungsverzeichnis("' + e.id + '")\'>PDF</button>' +
-                '<button class="btn btn-sm" style="' + hell + '" onclick=\'openEmailPanel("' + e.id + '")\'>Bestätigungsmail</button>'
+                '<button class="btn btn-sm" style="' + hell + '" onclick=\'downloadLeistungsverzeichnis("' + e.id + '")\'>PDF</button>'
               : (e.link ? '<a class="btn btn-sm" style="' + hell + 'text-decoration:none;" href="' + e.link + '" target="_blank">Angebot ansehen</a>' : '')) +
             (e.stufe !== 'abgesagt'
               ? '<button class="btn btn-sm btn-danger" onclick=\'setStufe("' + e.id + '","abgesagt",event)\'>Abgesagt</button>'
@@ -1168,42 +1313,7 @@ jspdf/dist/jspdf.es.min.js:
 
 
 
-  function openEmailPanel(id){
-    const list = CS_AUFTRAEGE;
-    const entry = list.find(x => String(x.id) === String(id));
-    if(!entry){ alert('Auftrag nicht gefunden.'); return; }
-
-    const gruss = entry.anrede === 'Herr' ? ('Sehr geehrter Herr ' + entry.nachname)
-                : entry.anrede === 'Frau' ? ('Sehr geehrte Frau ' + entry.nachname)
-                : ('Guten Tag ' + entry.vorname + ' ' + entry.nachname);
-
-    const springerHinweis = entry.springerSofort === 'Ja'
-      ? 'Wie gewünscht starten wir bereits jetzt mit unserem Springerteam, während wir parallel die feste Raumpflegerin für Sie organisieren.'
-      : 'Für die Einführung inklusive erster Reinigung benötigen wir in der Regel eine Vorlaufzeit von 10–14 Werktagen. In dieser Zeit organisieren wir sorgfältig die passende Reinigungskraft für Ihre Bedürfnisse und stimmen mit Ihnen die letzten Details ab. Sollte sich der Start dennoch verzögern, bieten wir Ihnen als Übergangslösung gerne unser Springerteam an, damit Sie keinen Unterbruch spüren.';
-
-    const body =
-gruss + '\n\n' +
-'Herzlichen Dank für Ihr Vertrauen und die Erteilung des Auftrags. Wir freuen uns sehr, Sie als neuen Kunden begrüssen zu dürfen, und werden alles daransetzen, dass Sie mit unserer Dienstleistung rundum zufrieden sind.\n\n' +
-springerHinweis + '\n\n' +
-'Im Tagesgeschäft stehen Ihnen Frau Scalone und Herr Moreno aus meinem Administrationsteam zur Seite – sie sind für Sie die direkten Ansprechpartner für sämtliche organisatorischen Anliegen rund um Ihre Reinigung. Unser gesamtes Team steht für Zuverlässigkeit und Sorgfalt, damit Sie sich auf eine konstant hohe Qualität verlassen können. Sollten Sie dennoch einmal nicht zufrieden sein, wenden Sie sich jederzeit direkt an mich persönlich – ich kümmere mich umgehend um eine Lösung.\n\n' +
-'Ich freue mich auf die Zusammenarbeit und melde mich, sobald die Einführung geplant ist.\n\n' +
-'Freundliche Grüsse\n\n' +
-'Cristian Gambale\n' +
-'Bereichsleiter Putzfrauenservice\n' +
-'Direkt 052 557 02 08 / 076 822 00 16\n' +
-'---------------------------------\n' +
-'Clean Service Scaramuzzo AG\n' +
-'Industriestrasse 5\n' +
-'8307 Effretikon\n' +
-'0844 355 355';
-
-    document.getElementById('email-body').value = body;
-    const subject = encodeURIComponent('Auftragsbestätigung – Clean Service Scaramuzzo AG');
-    document.getElementById('email-mailto').href = 'mailto:' + (entry.mail || '') + '?subject=' + subject + '&body=' + encodeURIComponent(body);
-    const panel = document.getElementById('email-panel');
-    panel.style.display = 'block';
-    panel.scrollIntoView({behavior:'smooth', block:'center'});
-  }
+  
   function copyEmail(){
     const el = document.getElementById('email-body');
     el.select();
@@ -2016,3 +2126,4 @@ function downloadLeistungsverzeichnis(id){
 
 </body>
 </html>
+
