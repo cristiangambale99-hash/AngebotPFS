@@ -38,12 +38,29 @@ export default async function handler(req, res) {
     const jetzt = Date.now();
     const bericht = { geprueft: alle.length, erste: 0, zweite: 0, abgelaufen: 0, uebersprungen: 0, fehler: [] };
 
+    if (nurPruefen) bericht.details = [];
+
     for (const a of alle) {
-      if (a.status !== 'gesendet' || a.erinnerungAus || !a.email || !a.gesendetAm) {
+      const name = [a.vorname, a.nachname].filter(Boolean).join(' ') || a.code;
+      const tageRoh = a.gesendetAm ? Math.floor((jetzt - new Date(a.gesendetAm).getTime()) / 86400000) : null;
+
+      // Gründe erfassen, damit im Admin sichtbar wird, warum nichts passiert
+      let grund = null;
+      if (a.status !== 'gesendet') grund = 'Status ist "' + (a.status || 'unbekannt') + '", nicht "gesendet"';
+      else if (a.erinnerungAus) grund = 'Erinnerungen abgeschaltet';
+      else if (!a.email) grund = 'keine E-Mail-Adresse hinterlegt';
+      else if (!a.gesendetAm) grund = 'kein Versanddatum';
+      else if (tageRoh === null || isNaN(tageRoh)) grund = 'Versanddatum nicht lesbar: ' + a.gesendetAm;
+      else if (tageRoh < 5) grund = 'erst ' + tageRoh + ' Tage her (nötig: 5)';
+      else if (tageRoh < 30 && a.erinnerung1) grund = '1. Erinnerung bereits gesendet, 2. erst ab 30 Tagen';
+      else if (tageRoh < 50 && a.erinnerung2) grund = 'beide Erinnerungen gesendet, Ablauf ab 50 Tagen';
+
+      if (grund) {
+        if (nurPruefen) bericht.details.push({ kunde: name, tage: tageRoh, grund });
         bericht.uebersprungen++;
         continue;
       }
-      const tage = Math.floor((jetzt - new Date(a.gesendetAm).getTime()) / 86400000);
+      const tage = tageRoh;
 
       // Nach 50 Tagen ohne Rückmeldung gilt das Angebot als abgelaufen
       if (tage >= 50) {
