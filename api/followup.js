@@ -19,16 +19,17 @@ const SAMMLUNG = 'angebote';
 
 export default async function handler(req, res) {
   // Zugriffsschutz: Vercel sendet den Cron-Schlüssel im Authorization-Header
-  // Zugriff: entweder per Cron-Schlüssel (Vercel) oder aus dem Admin-Bereich
+  // Zugriff ausschliesslich über den Cron-Schlüssel von Vercel.
+  // Kein Zugang aus dem Browser: der Admin-Code steht im Seitenquelltext
+  // und wäre damit für jeden auslesbar.
   const geheim = process.env.CRON_SECRET;
-  const kopf = req.headers.authorization || '';
-  const vonCron = geheim && kopf === `Bearer ${geheim}`;
-  const vonAdmin = req.method === 'POST' &&
-                   req.body && req.body.adminCode === 'Clean+26';
-  if (geheim && !vonCron && !vonAdmin) {
-    return res.status(401).json({ error: 'Nicht berechtigt' });
+  if (geheim) {
+    const kopf = req.headers.authorization || '';
+    if (kopf !== `Bearer ${geheim}`) {
+      return res.status(401).json({ error: 'Nicht berechtigt' });
+    }
   }
-  const nurPruefen = vonAdmin && req.body.nurPruefen === true;
+  const nurPruefen = false;
 
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'RESEND_API_KEY fehlt.' });
@@ -180,6 +181,7 @@ async function sendeErinnerung(apiKey, a, stufe) {
     body: JSON.stringify({
       from: 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
       to: [a.email],
+      bcc: ['putzfrauenservice@clean-service.ch'],
       reply_to: 'putzfrauenservice@clean-service.ch',
       subject: betreff,
       html,
