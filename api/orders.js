@@ -9,6 +9,11 @@ import crypto from 'crypto';
 const SAMMLUNG = 'auftraege';
 
 export default async function handler(req, res) {
+  const nutzer = sitzungPruefen(req);
+  if (nutzer === null) {
+    return res.status(401).json({ error: 'Nicht angemeldet.' });
+  }
+
   try {
     if (req.method === 'GET') {
       const alle = await alleLesen(SAMMLUNG, 500);
@@ -47,7 +52,8 @@ export default async function handler(req, res) {
 
       const neu = { ...vorhanden };
       delete neu._id;
-      ['angebotsnr', 'notiz', 'vereinbarungen', 'stufe'].forEach(f => {
+      if (Array.isArray(b.checklistOverride)) neu.checklistOverride = b.checklistOverride;
+      ['angebotsnr', 'notiz', 'vereinbarungen', 'stufe', 'checkliste'].forEach(f => {
         if (typeof b[f] === 'string') neu[f] = b[f];
       });
       if (typeof b.bearbeitet === 'boolean') neu.bearbeitet = b.bearbeitet;
@@ -219,3 +225,34 @@ async function loeschen(sammlung, id) {
   return res.ok;
 }
 /* ===== Ende Firestore-Anbindung ===== */
+
+/* ---------------------------------------------------------------------------
+   Zugriffsschutz: nur mit gültigem Sitzungsmerkmal aus der Anmeldung.
+   Der Block steht in jeder Datei, weil Vercel gemeinsame Hilfsdateien
+   mit Unterstrich nicht mitliefert.
+   --------------------------------------------------------------------------- */
+function sitzungPruefen(req){
+  try{
+    const geheim = process.env.SESSION_SECRET;
+    if(!geheim) return 'nicht-eingerichtet';       // Schutz noch nicht aktiv
+    let token = '';
+    const kopf = req.headers.authorization || '';
+    if(kopf.startsWith('Bearer ')) token = kopf.slice(7);
+    if(!token){
+      const c = req.headers.cookie || '';
+      const m = c.match(/cs_session=([^;]+)/);
+      if(m) token = decodeURIComponent(m[1]);
+    }
+    if(!token) return null;
+
+    const [nutz, sig] = token.split('.');
+    if(!nutz || !sig) return null;
+    const erwartet = Buffer.from(crypto.createHmac('sha256', geheim).update(nutz).digest())
+      .toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    const a = Buffer.from(sig), b = Buffer.from(erwartet);
+    if(a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    const d = JSON.parse(Buffer.from(nutz.replace(/-/g,'+').replace(/_/g,'/'), 'base64').toString());
+    if(!d.exp || d.exp < Date.now()) return null;
+    return d.u || null;
+  }catch(e){ return null; }
+}
