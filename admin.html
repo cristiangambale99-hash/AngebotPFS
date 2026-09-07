@@ -637,6 +637,7 @@ docx/dist/index.mjs:
 
     status.style.display = 'block';
     status.textContent = 'Wird gesendet …';
+    let repHinweis = '';
 
     try{
       const resp = await fetch('/api/send-offer', {
@@ -657,7 +658,7 @@ docx/dist/index.mjs:
 
       // Angebot festhalten, damit Nachfassen und Auswertung moeglich sind
       try{
-        await fetch('/api/offers', {
+        const rr = await fetch('/api/offers', {
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({
             code: document.getElementById('lg-code').textContent.trim(),
@@ -673,9 +674,16 @@ docx/dist/index.mjs:
             link: link
           })
         });
-      }catch(e){ /* Versand war erfolgreich - Speichern ist nachrangig */ }
+        const rd = await rr.json().catch(() => ({}));
+        const rep = rd && rd.reporting;
+        if(rep && rep.geschrieben){
+          repHinweis = ' · Im ReportingPFS erfasst.';
+        } else if(rep && rep.grund){
+          repHinweis = ' · <span style="color:#B4232C;">Reporting: ' + rep.grund + '</span>';
+        }
+      }catch(e){ repHinweis = ' · <span style="color:#B4232C;">Reporting konnte nicht geprüft werden.</span>'; }
 
-      status.textContent = 'Angebot wurde an ' + mail + ' gesendet.';
+      status.innerHTML = 'Angebot wurde an ' + mail + ' gesendet.' + repHinweis;
     }catch(err){
       status.textContent = 'Senden fehlgeschlagen: ' + err.message + ' (Ist die Serverfunktion /api/send-offer eingerichtet?)';
     }
