@@ -122,31 +122,52 @@ async function sendeErinnerung(apiKey, a, stufe) {
                : `Guten Tag ${a.vorname} ${a.nachname}`;
 
   const betreff = stufe === 1
-    ? 'Ihr Reinigungsangebot — dürfen wir kurz nachfragen?'
-    : 'Ihr Reinigungsangebot — noch Interesse?';
+    ? `Ihr Reinigungsangebot${a.angebotsnr ? ' Nr. ' + a.angebotsnr : ''} — kurze Nachfrage`
+    : `Ihr Reinigungsangebot${a.angebotsnr ? ' Nr. ' + a.angebotsnr : ''} — letzte Erinnerung`;
 
   const text = stufe === 1
-    ? 'vor einigen Tagen haben wir Ihnen Ihr persönliches Reinigungsangebot zugestellt. Wir wollten kurz nachfragen, ob Sie noch Fragen haben oder etwas unklar geblieben ist.'
-    : 'vor einiger Zeit haben wir Ihnen ein persönliches Reinigungsangebot zugestellt. Da wir bisher nichts von Ihnen gehört haben, möchten wir uns ein letztes Mal melden. Falls sich Ihre Pläne geändert haben, ist das selbstverständlich in Ordnung.';
+    ? 'Vor einigen Tagen haben wir Ihnen unser Angebot für die Reinigung Ihres Haushalts zugestellt. Gerne erkundigen wir uns, ob Sie dazu noch Fragen haben oder ob etwas unklar geblieben ist.'
+    : 'Vor einiger Zeit haben wir Ihnen unser Angebot für die Reinigung Ihres Haushalts zugestellt. Da wir bisher keine Rückmeldung erhalten haben, melden wir uns ein letztes Mal. Sollten sich Ihre Pläne geändert haben, ist das selbstverständlich in Ordnung.';
 
   const schluss = stufe === 1
-    ? 'Gerne bespreche ich Ihre Wünsche auch persönlich am Telefon.'
-    : 'Ihr Angebot bleibt noch bis auf Weiteres abrufbar. Melden Sie sich jederzeit gerne, auch zu einem späteren Zeitpunkt.';
+    ? 'Selbstverständlich bespreche ich Ihre Wünsche auch gerne persönlich am Telefon.'
+    : 'Ihr Angebot bleibt vorerst abrufbar. Melden Sie sich jederzeit, auch zu einem späteren Zeitpunkt.';
 
   const inhalt = `
-    <p style="margin:0 0 14px;">${anrede},</p>
-    <p style="margin:0 0 14px;">${text}</p>
-    ${a.link ? csKnopf('Angebot erneut ansehen', a.link) : ''}
-    ${a.code ? `
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:4px 0 16px;">
-      <tr><td style="background:#F4F8F8;border:1px solid #D5E2E1;padding:14px 18px;">
-        <div style="font-family:Verdana,Geneva,sans-serif;font-size:11px;color:#767676;letter-spacing:.08em;margin-bottom:5px;">IHR ZUGANGSCODE</div>
-        <div style="font-family:Verdana,Geneva,sans-serif;font-size:19px;font-weight:bold;color:#12797A;letter-spacing:.18em;">${a.code}</div>
-      </td></tr>
-    </table>` : ''}
+    <p style="margin:0 0 16px;">${anrede}</p>
+    <p style="margin:0 0 20px;">${text}</p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:0 0 22px;border-collapse:collapse;">
+      <tr>
+        <td style="border:1px solid #D5E2E1;border-left:4px solid ${CS_FARBE};padding:20px 24px;background:#FBFDFD;">
+          <div style="font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};letter-spacing:.1em;margin-bottom:12px;">IHR ANGEBOT</div>
+          ${a.angebotsnr || a.code ? `
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;">
+            ${a.angebotsnr ? `<tr>
+              <td style="font-family:Verdana,Geneva,sans-serif;font-size:12px;color:${CS_GRAU};padding-right:16px;">Angebot Nr.</td>
+              <td style="font-family:Verdana,Geneva,sans-serif;font-size:13px;color:${CS_TEXT};font-weight:bold;">${a.angebotsnr}</td>
+            </tr>` : ''}
+            ${a.code ? `<tr>
+              <td style="font-family:Verdana,Geneva,sans-serif;font-size:12px;color:${CS_GRAU};padding-right:16px;padding-top:6px;">Zugangscode</td>
+              <td style="font-family:Verdana,Geneva,sans-serif;font-size:15px;color:${CS_DUNKEL};font-weight:bold;letter-spacing:.12em;padding-top:6px;">${a.code}</td>
+            </tr>` : ''}
+          </table>` : ''}
+          ${a.link ? `
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+            <tr><td style="background:${CS_FARBE};">
+              <a href="${a.link}" style="display:inline-block;padding:13px 32px;font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:bold;color:#FFFFFF;text-decoration:none;">Angebot erneut ansehen</a>
+            </td></tr>
+          </table>` : ''}
+          <div style="font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};margin-top:12px;line-height:1.5;">
+            Das Angebot ist ausschliesslich für Sie bestimmt und rund fünf Minuten Lesezeit.
+          </div>
+        </td>
+      </tr>
+    </table>
+
     <p style="margin:0;">${schluss}</p>`;
 
-  const html = csRahmen(stufe === 1 ? 'Dürfen wir kurz nachfragen?' : 'Besteht weiterhin Interesse?', inhalt);
+  const html = csRahmen(stufe === 1 ? 'Nachfrage zu Ihrem Angebot' : 'Letzte Erinnerung zu Ihrem Angebot', inhalt);
 
   const klartext = `${anrede},\n\n${text}\n\n` +
     (a.link ? `${a.link}\n\n` : '') +
@@ -362,15 +383,8 @@ function csRahmen(titel, inhalt, hinweis){
     <tr><td style="padding:0;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;">
         <tr>
-          <td style="background:#FFFFFF;padding:26px 36px 20px;">
+          <td style="background:#FFFFFF;padding:26px 36px 20px;vertical-align:middle;">
             <img src="cid:cslogo" width="185" alt="Clean Service Scaramuzzo AG" style="display:block;border:0;width:185px;height:auto;">
-          </td>
-                <td style="vertical-align:middle;">
-                  <div style="font-family:Verdana,Geneva,sans-serif;font-size:16px;font-weight:bold;color:${CS_DUNKEL};letter-spacing:.04em;line-height:1.2;">CLEAN SERVICE</div>
-                  <div style="font-family:Verdana,Geneva,sans-serif;font-size:10.5px;color:${CS_GRAU};letter-spacing:.16em;margin-top:2px;">BY SCARAMUZZO</div>
-                </td>
-              </tr>
-            </table>
           </td>
           <td style="background:#FFFFFF;padding:26px 36px 20px;text-align:right;vertical-align:middle;">
             <div style="font-family:Verdana,Geneva,sans-serif;font-size:10.5px;color:${CS_GRAU};line-height:1.6;">

@@ -156,15 +156,8 @@ function csRahmen(titel, inhalt, hinweis){
     <tr><td style="padding:0;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;">
         <tr>
-          <td style="background:#FFFFFF;padding:26px 36px 20px;">
+          <td style="background:#FFFFFF;padding:26px 36px 20px;vertical-align:middle;">
             <img src="cid:cslogo" width="185" alt="Clean Service Scaramuzzo AG" style="display:block;border:0;width:185px;height:auto;">
-          </td>
-                <td style="vertical-align:middle;">
-                  <div style="font-family:Verdana,Geneva,sans-serif;font-size:16px;font-weight:bold;color:${CS_DUNKEL};letter-spacing:.04em;line-height:1.2;">CLEAN SERVICE</div>
-                  <div style="font-family:Verdana,Geneva,sans-serif;font-size:10.5px;color:${CS_GRAU};letter-spacing:.16em;margin-top:2px;">BY SCARAMUZZO</div>
-                </td>
-              </tr>
-            </table>
           </td>
           <td style="background:#FFFFFF;padding:26px 36px 20px;text-align:right;vertical-align:middle;">
             <div style="font-family:Verdana,Geneva,sans-serif;font-size:10.5px;color:${CS_GRAU};line-height:1.6;">
