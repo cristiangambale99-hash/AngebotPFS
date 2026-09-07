@@ -920,10 +920,18 @@ docx/dist/index.mjs:
           ' fällig:</strong><br>' + zeilen +
           '<br><br><button class="btn btn-sm" onclick="pruefeNachfassen(false)">Jetzt wirklich senden</button>';
       } else {
-        info.innerHTML = '<strong>Erledigt.</strong> ' +
-          d.erste + ' erste Erinnerung(en) · ' + d.zweite + ' zweite · ' +
-          d.abgelaufen + ' auf Abgesagt gesetzt.';
-        setTimeout(ladeDaten, 1200);
+        const fehler = d.fehler || [];
+        if(fehler.length){
+          info.innerHTML = '<span style="color:#B4232C;"><strong>Versand fehlgeschlagen.</strong></span><br>' +
+            fehler.map(x => '· ' + (x.code || '') + ': ' + x.meldung).join('<br>');
+        } else if(!d.erste && !d.zweite && !d.abgelaufen){
+          info.innerHTML = '<strong>Nichts gesendet.</strong> Es war kein Vorgang fällig.';
+        } else {
+          info.innerHTML = '<strong>Erledigt.</strong> ' +
+            d.erste + ' erste Erinnerung(en) · ' + d.zweite + ' zweite · ' +
+            d.abgelaufen + ' auf Abgesagt gesetzt.';
+          setTimeout(ladeDaten, 1200);
+        }
       }
     }catch(err){
       if(info) info.innerHTML = '<span style="color:#B4232C;">Prüfung fehlgeschlagen: ' + err.message + '</span>';
