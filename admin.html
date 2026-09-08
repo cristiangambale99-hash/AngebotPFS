@@ -107,7 +107,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal)!important;
       <h2>Verwaltung Putzfrauenservice</h2>
       <p>Bitte Code eingeben.</p>
       <div class="field">
-        <input type="password" id="admin-code" placeholder="Code" autocomplete="current-password"
+        <input type="password" id="admin-code" placeholder="Code"
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+               name="cs-zugang" data-lpignore="true" data-form-type="other"
                onkeydown="if(event.key==='Enter')anmelden()">
       </div>
       <button class="btn" style="margin-top:14px;" id="lg-btn" onclick="anmelden()">Entsperren</button>
@@ -956,6 +958,14 @@ jspdf/dist/jspdf.es.min.js:
 
   /* ---------- Anmeldung ---------- */
   let CS_TOKEN = sessionStorage.getItem('cs_token') || '';
+
+  /* Der Browser füllt Passwortfelder gerne automatisch aus.
+     Beim Laden wird das Feld deshalb aktiv geleert. */
+  (function feldLeeren(){
+    const leeren = () => { const f = document.getElementById('admin-code'); if(f) f.value = ''; };
+    leeren();
+    window.addEventListener('load', () => { leeren(); setTimeout(leeren, 60); setTimeout(leeren, 350); });
+  })();
 
   async function anmelden(){
     const code = document.getElementById('admin-code').value || '';
