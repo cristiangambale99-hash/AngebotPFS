@@ -55,6 +55,19 @@ export default async function handler(req, res) {
       // Bearbeitungsspur: wer hat wann zuletzt etwas geändert
       neu.zuletztAm = new Date().toISOString();
       if (b.bearbeiter) neu.zuletztVon = String(b.bearbeiter).slice(0, 40);
+
+      /* Notizverlauf: neue Einträge werden angehängt, nie überschrieben.
+         So bleibt nachvollziehbar, wer wann was festgehalten hat. */
+      if (typeof b.notizNeu === 'string' && b.notizNeu.trim()) {
+        const bisher = Array.isArray(vorhanden.notizen) ? vorhanden.notizen.slice() : [];
+        bisher.push({
+          text: b.notizNeu.trim().slice(0, 1500),
+          von: String(b.bearbeiter || '').slice(0, 40),
+          am: new Date().toISOString()
+        });
+        // Höchstens 60 Einträge behalten, älteste fallen weg
+        neu.notizen = bisher.slice(-60);
+      }
       if (Array.isArray(b.checklistOverride)) neu.checklistOverride = b.checklistOverride;
       ['angebotsnr', 'notiz', 'vereinbarungen', 'stufe', 'checkliste'].forEach(f => {
         if (typeof b[f] === 'string') neu[f] = b[f];
