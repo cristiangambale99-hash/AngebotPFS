@@ -52,6 +52,9 @@ export default async function handler(req, res) {
 
       const neu = { ...vorhanden };
       delete neu._id;
+      // Bearbeitungsspur: wer hat wann zuletzt etwas geändert
+      neu.zuletztAm = new Date().toISOString();
+      if (b.bearbeiter) neu.zuletztVon = String(b.bearbeiter).slice(0, 40);
       if (Array.isArray(b.checklistOverride)) neu.checklistOverride = b.checklistOverride;
       ['angebotsnr', 'notiz', 'vereinbarungen', 'stufe', 'checkliste'].forEach(f => {
         if (typeof b[f] === 'string') neu[f] = b[f];
