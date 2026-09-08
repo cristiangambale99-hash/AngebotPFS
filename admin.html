@@ -413,6 +413,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal)!important;
             <option value="Fahrzeugwerbung">Fahrzeugwerbung</option>
             <option value="Cross-Selling">Cross-Selling</option>
           </select>
+          <select id="lg-sprache">
+            <option value="de">Deutsch</option>
+            <option value="en">English</option>
+          </select>
           <select id="lg-von">
             <option value="">Erfasst von …</option>
             <option value="Cristian">Cristian</option>
@@ -818,7 +822,9 @@ jspdf/dist/jspdf.es.min.js:
     const code = Array.from({length:6}, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join('');
     const zimmer = (document.getElementById('lg-zimmer').value || '').trim();
     const frequenz = document.getElementById('lg-frequenz').value;
-    const packed = [an, vn, nn, adr, ort, angebotsnr, code, zimmer, frequenz].join('|');
+    const sprache = (document.getElementById('lg-sprache') || {}).value || 'de';
+    // Sprache als zehntes Feld — ältere Links ohne dieses Feld bleiben gültig
+    const packed = [an, vn, nn, adr, ort, angebotsnr, code, zimmer, frequenz, sprache].join('|');
     const token = b64encode(packed).replace(/=+$/, '');
     const base = window.location.href.replace(/admin\.html.*$/, 'index.html');
     const link = base + '?t=' + token;
@@ -865,7 +871,7 @@ jspdf/dist/jspdf.es.min.js:
           angebotsnr: angebotsnr,
           link: link,
           code: document.getElementById('lg-code').textContent.trim()
-        })
+        , sprache: (document.getElementById('lg-sprache')||{}).value || 'de'})
       });
       const data = await resp.json().catch(() => ({}));
       if(!resp.ok){ throw new Error((data && data.error) ? JSON.stringify(data.error) : ('Fehler ' + resp.status)); }
@@ -885,6 +891,7 @@ jspdf/dist/jspdf.es.min.js:
             anfrageart: document.getElementById('lg-anfrageart').value,
             quelle: document.getElementById('lg-quelle').value,
             erfasstVon: document.getElementById('lg-von').value,
+            sprache: (document.getElementById('lg-sprache')||{}).value || 'de',
             link: link
           })
         });
@@ -1154,39 +1161,40 @@ jspdf/dist/jspdf.es.min.js:
       gefunden.push(name);
     }
 
-    const anrede = hole('Anrede');
-    if(/frau/i.test(anrede)) setzen('lg-anrede', 'Frau', 'Anrede');
-    else if(/herr/i.test(anrede)) setzen('lg-anrede', 'Herr', 'Anrede');
+    const anrede = hole('Anrede', 'Salutation', 'Title');
+    // Deutsche und englische Anreden erkennen
+    if(/frau|^\s*(mrs|ms|miss)\b/i.test(anrede)) setzen('lg-anrede', 'Frau', 'Anrede');
+    else if(/herr|^\s*mr\b/i.test(anrede)) setzen('lg-anrede', 'Herr', 'Anrede');
 
-    setzen('lg-vorname', hole('Vorname'), 'Vorname');
-    setzen('lg-nachname', hole('Name', 'Nachname'), 'Name');
-    setzen('lg-adresse', hole('Adresse', 'Strasse'), 'Adresse');
+    setzen('lg-vorname', hole('Vorname', 'First name', 'Firstname', 'Given name'), 'Vorname');
+    setzen('lg-nachname', hole('Name', 'Nachname', 'Last name', 'Lastname', 'Surname', 'Family name'), 'Name');
+    setzen('lg-adresse', hole('Adresse', 'Strasse', 'Address', 'Street'), 'Adresse');
 
-    const plz = hole('PLZ'), ort = hole('Ort');
+    const plz = hole('PLZ', 'Postcode', 'Post code', 'Zip', 'Zip code', 'Postal code'), ort = hole('Ort', 'City', 'Town', 'Place');
     setzen('lg-plzort', [plz, ort].filter(Boolean).join(' '), 'PLZ/Ort');
 
     // E-Mail: aus dem Feld oder irgendwo im Text
-    let mail = hole('E-Mail', 'Email', 'Mail');
+    let mail = hole('E-Mail', 'Email', 'Mail', 'E-mail address', 'Email address');
     const mm = (mail || roh).match(/[\w.+-]+@[\w-]+\.[\w.]+/);
     setzen('lg-email', mm ? mm[0] : '', 'E-Mail');
 
     // Zimmerzahl aus dem Fliesstext
-    const zm = roh.match(/(\d[.,]?\d?)\s*[-\s]?Zimmer/i);
+    const zm = roh.match(/(\d[.,]?\d?)\s*[-\s]?(?:Zimmer|room)/i);
     if(zm) setzen('lg-zimmer', zm[1].replace(',', '.'), 'Zimmerzahl');
 
     // Rhythmus
     const f = document.getElementById('lg-frequenz');
     if(f){
-      if(/14[-\s]?t[äa]g|zwei\s*wochen|alle\s*2\s*wochen/i.test(roh)){ f.value = '14-taeglich'; gefunden.push('Rhythmus'); }
-      else if(/monatlich|1\s*x\s*(pro\s*)?monat/i.test(roh)){ f.value = 'monatlich'; gefunden.push('Rhythmus'); }
-      else if(/w[öo]chentlich/i.test(roh)){ f.value = 'woechentlich'; gefunden.push('Rhythmus'); }
+      if(/14[-\s]?t[äa]g|zwei\s*wochen|alle\s*2\s*wochen|every\s*two\s*weeks|fortnight|bi-?weekly|every\s*other\s*week/i.test(roh)){ f.value = '14-taeglich'; gefunden.push('Rhythmus'); }
+      else if(/monatlich|1\s*x\s*(pro\s*)?monat|monthly|once\s*a\s*month/i.test(roh)){ f.value = 'monatlich'; gefunden.push('Rhythmus'); }
+      else if(/w[öo]chentlich|weekly|every\s*week/i.test(roh)){ f.value = 'woechentlich'; gefunden.push('Rhythmus'); }
     }
 
     // Quelle des Kontakts
     const q = document.getElementById('lg-quelle');
     if(q){
-      const paare = [[/suchmaschine|google/i,'Suchmaschine'], [/social|instagram|facebook/i,'Social Media'],
-                     [/weiterempfehl|empfehlung/i,'Weiterempfehlung'], [/fahrzeug|auto|kleber/i,'Fahrzeugwerbung'],
+      const paare = [[/suchmaschine|google|search\s*engine/i,'Suchmaschine'], [/social|instagram|facebook/i,'Social Media'],
+                     [/weiterempfehl|empfehlung|recommend|word of mouth|referral/i,'Weiterempfehlung'], [/fahrzeug|auto|kleber|vehicle|van/i,'Fahrzeugwerbung'],
                      [/cross.?selling/i,'Cross-Selling']];
       for(const [re, wert] of paare){
         if(re.test(roh) && [...q.options].some(o => o.value === wert)){ q.value = wert; gefunden.push('Quelle'); break; }
@@ -1203,6 +1211,34 @@ jspdf/dist/jspdf.es.min.js:
     } else {
       sagen('Übernommen: ' + gefunden.join(', ') + '. Bitte kurz prüfen.');
     }
+    // Formularanfragen kommen über die Homepage
+    if(/offertanfrage|datenschutz akzeptiert|wie sind sie auf uns aufmerksam|quote request|how did you hear about us|privacy.{0,12}accept/i.test(roh)){
+      setzen('lg-anfrageart', 'Homepage', 'Anfrageart');
+    }
+
+    // Erfasser bleibt die angemeldete Person
+    const vonEl = document.getElementById('lg-von');
+    if(vonEl && !vonEl.value && typeof CS_WER !== 'undefined' && CS_WER){
+      const vn2 = CS_WER.split(' ')[0];
+      const tr2 = [...vonEl.options].find(o => o.value === vn2);
+      if(tr2) vonEl.value = vn2;
+    }
+
+    /* Sprache erkennen: englische Formularfelder oder überwiegend
+       englischer Text setzen die Variante auf English. */
+    (function spracheErkennen(){
+      const el = document.getElementById('lg-sprache');
+      if(!el) return;
+      const t = roh.toLowerCase();
+      const enFeld = /(first name|last name|surname|salutation|how often|how did you hear|privacy|quote request)/.test(t);
+      const enWort = (t.match(/\b(the|and|we|our|you|your|would|please|thank|apartment|rooms|cleaning|hours|week|every)\b/g) || []).length;
+      const deWort = (t.match(/\b(und|wir|unsere|sie|ihre|bitte|danke|wohnung|zimmer|reinigung|stunden|woche|jeweils)\b/g) || []).length;
+      el.value = (enFeld || enWort > deWort + 2) ? 'en' : 'de';
+      if(el.value === 'en' && info && info.style.display !== 'none'){
+        info.textContent += '  Sprache: English erkannt.';
+      }
+    })();
+
   }
 
   /* Reiter umschalten */
@@ -2739,16 +2775,3 @@ function downloadLeistungsverzeichnis(id){
 
 </body>
 </html>
-
-
-    // Formularanfragen kommen immer über die Homepage
-    if(/offertanfrage|datenschutz akzeptiert|wie sind sie auf uns aufmerksam/i.test(roh)){
-      setzen('lg-anfrageart', 'Homepage', 'Anfrageart');
-    }
-    // Erfasser bleibt die angemeldete Person
-    const vonEl = document.getElementById('lg-von');
-    if(vonEl && !vonEl.value && CS_WER){
-      const vn = CS_WER.split(' ')[0];
-      const tr = [...vonEl.options].find(o => o.value === vn);
-      if(tr) vonEl.value = vn;
-    }

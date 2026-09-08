@@ -2482,6 +2482,7 @@ function savePdf(){
 function b64decode(s){ return decodeURIComponent(escape(atob(s))); }
 let pending = null;
 let isCustomer = false;
+let CS_SPRACHE = 'de';   // wird aus dem Kundenlink gesetzt
 
 (function readLink(){
   const token = new URLSearchParams(window.location.search).get('t');
@@ -2490,10 +2491,14 @@ let isCustomer = false;
   try{ parts = b64decode(token).split('|'); }catch(e){ return; }
   if(parts.length < 6) return;
 
-  let an, vn, nn, adr, ort, nr, code, zimmer = '', freq = '';
+  let an, vn, nn, adr, ort, nr, code, zimmer = '', freq = '', sprache = 'de';
   if(parts.length >= 7){
     [an, vn, nn, adr, ort, nr, code] = parts;
     if(parts.length >= 9){ zimmer = parts[7]; freq = parts[8]; }
+    // Zehntes Feld: Sprache. Ältere Links ohne dieses Feld bleiben Deutsch.
+    if(parts.length >= 10 && parts[9]) sprache = parts[9];
+    CS_SPRACHE = sprache;
+    document.documentElement.lang = sprache;
   } else {
     [an, vn, nn, adr, ort, code] = parts; nr = '';
   }
