@@ -200,10 +200,14 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal)!important;
     <div id="admin-gate" class="admin-gate">
       <p class="secnum" style="justify-content:center;"><span class="ln"></span>Zugang</p>
       <h2>Verwaltung Putzfrauenservice</h2>
-      <p>Bitte Code eingeben.</p>
+      <p>Bitte Namen wählen und Code eingeben.</p>
       <div class="field" style="margin-bottom:10px;">
-        <input type="text" id="admin-wer" placeholder="Ihr Name (z. B. Fiorella)"
-               autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('admin-code').focus()">
+        <select id="admin-wer">
+          <option value="">Wer meldet sich an?</option>
+          <option value="Cristian Gambale">Cristian Gambale</option>
+          <option value="Fiorella Scalone">Fiorella Scalone</option>
+          <option value="Tayron Moreno">Tayron Moreno</option>
+        </select>
       </div>
       <div class="field">
         <input type="password" id="admin-code" placeholder="Code"
@@ -1071,10 +1075,24 @@ jspdf/dist/jspdf.es.min.js:
 
   /* Der Browser füllt Passwortfelder gerne automatisch aus.
      Beim Laden wird das Feld deshalb aktiv geleert. */
+  /* Zuletzt gewählte Person vorschlagen — spart einen Klick */
+  (function personVorwaehlen(){
+    window.addEventListener('load', () => {
+      const s = document.getElementById('admin-wer');
+      const letzte = localStorage.getItem('cs_letzte_person');
+      if(s && letzte) s.value = letzte;
+    });
+  })();
+
   (function feldLeeren(){
     const leeren = () => { const f = document.getElementById('admin-code'); if(f) f.value = ''; };
     leeren();
-    window.addEventListener('load', () => { leeren(); setTimeout(leeren, 60); setTimeout(leeren, 350); });
+    window.addEventListener('load', () => {
+      leeren(); setTimeout(leeren, 60); setTimeout(leeren, 350);
+      const merk = localStorage.getItem('cs_wer_letzt');
+      const sel = document.getElementById('admin-wer');
+      if(merk && sel) sel.value = merk;
+    });
   })();
 
   async function anmelden(){
@@ -1084,6 +1102,16 @@ jspdf/dist/jspdf.es.min.js:
     const btn = document.getElementById('lg-btn');
     fehler.style.display = 'none';
 
+    if(!wer){
+      fehler.textContent = 'Bitte wählen Sie aus, wer sich anmeldet.';
+      fehler.style.display = 'block';
+      return;
+    }
+    if(!wer){
+      fehler.textContent = 'Bitte wählen Sie Ihren Namen — Einträge werden damit zugeordnet.';
+      fehler.style.display = 'block';
+      return;
+    }
     if(!code){
       fehler.textContent = 'Bitte Code eingeben.';
       fehler.style.display = 'block';
@@ -1101,6 +1129,8 @@ jspdf/dist/jspdf.es.min.js:
       CS_WER = wer;
       sessionStorage.setItem('cs_token', CS_TOKEN);
       sessionStorage.setItem('cs_wer', wer);
+      localStorage.setItem('cs_wer_letzt', wer);
+      localStorage.setItem('cs_letzte_person', wer);
       const s = document.querySelector('.adm-top .s');
       if(s && wer) s.textContent = 'Angemeldet als ' + wer;
       document.getElementById('admin-gate').style.display = 'none';
