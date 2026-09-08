@@ -81,6 +81,35 @@ body::before,body::after{display:none!important;}
 .td-leer h3{margin:0 0 7px;font-size:17px;color:var(--ink);}
 .td-leer p{margin:0;font-size:13.5px;color:var(--mute);}
 
+/* Kundenseite */
+.kd-back{background:none;border:none;cursor:pointer;font-family:inherit;font-size:13.5px;
+  color:var(--mute);padding:0 0 16px;display:inline-block;}
+.kd-back:hover{color:var(--teal-deep);}
+.kd-kopf{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;
+  flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:18px;}
+.kd-kopf h2{margin:0 0 5px;font-size:22px;color:var(--ink);}
+.kd-kopf p{margin:0;font-size:13.5px;color:var(--mute);}
+.kd-schnell{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:18px;}
+.kd-schnell a{font-size:13px;color:var(--teal-deep);text-decoration:none;
+  padding:9px 16px;border:1px solid var(--border);border-radius:100px;background:var(--surface);}
+.kd-schnell a:hover{border-color:var(--teal);}
+.kd-karte{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;
+  padding:22px;margin-bottom:14px;box-shadow:0 1px 3px rgba(14,30,29,.04);}
+.kd-karte h3{margin:0 0 4px;font-size:15px;color:var(--ink);}
+.kd-sub{margin:0 0 12px;font-size:12.5px;color:var(--mute);}
+.kd-raster{display:grid;grid-template-columns:repeat(3,1fr);gap:16px 24px;margin-top:14px;}
+@media (max-width:820px){.kd-raster{grid-template-columns:1fr 1fr;}}
+@media (max-width:520px){.kd-raster{grid-template-columns:1fr;}}
+.kd-feld span{display:block;font-size:11px;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--mute);margin-bottom:3px;}
+.kd-feld strong{font-size:14px;color:var(--ink);font-weight:600;}
+.kd-hinweis{margin-top:18px;padding:14px 16px;border-radius:10px;
+  background:#FDF8EE;border-left:3px solid #E0B454;font-size:13.5px;color:var(--ink);line-height:1.6;}
+.kd-karte textarea{width:100%;font-family:inherit;font-size:13.5px;padding:11px 13px;
+  border:1.5px solid var(--border);border-radius:10px;resize:vertical;background:#fff;color:var(--ink);}
+.kd-aktionen{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px;align-items:center;}
+.kd-aktionen .btn{width:auto!important;flex:none;}
+
 /* Notizfeld */
 .notiz-box{margin-top:16px;padding:14px 16px;background:var(--surface);
   border:1px solid var(--border);border-radius:11px;}
@@ -185,6 +214,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal)!important;
         <button class="on" data-tab="todo" onclick="zeigeTab('todo')">Zu erledigen <span class="tab-zahl" id="todo-zahl"></span></button>
         <button data-tab="crm" onclick="zeigeTab('crm')">Alle Kunden</button>
         <button data-tab="neu" onclick="zeigeTab('neu')">Neues Angebot</button>
+      </div>
+
+      <!-- Einzelner Kunde: eigene Ansicht statt aufklappen -->
+      <div class="adm-panel" id="tab-kunde">
+        <div id="kunde-body"></div>
       </div>
 
       <div class="adm-panel on" id="tab-todo">
@@ -1116,7 +1150,7 @@ jspdf/dist/jspdf.es.min.js:
           quelle:'auftrag', id: auf.id || auf._id || ang.code,
           stufe: (auf.stufe === 'aktiv') ? 'aktiv' : 'auftrag',
           datum: auf.eingegangenAm || ang.gesendetAm,
-          tage: tageSeit(ang.gesendetAm)
+          alter: tageSeit(ang.gesendetAm)
         }));
         delete nachCode[ang.code];
       } else {
@@ -1127,7 +1161,7 @@ jspdf/dist/jspdf.es.min.js:
           quelle:'angebot', id: ang.code,
           stufe: stufe,
           datum: ang.gesendetAm,
-          tage: tageSeit(ang.gesendetAm),
+          alter: tageSeit(ang.gesendetAm),
           erinnerungen: (ang.erinnerung1 ? 1 : 0) + (ang.erinnerung2 ? 1 : 0)
         }));
       }
@@ -1139,7 +1173,7 @@ jspdf/dist/jspdf.es.min.js:
         quelle:'auftrag', id: auf.id || auf._id,
         stufe: (auf.stufe === 'aktiv') ? 'aktiv' : 'auftrag',
         datum: auf.eingegangenAm,
-        tage: tageSeit(auf.eingegangenAm)
+        alter: tageSeit(auf.eingegangenAm)
       }));
     });
 
@@ -1219,10 +1253,8 @@ jspdf/dist/jspdf.es.min.js:
     const jetzt = Date.now();
 
     const neuEing = alle.filter(e => e.stufe === 'auftrag');
-    const ohneAntwort = alle.filter(e => e.stufe === 'nachgefasst');
-    const langeStill = alle.filter(e => e.stufe === 'gesendet' && e.tage >= 3 && e.tage < 5);
 
-    const zahl = neuEing.length + ohneAntwort.length;
+    const zahl = neuEing.length;
     const badge = document.getElementById('todo-zahl');
     if(badge){ badge.textContent = zahl || ''; badge.style.display = zahl ? 'inline-flex' : 'none'; }
 
@@ -1231,10 +1263,10 @@ jspdf/dist/jspdf.es.min.js:
       const wann = e.zuletztAm
         ? new Date(e.zuletztAm).toLocaleDateString('de-CH') + (e.zuletztVon ? ' · ' + e.zuletztVon : '')
         : '';
-      return '<div class="td-row" onclick=\'zuKunde("' + e.id + '")\'>' +
+      return '<div class="td-row" onclick=\'zuKunde("' + e.id + '","todo")\'>' +
         '<div class="td-l"><strong>' + (e.vorname||'') + ' ' + (e.nachname||'') + '</strong>' +
           '<span>' + (e.adresse||'') + (e.plzOrt||e.ort ? ', ' + (e.plzOrt||e.ort) : '') + '</span></div>' +
-        '<div class="td-m">' + (e.tage !== null && e.tage !== undefined ? 'vor ' + e.tage + ' Tagen' : '') +
+        '<div class="td-m">' + (e.alter !== null && e.alter !== undefined ? 'vor ' + e.alter + ' Tagen' : '') +
           (wann ? '<span class="td-spur">zuletzt ' + wann + '</span>' : '<span class="td-spur td-neu">noch nicht bearbeitet</span>') +
         '</div>' +
         '<div class="td-r">' + (mail ? '<a href="mailto:' + mail + '" onclick="event.stopPropagation()">Mail</a>' : '') +
@@ -1251,28 +1283,122 @@ jspdf/dist/jspdf.es.min.js:
         liste.map(zeile).join('') + '</div>';
     }
 
-    const inhalt =
-      block('Neue Auftragserteilungen', 'Bearbeiten und auf «Aktiv» setzen, sobald die Raumpflegerin eingeplant ist.', neuEing, '#2BB6B7') +
-      block('Nachgefasst, keine Rückmeldung', 'Erinnerung ist raus. Persönlich anrufen oder abschliessen.', ohneAntwort, '#E0A030') +
-      block('Angebot läuft bald auf Nachfassen zu', 'Noch keine Rückmeldung. Ab Tag 5 geht automatisch eine Erinnerung raus.', langeStill, '#9AA8A7');
+    const inhalt = block('Neue Auftragserteilungen',
+      'Raumpflegerin einplanen, dann auf «Aktiv» setzen. Das Nachfassen bei offenen Angeboten läuft automatisch.',
+      neuEing, '#2BB6B7');
 
     box.innerHTML = inhalt || '<div class="td-leer">' +
-      '<div class="td-leer-ico">✓</div><h3>Alles erledigt</h3>' +
-      '<p>Derzeit steht nichts an. Neue Auftragserteilungen erscheinen hier automatisch.</p></div>';
+      '<div class="td-leer-ico">&#10003;</div><h3>Alles erledigt</h3>' +
+      '<p>Derzeit sind keine neuen Auftragserteilungen offen.<br>' +
+      'Sobald eine eingeht, erscheint sie hier automatisch.</p></div>';
   }
 
-  function zuKunde(id){
-    zeigeTab('crm');
-    CRM_FILTER = 'alle';
-    document.querySelectorAll('#crm-filter button').forEach(b => b.classList.toggle('on', b.dataset.f === 'alle'));
-    CRM_OFFEN = id;
-    renderAdminList();
-    setTimeout(() => {
-      const r = [...document.querySelectorAll('#admin-entries .crm-row')]
-        .find(x => x.getAttribute('onclick') && x.getAttribute('onclick').includes('"' + id + '"'));
-      if(r) r.scrollIntoView({behavior:'smooth', block:'center'});
-    }, 120);
+  /* ---------- Einzelner Kunde: eigene Seite ---------- */
+  let KUNDE_ZURUECK = 'todo';
+
+  function zuKunde(id, herkunft){
+    KUNDE_ZURUECK = herkunft || 'todo';
+    const e = (CS_LISTE || []).find(x => String(x.id) === String(id));
+    if(!e) return;
+    renderKunde(e);
+    document.querySelectorAll('.adm-tabs button').forEach(b => b.classList.remove('on'));
+    document.querySelectorAll('.adm-panel').forEach(p => p.classList.toggle('on', p.id === 'tab-kunde'));
+    window.scrollTo({top:0, behavior:'smooth'});
   }
+
+  function zurueckVonKunde(){
+    zeigeTab(KUNDE_ZURUECK);
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  function renderKunde(e){
+    const box = document.getElementById('kunde-body');
+    if(!box) return;
+    const def = STUFEN.find(x => x.id === e.stufe) || STUFEN[0];
+    const mail = e.email || e.mail || '';
+    const ort = e.plzOrt || e.ort || '';
+    const dat = e.datum ? new Date(e.datum).toLocaleDateString('de-CH') : '';
+    const hell = 'background:var(--bg);color:var(--ink);border:1px solid var(--border);';
+
+    const feld = (l, v) => v ? '<div class="kd-feld"><span>' + l + '</span><strong>' + v + '</strong></div>' : '';
+
+    let weiter = '';
+    if(e.stufe === 'auftrag')
+      weiter = '<button class="btn" onclick=\'setStufe("' + e.id + '","aktiv",event)\'>Auf aktiv setzen</button>';
+    else if(e.stufe === 'aktiv')
+      weiter = '<span class="crm-status st-aktiv">Kunde ist aktiv</span>';
+
+    box.innerHTML =
+      '<button class="kd-back" onclick="zurueckVonKunde()">← Zurück zur Übersicht</button>' +
+
+      '<div class="kd-kopf">' +
+        '<div><h2>' + (e.vorname||'') + ' ' + (e.nachname||'') + '</h2>' +
+          '<p>' + (e.adresse||'') + (ort ? ', ' + ort : '') +
+          (e.angebotsnr ? '  ·  Angebot Nr. ' + e.angebotsnr : '') + '</p></div>' +
+        '<span class="crm-status ' + def.klasse + '">' + def.label + '</span>' +
+      '</div>' +
+
+      '<div class="kd-schnell">' +
+        (e.mobile ? '<a href="tel:' + e.mobile.replace(/\s/g,'') + '">' + e.mobile + ' anrufen</a>' : '') +
+        (mail ? '<a href="mailto:' + mail + '">' + mail + '</a>' : '') +
+      '</div>' +
+
+      '<div class="kd-karte">' +
+        '<h3>Objekt und Reinigung</h3>' +
+        '<div class="kd-raster">' +
+          feld('Rhythmus', e.frequenzText || e.frequenz) +
+          feld('Wunschtag', Array.isArray(e.tage) ? e.tage.join(', ') : e.tage) +
+          feld('Zeitfenster', e.uhrzeit) +
+          feld('Aufwand', e.aufwandText) +
+          feld('Objektgrösse', [e.zimmer ? e.zimmer + ' Zimmer' : '', e.qm ? e.qm + ' m²' : '',
+                                e.badezimmer ? e.badezimmer + ' Bad' : ''].filter(Boolean).join(' · ')) +
+          feld('Bodenbeläge', e.bodenbelaege) +
+          feld('Parkplatz', e.pp) +
+          feld('Haustiere', e.haustiere) +
+          feld('Alarmanlage', e.alarmanlage === 'Ja'
+               ? ('Ja' + (e.alarmCode ? ' · Code ' + e.alarmCode : '')) : e.alarmanlage) +
+          feld('Fensterofferte', e.fensterOfferte) +
+          feld('Bügelservice', (e.buegelservice && e.buegelservice !== 'Nein') ? e.buegelservice : '') +
+          feld('Eingegangen', dat) +
+        '</div>' +
+        (e.vereinbarungen ? '<div class="kd-hinweis"><strong>Besondere Wünsche der Kundschaft:</strong><br>' +
+          e.vereinbarungen + '</div>' : '') +
+      '</div>' +
+
+      '<div class="kd-karte">' +
+        '<h3>Interne Notiz</h3>' +
+        '<p class="kd-sub">Für alle im Team sichtbar, nicht für die Kundschaft.</p>' +
+        '<textarea id="notiz-' + e.id + '" rows="3" placeholder="z. B. Kundin ruft Montag zurück">' +
+          (e.notiz || '') + '</textarea>' +
+        '<div class="notiz-fuss">' +
+          '<button class="btn btn-sm" onclick=\'notizSpeichern("' + e.id + '",event)\'>Notiz speichern</button>' +
+          (e.zuletztAm ? '<span>Zuletzt bearbeitet ' + new Date(e.zuletztAm).toLocaleString('de-CH') +
+            (e.zuletztVon ? ' von ' + e.zuletztVon : '') + '</span>' : '<span>Noch nicht bearbeitet</span>') +
+        '</div>' +
+      '</div>' +
+
+      '<div class="kd-karte">' +
+        '<h3>Dokumente und Status</h3>' +
+        '<div class="kd-aktionen">' +
+          weiter +
+          (e.quelle === 'auftrag'
+            ? '<button class="btn btn-sm" style="' + hell + '" onclick=\'openChecklistEditor("' + e.id + '")\'>Checkliste anpassen</button>' +
+              '<button class="btn btn-sm" style="' + hell + '" onclick=\'downloadLeistungsverzeichnis("' + e.id + '")\'>Leistungsverzeichnis (PDF)</button>'
+            : (e.link ? '<a class="btn btn-sm" style="' + hell + 'text-decoration:none;" href="' + e.link + '" target="_blank">Angebot ansehen</a>' : '')) +
+          (e.stufe !== 'abgesagt'
+            ? '<button class="btn btn-sm btn-danger" onclick=\'setStufe("' + e.id + '","abgesagt",event)\'>Als abgesagt markieren</button>'
+            : '<button class="btn btn-sm" style="' + hell + '" onclick=\'setStufe("' + e.id + '","' + (e.quelle === 'auftrag' ? 'auftrag' : 'gesendet') + '",event)\'>Zurückholen</button>') +
+        '</div>' +
+      '</div>' +
+      '<div id="checklist-slot"></div>';
+
+    // Checklisten-Bereich in die Kundenseite verschieben
+    const cl = document.getElementById('checklist-panel');
+    const slot = document.getElementById('checklist-slot');
+    if(cl && slot) slot.appendChild(cl);
+  }
+
+
 
   function renderAdminList(){
     const wrap = document.getElementById('admin-entries');
@@ -1335,8 +1461,8 @@ jspdf/dist/jspdf.es.min.js:
       const mail = e.email || e.mail || '';
       const ort = e.plzOrt || e.ort || '';
       const dat = e.datum ? new Date(e.datum).toLocaleDateString('de-CH') : '';
-      const tageTxt = (e.tage !== null && e.tage !== undefined)
-        ? (e.tage === 0 ? 'heute' : e.tage + ' Tage') : '';
+      const tageTxt = (e.alter !== null && e.alter !== undefined)
+        ? (e.alter === 0 ? 'heute' : e.alter + ' Tage') : '';
 
       // Weiterschieben nur dort, wo es fachlich Sinn ergibt
       let weiter = '';
@@ -1346,7 +1472,7 @@ jspdf/dist/jspdf.es.min.js:
         weiter = '<span class="crm-status st-aktiv">Kunde aktiv</span>';
 
       const kopf =
-        '<div class="crm-row" onclick=\'oeffneKunde("' + e.id + '")\'>' +
+        '<div class="crm-row" onclick=\'zuKunde("' + e.id + '","crm")\'>' +
           '<div class="who">' + (e.vorname || '') + ' ' + (e.nachname || '') +
             '<div class="muted" style="font-size:11.5px;font-weight:400;">' + mail + '</div></div>' +
           '<div class="muted">' + (e.adresse || '') + (ort ? ', ' + ort : '') + '</div>' +
