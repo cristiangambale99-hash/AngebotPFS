@@ -81,6 +81,49 @@ body::before,body::after{display:none!important;}
 .td-leer h3{margin:0 0 7px;font-size:17px;color:var(--ink);}
 .td-leer p{margin:0;font-size:13.5px;color:var(--mute);}
 
+/* Auswertung */
+.aw-kacheln{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px;}
+.aw-kacheln.aw-klein{grid-template-columns:repeat(3,1fr);}
+@media (max-width:820px){.aw-kacheln,.aw-kacheln.aw-klein{grid-template-columns:1fr 1fr;}}
+.aw-kachel{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;
+  padding:18px 20px;box-shadow:0 1px 3px rgba(14,30,29,.04);}
+.aw-wert{font-family:var(--sans-head);font-weight:700;font-size:27px;color:var(--ink);line-height:1.1;}
+.aw-kachel span{display:block;font-size:12px;color:var(--mute);margin-top:4px;}
+.aw-klein .aw-wert{font-size:20px;}
+
+.aw-karte{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;
+  padding:22px;margin-bottom:14px;box-shadow:0 1px 3px rgba(14,30,29,.04);}
+.aw-karte h3{margin:0 0 3px;font-size:15px;color:var(--ink);}
+.aw-sub{margin:0 0 16px;font-size:12px;color:var(--mute);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.aw-pt{display:inline-block;width:9px;height:9px;border-radius:2px;margin-left:8px;}
+.aw-pt-a{background:#BCDDDC;margin-left:0;}
+.aw-pt-e{background:var(--cd-haupt);}
+
+.aw-monat{display:grid;grid-template-columns:130px 1fr 92px;gap:14px;align-items:center;
+  padding:9px 0;border-bottom:1px solid var(--border-soft);}
+.aw-monat:last-child{border-bottom:none;}
+.aw-monat-n{font-size:13px;color:var(--ink);font-weight:600;}
+.aw-monat-n span{color:var(--mute);font-weight:400;}
+.aw-balken{position:relative;height:20px;}
+.aw-bar{position:absolute;left:0;height:9px;border-radius:100px;min-width:3px;}
+.aw-bar-a{top:0;background:#BCDDDC;}
+.aw-bar-e{top:11px;background:var(--cd-haupt);}
+.aw-monat-z{font-size:12.5px;color:var(--body-c);text-align:right;font-variant-numeric:tabular-nums;}
+.aw-monat-z span{display:block;font-size:11.5px;color:var(--teal-deep);font-weight:600;}
+@media (max-width:640px){
+  .aw-monat{grid-template-columns:100px 1fr 72px;gap:9px;}
+  .aw-monat-n{font-size:12px;}
+}
+
+.aw-raster{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media (max-width:820px){.aw-raster{grid-template-columns:1fr;}}
+.aw-raster .aw-karte{margin-bottom:0;}
+.aw-zeile{display:grid;grid-template-columns:1fr 90px 32px;gap:11px;align-items:center;padding:7px 0;}
+.aw-lbl{font-size:13px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.aw-mini{height:6px;background:var(--wash);border-radius:100px;overflow:hidden;}
+.aw-mini div{height:100%;background:var(--cd-haupt);border-radius:100px;}
+.aw-anz{font-size:12.5px;color:var(--mute);text-align:right;font-variant-numeric:tabular-nums;}
+
 /* Kundenseite */
 .kd-back{background:none;border:none;cursor:pointer;font-family:inherit;font-size:13.5px;
   color:var(--mute);padding:0 0 16px;display:inline-block;}
@@ -233,6 +276,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal)!important;
         <button class="on" data-tab="todo" onclick="zeigeTab('todo')">Zu erledigen <span class="tab-zahl" id="todo-zahl"></span></button>
         <button data-tab="crm" onclick="zeigeTab('crm')">Alle Kunden</button>
         <button data-tab="neu" onclick="zeigeTab('neu')">Neues Angebot</button>
+        <button data-tab="auswertung" onclick="zeigeTab('auswertung')">Auswertung</button>
+      </div>
+
+      <div class="adm-panel" id="tab-auswertung">
+        <div id="auswertung-body"></div>
       </div>
 
       <!-- Einzelner Kunde: eigene Ansicht statt aufklappen -->
@@ -311,11 +359,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal)!important;
           <button data-f="abgesagt" onclick="setFilter('abgesagt')">Abgesagt</button>
         </div>
       </div>
-      <div class="crm-linkgen" style="margin-bottom:18px;">
-        <h3>Auswertung</h3>
-        <p class="crm-linkgen-hint">Gesendete Angebote und eingegangene Aufträge pro Monat und Jahr.</p>
-        <div id="crm-report"></div>
-      </div>
+      
 
       <div class="crm-table-wrap">
         <div class="crm-table-head">
@@ -1192,7 +1236,7 @@ jspdf/dist/jspdf.es.min.js:
       const auf = nachCode[ang.code];
       if(auf){
         liste.push(Object.assign({}, ang, auf, {
-          quelle:'auftrag', id: auf.id || auf._id || ang.code,
+          quelle:'auftrag', quelleKontakt: (ang && ang.quelle) || '', id: auf.id || auf._id || ang.code,
           stufe: (auf.stufe === 'aktiv') ? 'aktiv' : 'auftrag',
           datum: auf.eingegangenAm || ang.gesendetAm,
           alter: tageSeit(ang.gesendetAm)
@@ -1204,6 +1248,7 @@ jspdf/dist/jspdf.es.min.js:
         else if(ang.erinnerung1 || ang.erinnerung2) stufe = 'nachgefasst';
         liste.push(Object.assign({}, ang, {
           quelle:'angebot', id: ang.code,
+          quelleKontakt: ang.quelle || '',
           stufe: stufe,
           datum: ang.gesendetAm,
           alter: tageSeit(ang.gesendetAm),
@@ -1215,7 +1260,7 @@ jspdf/dist/jspdf.es.min.js:
     // Aufträge ohne zugehöriges Angebot (z. B. Direkteingang)
     Object.values(nachCode).forEach(auf => {
       liste.push(Object.assign({}, auf, {
-        quelle:'auftrag', id: auf.id || auf._id,
+        quelle:'auftrag', quelleKontakt: auf.quelle || '', id: auf.id || auf._id,
         stufe: (auf.stufe === 'aktiv') ? 'aktiv' : 'auftrag',
         datum: auf.eingegangenAm,
         alter: tageSeit(auf.eingegangenAm)
@@ -1642,77 +1687,108 @@ jspdf/dist/jspdf.es.min.js:
   }
 
   /* ---------- Reporting: Monat, Jahr und Kategorien ---------- */
+  /* ---------------- Auswertung ---------------- */
   function renderReport(){
-    const box = document.getElementById('crm-report');
+    const box = document.getElementById('auswertung-body');
     if(!box) return;
-    const angebote = (CS_ANGEBOTE && CS_ANGEBOTE.angebote) || [];
-    const liste = CS_LISTE || [];
-    const MON = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
-
-    if(!angebote.length){
-      box.innerHTML = '<p class="crm-linkgen-hint" style="margin:0;">Noch keine Daten für eine Auswertung.</p>';
+    const alle = CS_LISTE || [];
+    if(!alle.length){
+      box.innerHTML = '<div class="td-leer"><div class="td-leer-ico">&#9679;</div>' +
+        '<h3>Noch keine Daten</h3><p>Sobald das erste Angebot versendet ist, erscheint hier die Auswertung.</p></div>';
       return;
     }
 
-    /* ---- Zeitraum wählen ---- */
-    const jahre = [...new Set(angebote.map(a => (a.gesendetAm || '').slice(0,4)).filter(Boolean))].sort().reverse();
-    const jahr = window.REP_JAHR || jahre[0];
-    window.REP_JAHR = jahr;
+    /* --- Kennzahlen --- */
+    const angebote  = alle.length;
+    const auftraege = alle.filter(e => e.stufe === 'auftrag' || e.stufe === 'aktiv').length;
+    const aktiv     = alle.filter(e => e.stufe === 'aktiv').length;
+    const abgesagt  = alle.filter(e => e.stufe === 'abgesagt').length;
+    const offen     = alle.filter(e => e.stufe === 'gesendet' || e.stufe === 'nachgefasst').length;
+    const quote     = angebote ? Math.round(auftraege / angebote * 100) : 0;
 
-    const imJahr = angebote.filter(a => (a.gesendetAm || '').startsWith(jahr));
-    const auftragCodes = new Set(liste.filter(e => e.stufe === 'auftrag' || e.stufe === 'aktiv').map(e => e.code));
+    // Durchschnittliche Zeit bis zur Erteilung
+    const zeiten = alle.filter(e => e.stufe === 'auftrag' || e.stufe === 'aktiv')
+      .map(e => e.alter).filter(x => typeof x === 'number');
+    const schnitt = zeiten.length ? Math.round(zeiten.reduce((a2,b2) => a2+b2, 0) / zeiten.length) : null;
 
-    /* ---- Monatstabelle ---- */
-    const monate = {};
-    imJahr.forEach(a => {
-      const m = new Date(a.gesendetAm).getMonth();
-      monate[m] = monate[m] || { gesendet:0, auftraege:0 };
-      monate[m].gesendet++;
-      if(auftragCodes.has(a.code)) monate[m].auftraege++;
-    });
-    const zeilen = Object.keys(monate).sort((x,y) => y - x).map(m => {
-      const d = monate[m];
-      const q = d.gesendet ? Math.round(d.auftraege / d.gesendet * 100) : 0;
-      return '<div class="rep-row"><span>' + MON[m] + '</span>' +
-             '<span>' + d.gesendet + ' Anfragen</span>' +
-             '<span>' + d.auftraege + ' Aufträge</span>' +
-             '<span class="rep-q">' + q + '%</span></div>';
-    }).join('');
-    const gesJ = imJahr.length;
-    const aufJ = imJahr.filter(a => auftragCodes.has(a.code)).length;
-
-    /* ---- Verteilung je Kategorie ---- */
-    function verteilung(feld, titel){
-      const z = {};
-      imJahr.forEach(a => { const v = a[feld] || 'Ohne Angabe'; z[v] = (z[v] || 0) + 1; });
-      const summe = imJahr.length || 1;
-      const eintraege = Object.entries(z).sort((x,y) => y[1] - x[1]).map(([k, n]) => {
-        const pct = Math.round(n / summe * 100);
-        return '<div class="rep-bar">' +
-          '<span class="rb-l">' + k + '</span>' +
-          '<span class="rb-t"><span class="rb-f" style="width:' + pct + '%"></span></span>' +
-          '<span class="rb-n">' + n + '</span></div>';
-      }).join('');
-      return '<div class="rep-cat"><h4>' + titel + '</h4>' + eintraege + '</div>';
+    function kachel(wert, label, farbe){
+      return '<div class="aw-kachel"><div class="aw-wert"' + (farbe ? ' style="color:' + farbe + '"' : '') +
+        '>' + wert + '</div><span>' + label + '</span></div>';
     }
 
-    const jahrWahl = jahre.length > 1
-      ? '<select onchange="window.REP_JAHR=this.value;renderReport();" style="font-size:12.5px;padding:5px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--ink);">' +
-        jahre.map(j => '<option' + (j === jahr ? ' selected' : '') + '>' + j + '</option>').join('') + '</select>'
-      : '';
+    /* --- Monate --- */
+    const proMonat = {};
+    alle.forEach(e => {
+      if(!e.datum) return;
+      const d2 = new Date(e.datum);
+      const k = d2.getFullYear() + '-' + String(d2.getMonth()+1).padStart(2,'0');
+      if(!proMonat[k]) proMonat[k] = { anfragen:0, erteilungen:0 };
+      proMonat[k].anfragen++;
+      if(e.stufe === 'auftrag' || e.stufe === 'aktiv') proMonat[k].erteilungen++;
+    });
+    const monate = Object.keys(proMonat).sort().reverse();
+    const maxAnfr = Math.max(1, ...monate.map(m => proMonat[m].anfragen));
+    const MN = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+    const monatsZeilen = monate.map(m => {
+      const w = proMonat[m];
+      const q = w.anfragen ? Math.round(w.erteilungen / w.anfragen * 100) : 0;
+      const [jj, mm] = m.split('-');
+      return '<div class="aw-monat">' +
+        '<div class="aw-monat-n">' + MN[parseInt(mm)-1] + ' <span>' + jj + '</span></div>' +
+        '<div class="aw-balken">' +
+          '<div class="aw-bar aw-bar-a" style="width:' + (w.anfragen / maxAnfr * 100) + '%"></div>' +
+          '<div class="aw-bar aw-bar-e" style="width:' + (w.erteilungen / maxAnfr * 100) + '%"></div>' +
+        '</div>' +
+        '<div class="aw-monat-z">' + w.anfragen + ' / ' + w.erteilungen +
+          '<span>' + q + '%</span></div>' +
+      '</div>';
+    }).join('');
+
+    /* --- Verteilungen --- */
+    function verteilung(titel, feld, ersatz){
+      const zaehl = {};
+      alle.forEach(e => {
+        const v = (e[feld] || '').trim() || ersatz;
+        zaehl[v] = (zaehl[v] || 0) + 1;
+      });
+      const eintraege = Object.entries(zaehl).sort((a2,b2) => b2[1]-a2[1]);
+      const max = Math.max(1, ...eintraege.map(x => x[1]));
+      if(!eintraege.length) return '';
+      return '<div class="aw-karte"><h3>' + titel + '</h3>' +
+        eintraege.map(([k, v]) =>
+          '<div class="aw-zeile"><span class="aw-lbl">' + k + '</span>' +
+          '<div class="aw-mini"><div style="width:' + (v/max*100) + '%"></div></div>' +
+          '<span class="aw-anz">' + v + '</span></div>').join('') +
+      '</div>';
+    }
 
     box.innerHTML =
-      '<div class="rep-jahr">' +
-        '<div class="rep-head"><strong>' + jahr + '</strong>' +
-          '<span>' + gesJ + ' Anfragen · ' + aufJ + ' Aufträge · ' +
-          (gesJ ? Math.round(aufJ / gesJ * 100) : 0) + '% Abschluss ' + jahrWahl + '</span></div>' +
-        zeilen +
+      '<div class="aw-kacheln">' +
+        kachel(angebote, 'Angebote versendet') +
+        kachel(auftraege, 'Aufträge erhalten', 'var(--teal-deep)') +
+        kachel(quote + '%', 'Abschlussquote', quote >= 30 ? 'var(--teal-deep)' : '') +
+        kachel(schnitt !== null ? schnitt + ' Tage' : '—', 'Ø bis zur Erteilung') +
       '</div>' +
-      '<div class="rep-cats">' +
-        verteilung('frequenz', 'Dienstleistung') +
-        verteilung('anfrageart', 'Anfrageart') +
-        verteilung('quelle', 'Quelle des Kontakts') +
-        verteilung('erfasstVon', 'Erfasst von') +
+
+      '<div class="aw-kacheln aw-klein">' +
+        kachel(offen, 'noch offen') +
+        kachel(aktiv, 'aktive Kunden') +
+        kachel(abgesagt, 'abgesagt') +
+      '</div>' +
+
+      '<div class="aw-karte">' +
+        '<h3>Verlauf nach Monat</h3>' +
+        '<p class="aw-sub"><span class="aw-pt aw-pt-a"></span>Anfragen' +
+          '<span class="aw-pt aw-pt-e"></span>Erteilungen · rechts die Abschlussquote</p>' +
+        monatsZeilen +
+      '</div>' +
+
+      '<div class="aw-raster">' +
+        verteilung('Wie kam der Kontakt zustande', 'anfrageart', 'Ohne Angabe') +
+        verteilung('Quelle des Kontakts', 'quelleKontakt', 'Ohne Angabe') +
+        verteilung('Erfasst von', 'erfasstVon', 'Ohne Angabe') +
+        verteilung('Gewählter Rhythmus', 'frequenz', 'Ohne Angabe') +
       '</div>';
   }
 
