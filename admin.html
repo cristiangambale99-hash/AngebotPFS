@@ -41,6 +41,57 @@ body::before,body::after{display:none!important;}
 .adm-tabs button.on{color:var(--teal-deep);border-bottom-color:var(--teal);}
 .adm-panel{display:none;} .adm-panel.on{display:block;}
 
+/* Reiterzähler */
+.tab-zahl{display:none;align-items:center;justify-content:center;min-width:19px;height:19px;
+  margin-left:7px;padding:0 6px;border-radius:100px;background:var(--cd-haupt);
+  color:#fff;font-size:11px;font-weight:700;vertical-align:middle;}
+
+/* Aufgabenansicht */
+.td-block{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;
+  padding:20px 22px;margin-bottom:14px;box-shadow:0 1px 3px rgba(14,30,29,.04);}
+.td-head{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
+.td-head h3{margin:0;font-size:15.5px;color:var(--ink);flex:1;}
+.td-dot{width:9px;height:9px;border-radius:50%;flex:none;}
+.td-anz{background:var(--wash);color:var(--body-c);border-radius:100px;
+  padding:3px 10px;font-size:12px;font-weight:600;}
+.td-hint{margin:0 0 14px 19px;font-size:12.5px;color:var(--mute);}
+.td-row{display:grid;grid-template-columns:1.5fr 1fr auto;gap:14px;align-items:center;
+  padding:13px 14px;border:1px solid var(--border-soft);border-radius:11px;
+  margin-bottom:8px;cursor:pointer;transition:all .18s;background:var(--bg);}
+.td-row:hover{border-color:#BCDDDC;background:var(--wash);}
+.td-row:last-child{margin-bottom:0;}
+.td-l strong{display:block;font-size:14px;color:var(--ink);}
+.td-l span{display:block;font-size:12px;color:var(--mute);margin-top:2px;}
+.td-m{font-size:12.5px;color:var(--body-c);}
+.td-spur{display:block;font-size:11.5px;color:var(--mute);margin-top:2px;}
+.td-spur.td-neu{color:#B4232C;}
+.td-r{display:flex;gap:7px;}
+.td-r a{font-size:12px;color:var(--teal-deep);text-decoration:none;padding:6px 12px;
+  border:1px solid var(--border);border-radius:100px;background:var(--surface);white-space:nowrap;}
+.td-r a:hover{border-color:var(--teal);}
+@media (max-width:760px){
+  .td-row{grid-template-columns:1fr;gap:8px;}
+  .td-r{flex-wrap:wrap;}
+}
+.td-leer{text-align:center;padding:70px 24px;background:var(--surface);
+  border:1px solid var(--border-soft);border-radius:14px;}
+.td-leer-ico{width:52px;height:52px;margin:0 auto 16px;border-radius:50%;
+  background:var(--tint);color:var(--teal-deep);font-size:24px;
+  display:flex;align-items:center;justify-content:center;}
+.td-leer h3{margin:0 0 7px;font-size:17px;color:var(--ink);}
+.td-leer p{margin:0;font-size:13.5px;color:var(--mute);}
+
+/* Notizfeld */
+.notiz-box{margin-top:16px;padding:14px 16px;background:var(--surface);
+  border:1px solid var(--border);border-radius:11px;}
+.notiz-box label{display:block;font-size:11.5px;font-weight:600;color:var(--ink);margin-bottom:7px;}
+.notiz-box label span{font-weight:400;color:var(--mute);}
+.notiz-box textarea{width:100%;font-family:inherit;font-size:13px;padding:9px 12px;
+  border:1.5px solid var(--border);border-radius:9px;resize:vertical;background:#fff;color:var(--ink);}
+.notiz-fuss{display:flex;align-items:center;gap:14px;margin-top:9px;flex-wrap:wrap;}
+.notiz-fuss .btn{width:auto!important;flex:none;padding:8px 15px;font-size:12px;}
+.notiz-fuss span{font-size:11.5px;color:var(--mute);}
+
 /* Karten und Flächen */
 .crm-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
 @media (max-width:820px){.crm-stats{grid-template-columns:1fr 1fr;}}
@@ -106,6 +157,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal)!important;
       <p class="secnum" style="justify-content:center;"><span class="ln"></span>Zugang</p>
       <h2>Verwaltung Putzfrauenservice</h2>
       <p>Bitte Code eingeben.</p>
+      <div class="field" style="margin-bottom:10px;">
+        <input type="text" id="admin-wer" placeholder="Ihr Name (z. B. Fiorella)"
+               autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('admin-code').focus()">
+      </div>
       <div class="field">
         <input type="password" id="admin-code" placeholder="Code"
                autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
@@ -127,11 +182,16 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal)!important;
       </div>
 
       <div class="adm-tabs">
-        <button class="on" data-tab="crm" onclick="zeigeTab('crm')">Kundenübersicht</button>
-        <button data-tab="neu" onclick="zeigeTab('neu')">Neues Angebot erstellen</button>
+        <button class="on" data-tab="todo" onclick="zeigeTab('todo')">Zu erledigen <span class="tab-zahl" id="todo-zahl"></span></button>
+        <button data-tab="crm" onclick="zeigeTab('crm')">Alle Kunden</button>
+        <button data-tab="neu" onclick="zeigeTab('neu')">Neues Angebot</button>
       </div>
 
-      <div class="adm-panel on" id="tab-crm">
+      <div class="adm-panel on" id="tab-todo">
+        <div id="todo-body"></div>
+      </div>
+
+      <div class="adm-panel" id="tab-crm">
       <div class="crm-stats">
         <div class="crm-stat"><span class="crm-stat-num" id="stat-total">0</span><span class="crm-stat-lbl">Kunden total</span></div>
         <div class="crm-stat"><span class="crm-stat-num" id="stat-month">0</span><span class="crm-stat-lbl">Diesen Monat</span></div>
@@ -958,6 +1018,7 @@ jspdf/dist/jspdf.es.min.js:
 
   /* ---------- Anmeldung ---------- */
   let CS_TOKEN = sessionStorage.getItem('cs_token') || '';
+  let CS_WER = sessionStorage.getItem('cs_wer') || '';
 
   /* Der Browser füllt Passwortfelder gerne automatisch aus.
      Beim Laden wird das Feld deshalb aktiv geleert. */
@@ -969,6 +1030,7 @@ jspdf/dist/jspdf.es.min.js:
 
   async function anmelden(){
     const code = document.getElementById('admin-code').value || '';
+    const wer = (document.getElementById('admin-wer').value || '').trim();
     const fehler = document.getElementById('lg-fehler');
     const btn = document.getElementById('lg-btn');
     fehler.style.display = 'none';
@@ -987,7 +1049,11 @@ jspdf/dist/jspdf.es.min.js:
       const d = await r.json();
       if(!r.ok) throw new Error(d.error || 'Zugang verweigert.');
       CS_TOKEN = d.token || '';
+      CS_WER = wer;
       sessionStorage.setItem('cs_token', CS_TOKEN);
+      sessionStorage.setItem('cs_wer', wer);
+      const s = document.querySelector('.adm-top .s');
+      if(s && wer) s.textContent = 'Angemeldet als ' + wer;
       document.getElementById('admin-gate').style.display = 'none';
       document.getElementById('admin-list').style.display = 'block';
       ladeDaten();
@@ -1094,6 +1160,31 @@ jspdf/dist/jspdf.es.min.js:
     renderAdminList();
   }
 
+  async function notizSpeichern(id, ev){
+    if(ev) ev.stopPropagation();
+    const feld = document.getElementById('notiz-' + id);
+    if(!feld) return;
+    const text = feld.value;
+    const e = CS_LISTE.find(x => String(x.id) === String(id));
+    if(e) e.notiz = text;
+    const auf = (CS_AUFTRAEGE || []).find(x => String(x.id) === String(id));
+    if(auf) auf.notiz = text;
+
+    const btn = ev && ev.target;
+    if(btn){ btn.disabled = true; btn.textContent = 'Wird gespeichert …'; }
+    try{
+      const r = await fetch('/api/orders?aktion=update', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ id: id, notiz: text, bearbeiter: CS_WER })
+      });
+      if(!r.ok) throw new Error('Server ' + r.status);
+      if(btn){ btn.textContent = 'Gespeichert'; setTimeout(() => { btn.textContent = 'Notiz speichern'; btn.disabled = false; }, 1400); }
+    }catch(err){
+      alert('Die Notiz konnte nicht gespeichert werden: ' + err.message);
+      if(btn){ btn.disabled = false; btn.textContent = 'Notiz speichern'; }
+    }
+  }
+
   async function setStufe(id, stufe, ev){
     if(ev) ev.stopPropagation();
     const e = CS_LISTE.find(x => String(x.id) === String(id));
@@ -1108,7 +1199,7 @@ jspdf/dist/jspdf.es.min.js:
     try{
       const ziel = e.quelle === 'auftrag' ? '/api/orders?aktion=update' : '/api/offers?aktion=status';
       const rumpf = e.quelle === 'auftrag'
-        ? { id: id, stufe: stufe }
+        ? { id: id, stufe: stufe, bearbeiter: CS_WER }
         : { code: e.code, status: stufe === 'abgesagt' ? 'abgesagt' : 'gesendet' };
       const r = await fetch(ziel, {
         method:'POST', headers:{'Content-Type':'application/json'},
@@ -1118,6 +1209,69 @@ jspdf/dist/jspdf.es.min.js:
     }catch(err){
       alert('Der Stand konnte nicht gespeichert werden: ' + err.message);
     }
+  }
+
+  /* ---------- Reiter «Zu erledigen» ---------- */
+  function renderToDo(){
+    const box = document.getElementById('todo-body');
+    if(!box) return;
+    const alle = CS_LISTE || [];
+    const jetzt = Date.now();
+
+    const neuEing = alle.filter(e => e.stufe === 'auftrag');
+    const ohneAntwort = alle.filter(e => e.stufe === 'nachgefasst');
+    const langeStill = alle.filter(e => e.stufe === 'gesendet' && e.tage >= 3 && e.tage < 5);
+
+    const zahl = neuEing.length + ohneAntwort.length;
+    const badge = document.getElementById('todo-zahl');
+    if(badge){ badge.textContent = zahl || ''; badge.style.display = zahl ? 'inline-flex' : 'none'; }
+
+    function zeile(e){
+      const mail = e.email || e.mail || '';
+      const wann = e.zuletztAm
+        ? new Date(e.zuletztAm).toLocaleDateString('de-CH') + (e.zuletztVon ? ' · ' + e.zuletztVon : '')
+        : '';
+      return '<div class="td-row" onclick=\'zuKunde("' + e.id + '")\'>' +
+        '<div class="td-l"><strong>' + (e.vorname||'') + ' ' + (e.nachname||'') + '</strong>' +
+          '<span>' + (e.adresse||'') + (e.plzOrt||e.ort ? ', ' + (e.plzOrt||e.ort) : '') + '</span></div>' +
+        '<div class="td-m">' + (e.tage !== null && e.tage !== undefined ? 'vor ' + e.tage + ' Tagen' : '') +
+          (wann ? '<span class="td-spur">zuletzt ' + wann + '</span>' : '<span class="td-spur td-neu">noch nicht bearbeitet</span>') +
+        '</div>' +
+        '<div class="td-r">' + (mail ? '<a href="mailto:' + mail + '" onclick="event.stopPropagation()">Mail</a>' : '') +
+          (e.mobile ? '<a href="tel:' + e.mobile.replace(/\s/g,'') + '" onclick="event.stopPropagation()">Anrufen</a>' : '') +
+        '</div></div>';
+    }
+
+    function block(titel, hinweis, liste, farbe){
+      if(!liste.length) return '';
+      return '<div class="td-block">' +
+        '<div class="td-head"><span class="td-dot" style="background:' + farbe + '"></span>' +
+          '<h3>' + titel + '</h3><span class="td-anz">' + liste.length + '</span></div>' +
+        '<p class="td-hint">' + hinweis + '</p>' +
+        liste.map(zeile).join('') + '</div>';
+    }
+
+    const inhalt =
+      block('Neue Auftragserteilungen', 'Bearbeiten und auf «Aktiv» setzen, sobald die Raumpflegerin eingeplant ist.', neuEing, '#2BB6B7') +
+      block('Nachgefasst, keine Rückmeldung', 'Erinnerung ist raus. Persönlich anrufen oder abschliessen.', ohneAntwort, '#E0A030') +
+      block('Angebot läuft bald auf Nachfassen zu', 'Noch keine Rückmeldung. Ab Tag 5 geht automatisch eine Erinnerung raus.', langeStill, '#9AA8A7');
+
+    box.innerHTML = inhalt || '<div class="td-leer">' +
+      '<div class="td-leer-ico">✓</div><h3>Alles erledigt</h3>' +
+      '<p>Derzeit steht nichts an. Neue Auftragserteilungen erscheinen hier automatisch.</p></div>';
+  }
+
+  function zuKunde(id){
+    zeigeTab('crm');
+    CRM_FILTER = 'alle';
+    document.querySelectorAll('#crm-filter button').forEach(b => b.classList.toggle('on', b.dataset.f === 'alle'));
+    CRM_OFFEN = id;
+    renderAdminList();
+    setTimeout(() => {
+      const r = [...document.querySelectorAll('#admin-entries .crm-row')]
+        .find(x => x.getAttribute('onclick') && x.getAttribute('onclick').includes('"' + id + '"'));
+      if(r) r.scrollIntoView({behavior:'smooth', block:'center'});
+    }, 120);
   }
 
   function renderAdminList(){
@@ -1149,6 +1303,7 @@ jspdf/dist/jspdf.es.min.js:
       info.style.display = 'block';
     }
     renderReport();
+    renderToDo();
 
     /* ---- Filtern und suchen ---- */
     const suche = ((document.getElementById('crm-search') || {}).value || '').trim().toLowerCase();
@@ -1224,6 +1379,16 @@ jspdf/dist/jspdf.es.min.js:
             zeile('Bügelservice', (e.buegelservice && e.buegelservice !== 'Nein') ? e.buegelservice : '') +
           '</div>' +
           (e.vereinbarungen ? '<div class="detail-note"><strong>Besondere Wünsche:</strong> ' + e.vereinbarungen + '</div>' : '') +
+          '<div class="notiz-box">' +
+            '<label>Interne Notiz <span>— nur für das Team sichtbar</span></label>' +
+            '<textarea id="notiz-' + e.id + '" rows="2" placeholder="z. B. Kundin ruft Montag zurück">' +
+              (e.notiz || '') + '</textarea>' +
+            '<div class="notiz-fuss">' +
+              '<button class="btn btn-sm" onclick=\'notizSpeichern("' + e.id + '",event)\'>Notiz speichern</button>' +
+              (e.zuletztAm ? '<span>Zuletzt bearbeitet ' + new Date(e.zuletztAm).toLocaleString('de-CH') +
+                 (e.zuletztVon ? ' von ' + e.zuletztVon : '') + '</span>' : '') +
+            '</div>' +
+          '</div>' +
           '<div class="crm-row-actions" style="margin-top:16px;">' +
             weiter +
             (e.quelle === 'auftrag'
