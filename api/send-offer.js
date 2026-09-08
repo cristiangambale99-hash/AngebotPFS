@@ -61,22 +61,22 @@ export default async function handler(req, res) {
   } : {
     betreff:    `Ihr persönliches Reinigungsangebot${angebotsnr ? ' Nr. ' + angebotsnr : ''}`,
     kopf:       'Angebot für Ihre Haushaltreinigung',
-    absatz1:    '${T.absatz1}',
-    absatz2:    '${T.absatz2}',
+    absatz1:    'Besten Dank für Ihr Interesse an unserem Putzfrauenservice. Gerne unterbreiten wir Ihnen nachfolgend unser Angebot für die regelmässige Reinigung Ihres Haushalts.',
+    absatz2:    'Wir haben das Konzept auf Ihre Situation abgestimmt. Sie finden darin die enthaltenen Leistungen, Ihre Konditionen, das für Sie zuständige Team sowie den Ablauf bis zum ersten Einsatz.',
     kasten:     'IHR PERSÖNLICHES ANGEBOT',
     nummer:     'Angebot Nr.',
     zugang:     'Zugangscode',
     knopf:      'Angebot ansehen',
-    hinweis:    '${T.hinweis}',
-    schluss:    '${T.schluss}'
+    hinweis:    'Das Angebot ist ausschliesslich für Sie bestimmt und rund fünf Minuten Lesezeit.',
+    schluss:    'Für Rückfragen oder besondere Anliegen stehe ich Ihnen gerne persönlich zur Verfügung.'
   };
 
   const subject = T.betreff;
 
   const inhalt = `
     <p style="margin:0 0 16px;">${anredeText}</p>
-    <p style="margin:0 0 16px;">Besten Dank für Ihr Interesse an unserem Putzfrauenservice. Gerne unterbreiten wir Ihnen nachfolgend unser Angebot für die regelmässige Reinigung Ihres Haushalts.</p>
-    <p style="margin:0 0 20px;">Wir haben das Konzept auf Ihre Situation abgestimmt. Sie finden darin die enthaltenen Leistungen, Ihre Konditionen, das für Sie zuständige Team sowie den Ablauf bis zum ersten Einsatz.</p>
+    <p style="margin:0 0 16px;">${T.absatz1}</p>
+    <p style="margin:0 0 20px;">${T.absatz2}</p>
 
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:0 0 22px;border-collapse:collapse;">
       <tr>
@@ -99,13 +99,13 @@ export default async function handler(req, res) {
             </td></tr>
           </table>
           <div style="font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};margin-top:12px;line-height:1.5;">
-            Das Angebot ist ausschliesslich für Sie bestimmt und rund fünf Minuten Lesezeit.
+            ${T.hinweis}
           </div>
         </td>
       </tr>
     </table>
 
-    <p style="margin:0;">Für Rückfragen oder besondere Anliegen stehe ich Ihnen gerne persönlich zur Verfügung.</p>`;
+    <p style="margin:0;">${T.schluss}</p>`;
 
   const html = csRahmen(T.kopf, inhalt);
 
