@@ -372,7 +372,18 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal)!important;
 
       <div class="adm-panel" id="tab-neu">
       <div class="crm-linkgen">
-        <h3>Neuen Kunden-Link erstellen</h3>
+        <h3>Anfrage einlesen</h3>
+        <p class="crm-linkgen-hint">Anfrage aus dem Mail kopieren und hier einfügen — die Felder unten werden automatisch ausgefüllt.</p>
+        <textarea id="lg-paste" rows="4" placeholder="Anfrage hier einfügen (Strg+V) …"
+          style="width:100%;font-family:inherit;font-size:13px;padding:11px 13px;border:1.5px solid var(--border);border-radius:10px;resize:vertical;background:#fff;color:var(--ink);margin-bottom:10px;"></textarea>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:24px;">
+          <button class="btn btn-sm" style="width:auto;flex:none;" onclick="anfrageEinlesen()">Felder ausfüllen</button>
+          <button class="btn btn-sm" style="width:auto;flex:none;background:var(--bg);color:var(--ink);border:1px solid var(--border);"
+            onclick="document.getElementById('lg-paste').value='';document.getElementById('lg-paste-info').style.display='none';">Leeren</button>
+          <p id="lg-paste-info" style="display:none;margin:0;font-size:12.5px;"></p>
+        </div>
+
+        <h3>Angaben prüfen und Link erstellen</h3>
         <p class="crm-linkgen-hint">Erstellt eine persönliche Version des Konzepts für einen konkreten Interessenten — Name und Adresse erscheinen automatisch oben auf der Seite.</p>
         <div class="crm-linkgen-fields">
           <select id="lg-anrede"><option value="Herr">Herr</option><option value="Frau">Frau</option></select>
@@ -1103,6 +1114,95 @@ jspdf/dist/jspdf.es.min.js:
       if(r2.ok) CS_ANGEBOTE = await r2.json();
     }catch(e){ CS_ANGEBOTE = null; }
     renderAdminList();
+  }
+
+  /* ---------- Anfrage aus eingefügtem Text auslesen ---------- */
+  function anfrageEinlesen(){
+    const roh = (document.getElementById('lg-paste').value || '');
+    const info = document.getElementById('lg-paste-info');
+    function sagen(t, farbe){
+      info.textContent = t;
+      info.style.color = farbe || 'var(--teal-deep)';
+      info.style.display = 'block';
+    }
+    if(!roh.trim()){ sagen('Bitte zuerst die Anfrage einfügen.', '#B4232C'); return; }
+
+    // Wert zu einer Beschriftung suchen — auch wenn er auf der nächsten Zeile steht
+    const zeilen = roh.split(/\r?\n/).map(z => z.trim());
+    function hole(...namen){
+      for(const n of namen){
+        for(let i = 0; i < zeilen.length; i++){
+          const z = zeilen[i];
+          const re = new RegExp('^' + n + '\\s*:?\\s*(.*)$', 'i');
+          const m = z.match(re);
+          if(m){
+            let v = (m[1] || '').trim();
+            if(!v && zeilen[i+1] && !zeilen[i+1].includes(':')) v = zeilen[i+1].trim();
+            if(v) return v;
+          }
+        }
+      }
+      return '';
+    }
+
+    const gefunden = [];
+    function setzen(id, wert, name){
+      if(!wert) return;
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.value = wert;
+      gefunden.push(name);
+    }
+
+    const anrede = hole('Anrede');
+    if(/frau/i.test(anrede)) setzen('lg-anrede', 'Frau', 'Anrede');
+    else if(/herr/i.test(anrede)) setzen('lg-anrede', 'Herr', 'Anrede');
+
+    setzen('lg-vorname', hole('Vorname'), 'Vorname');
+    setzen('lg-nachname', hole('Name', 'Nachname'), 'Name');
+    setzen('lg-adresse', hole('Adresse', 'Strasse'), 'Adresse');
+
+    const plz = hole('PLZ'), ort = hole('Ort');
+    setzen('lg-plzort', [plz, ort].filter(Boolean).join(' '), 'PLZ/Ort');
+
+    // E-Mail: aus dem Feld oder irgendwo im Text
+    let mail = hole('E-Mail', 'Email', 'Mail');
+    const mm = (mail || roh).match(/[\w.+-]+@[\w-]+\.[\w.]+/);
+    setzen('lg-email', mm ? mm[0] : '', 'E-Mail');
+
+    // Zimmerzahl aus dem Fliesstext
+    const zm = roh.match(/(\d[.,]?\d?)\s*[-\s]?Zimmer/i);
+    if(zm) setzen('lg-zimmer', zm[1].replace(',', '.'), 'Zimmerzahl');
+
+    // Rhythmus
+    const f = document.getElementById('lg-frequenz');
+    if(f){
+      if(/14[-\s]?t[äa]g|zwei\s*wochen|alle\s*2\s*wochen/i.test(roh)){ f.value = '14-taeglich'; gefunden.push('Rhythmus'); }
+      else if(/monatlich|1\s*x\s*(pro\s*)?monat/i.test(roh)){ f.value = 'monatlich'; gefunden.push('Rhythmus'); }
+      else if(/w[öo]chentlich/i.test(roh)){ f.value = 'woechentlich'; gefunden.push('Rhythmus'); }
+    }
+
+    // Quelle des Kontakts
+    const q = document.getElementById('lg-quelle');
+    if(q){
+      const paare = [[/suchmaschine|google/i,'Suchmaschine'], [/social|instagram|facebook/i,'Social Media'],
+                     [/weiterempfehl|empfehlung/i,'Weiterempfehlung'], [/fahrzeug|auto|kleber/i,'Fahrzeugwerbung'],
+                     [/cross.?selling/i,'Cross-Selling']];
+      for(const [re, wert] of paare){
+        if(re.test(roh) && [...q.options].some(o => o.value === wert)){ q.value = wert; gefunden.push('Quelle'); break; }
+      }
+    }
+
+    // Anfrage kam über das Formular auf der Website
+    const aa = document.getElementById('lg-anfrageart');
+    if(aa && /offertanfrage|datenschutz akzeptiert/i.test(roh) &&
+       [...aa.options].some(o => o.value === 'Homepage')){ aa.value = 'Homepage'; gefunden.push('Anfrageart'); }
+
+    if(!gefunden.length){
+      sagen('Es liessen sich keine Angaben erkennen. Bitte die Felder von Hand ausfüllen.', '#B4232C');
+    } else {
+      sagen('Übernommen: ' + gefunden.join(', ') + '. Bitte kurz prüfen.');
+    }
   }
 
   /* Reiter umschalten */
@@ -2631,3 +2731,8 @@ function downloadLeistungsverzeichnis(id){
 </body>
 </html>
 
+
+    // Formularanfragen kommen immer über die Homepage
+    if(/offertanfrage|datenschutz akzeptiert|wie sind sie auf uns aufmerksam/i.test(roh)){
+      setzen('lg-anfrageart', 'Homepage', 'Anfrageart');
+    }
