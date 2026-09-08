@@ -2344,8 +2344,20 @@ function downloadLeistungsverzeichnis(id){
   pdf.setFont(SCHRIFT,'normal').setFontSize(7.2);
   const bodenZeilen = boden ? pdf.splitTextToSize(String(boden[1]), OB - 24) : [];
 
-  const hKunde  = 4.6 + kundeZeilen.length * 3.4 + 2;
-  const hObjekt = 4.6 + objektZeilen.length * 3.4 + Math.max(1, bodenZeilen.length) * 3.2 + 4;
+  // Höhe vorab messen, damit umbrechende Werte nicht aus dem Kasten ragen
+  function blockHoehe(zeilen, breite){
+    let hh = 4.6;
+    zeilen.forEach(zz => {
+      let gr = 7.2;
+      pdf.setFont(SCHRIFT,'normal').setFontSize(gr);
+      let w = pdf.splitTextToSize(String(zz[1]), breite - 24);
+      while(w.length > 1 && gr > 5.2){ gr -= 0.2; pdf.setFontSize(gr); w = pdf.splitTextToSize(String(zz[1]), breite - 24); }
+      hh += Math.max(3.4, w.length * (gr * 0.42));
+    });
+    return hh + 2;
+  }
+  const hKunde  = blockHoehe(kundeZeilen, KB);
+  const hObjekt = blockHoehe(objektZeilen, OB) + Math.max(1, bodenZeilen.length) * 3.2 + 2;
   const hKopf   = Math.max(hKunde, hObjekt);
 
   function blockZeichnen(x, br, titel, zeilen, extraZeilen, extraLabel){
@@ -2358,12 +2370,23 @@ function downloadLeistungsverzeichnis(id){
     zeilen.forEach(zz => {
       pdf.setFont(SCHRIFT,'normal').setFontSize(6.3).setTextColor(...F.mute.rgb);
       pdf.text(zz[0] + ':', x + 3, yy);
-      pdf.setFontSize(7.2).setTextColor(...F.ink.rgb);
-      const w = pdf.splitTextToSize(String(zz[1]), br - 24);
-      pdf.text(w[0] || '', x + 21, yy);
-      yy += 3.4;
+
+      // Lange Werte wie E-Mail-Adressen dürfen umbrechen und werden
+      // notfalls verkleinert, damit nichts abgeschnitten wird.
+      let gr = 7.2;
+      pdf.setFontSize(gr).setTextColor(...F.ink.rgb);
+      let w = pdf.splitTextToSize(String(zz[1]), br - 24);
+      // Lieber etwas kleiner setzen als mitten im Wort umbrechen
+      while(w.length > 1 && gr > 5.2){
+        gr -= 0.2;
+        pdf.setFontSize(gr);
+        w = pdf.splitTextToSize(String(zz[1]), br - 24);
+      }
+      pdf.text(w, x + 21, yy);
+      yy += Math.max(3.4, w.length * (gr * 0.42));
     });
     if(extraZeilen && extraZeilen.length){
+      yy += 0.6;
       pdf.setFont(SCHRIFT,'normal').setFontSize(6.3).setTextColor(...F.mute.rgb);
       pdf.text(extraLabel + ':', x + 3, yy);
       pdf.setFontSize(7.2).setTextColor(...F.ink.rgb);

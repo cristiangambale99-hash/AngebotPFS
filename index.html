@@ -1471,6 +1471,16 @@ footer a{color:var(--mute);}
         <div class="r"><span class="l">5.0 – 5.5 Zimmer, 14-täglich</span><span class="v">4.0 Std.</span></div>
         <div class="r"><span class="l">Grössere Objekte</span><span class="v"><a href="https://outlook.office.com/book/Putzfrauenservice2@clean-service.ch/?ismsaljsauthenabled=true" target="_blank" rel="noopener">Besichtigung buchen →</a></span></div>
       </div>
+      <div class="card rv rv-d2" id="monatlich-hinweis" style="max-width:78ch;margin:18px auto 0;display:none;">
+        <div class="card-head">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg></span>
+          <h3>Monatliche Reinigung</h3>
+          <span class="tag">CHF 48.65 pro Stunde</span>
+        </div>
+        <p style="margin-bottom:10px;">Bei monatlichem Rhythmus beträgt der Stundenansatz CHF 48.65 inkl. MWST — ebenfalls inklusive Sozialleistungen und Anfahrtsweg. Die einmalige Pauschale von CHF 70.00 für das Reinigungsmaterial gilt unverändert.</p>
+        <p style="margin:0;">Die Ausführung übernimmt unser <strong>Springerteam</strong>. Anders als bei wöchentlicher oder zweiwöchentlicher Reinigung erfolgt keine feste Zuteilung einer Raumpflegerin — dafür bleiben Sie zeitlich vollständig flexibel.</p>
+      </div>
+
       <div class="card rv rv-d2" style="max-width:78ch;margin:18px auto 0;">
         <div class="card-head">
           <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M5 6l1 14a2 2 0 002 2h8a2 2 0 002-2l1-14"/></svg></span>
@@ -1488,7 +1498,8 @@ footer a{color:var(--mute);}
           <input type="number" id="pc-zimmer" step="0.5" min="1" placeholder="Zimmeranzahl, z. B. 3.5">
           <select id="pc-frequenz">
             <option value="woechentlich">Wöchentlich</option>
-            <option value="14-taeglich">14-täglich</option>
+            <option value="14-taeglich">Alle zwei Wochen</option>
+            <option value="monatlich">Monatlich</option>
           </select>
           <button class="btn" onclick="calcPrice()">Berechnen</button>
         </div>
@@ -2099,14 +2110,20 @@ function calcPrice(){
     if(perEl) perEl.textContent = 'nach virtueller Besichtigung';
     return;
   }
-  const proEinsatz = std * 42.15;
-  const proMonat = proEinsatz * (f === '14-taeglich' ? 2.15 : 4.3);
-  const lbl = f === '14-taeglich' ? '14-täglich' : 'wöchentlich';
+  // Monatliche Reinigung: höherer Ansatz, Ausführung durch das Springerteam
+  const satz = (f === 'monatlich') ? 48.65 : 42.15;
+  const proEinsatz = std * satz;
+  const proMonat = proEinsatz * (f === 'monatlich' ? 1 : f === '14-taeglich' ? 2.15 : 4.3);
+  const lbl = f === 'monatlich' ? 'monatlicher' : f === '14-taeglich' ? '14-täglicher' : 'wöchentlicher';
   out.innerHTML = '<strong>CHF ' + proEinsatz.toFixed(2) + '</strong> pro Einsatz (' + std.toFixed(1) +
-    ' Std. à CHF 42.15)<br>Ø <strong>CHF ' + proMonat.toFixed(2) + '</strong> pro Monat bei ' + lbl +
+    ' Std. à CHF ' + satz.toFixed(2) + ')<br>Ø <strong>CHF ' + proMonat.toFixed(2) + '</strong> pro Monat bei ' + lbl +
     'er Reinigung — inkl. MWST, zuzüglich einmaligem Reinigungsset (CHF 70.00).';
   if(amtEl) amtEl.textContent = 'CHF ' + proEinsatz.toFixed(2);
-  if(perEl) perEl.textContent = 'pro ' + (f === '14-taeglich' ? '14-täglichem' : 'wöchentlichem') + ' Einsatz, inkl. MWST';
+  if(perEl) perEl.textContent = 'pro ' +
+    (f === 'monatlich' ? 'monatlichem' : f === '14-taeglich' ? '14-täglichem' : 'wöchentlichem') +
+    ' Einsatz, inkl. MWST';
+  const mh = document.getElementById('monatlich-hinweis');
+  if(mh) mh.style.display = (f === 'monatlich') ? 'block' : 'none';
 }
 (function(){
   const z = document.getElementById('pc-zimmer');
@@ -2239,7 +2256,7 @@ function erzeugeAngebotPdf(){
 
   /* ---- Zusatzleistungen ---- */
   h2('Zusatzleistungen nach Wunsch');
-  absatz('Frei wählbar und jederzeit anpassbar. Verrechnet wird ausschliesslich der zusätzliche Zeitaufwand zu CHF 42.15 pro Stunde inkl. MWST.', 8.5);
+  absatz('Frei wählbar und jederzeit anpassbar. Verrechnet wird ausschliesslich der zusätzliche Zeitaufwand zum jeweiligen Stundenansatz.', 8.5);
   [
     'Frische Bettwäsche — zusätzlich 30 Min.',
     'Wäsche waschen & Tumbler — zusätzlich 30 Min.',
@@ -2251,7 +2268,10 @@ function erzeugeAngebotPdf(){
 
   /* ---- Preise ---- */
   h2('Ihre Konditionen');
-  absatz('Stundenansatz CHF 42.15 inkl. MWST, sekundengenau abgerechnet. Im Preis enthalten sind sämtliche Sozialleistungen sowie der Anfahrtsweg. Dazu einmalig CHF 70.00 für das Reinigungsset — Verbrauchtes tauschen wir während der gesamten Vertragsdauer kostenlos aus.');
+  const istMonat = (d.rechner || '').toLowerCase().includes('monat') || (pending && pending.freq === 'monatlich');
+  absatz(istMonat
+    ? 'Stundenansatz CHF 48.65 inkl. MWST bei monatlicher Reinigung, sekundengenau abgerechnet. Im Preis enthalten sind sämtliche Sozialleistungen sowie der Anfahrtsweg. Dazu einmalig CHF 70.00 für das Reinigungsset — Verbrauchtes tauschen wir während der gesamten Vertragsdauer kostenlos aus. Die Ausführung übernimmt unser Springerteam, eine feste Zuteilung erfolgt nicht.'
+    : 'Stundenansatz CHF 42.15 inkl. MWST, sekundengenau abgerechnet. Im Preis enthalten sind sämtliche Sozialleistungen sowie der Anfahrtsweg. Dazu einmalig CHF 70.00 für das Reinigungsset — Verbrauchtes tauschen wir während der gesamten Vertragsdauer kostenlos aus.');
 
   platz(48);
   const zeilen = [
