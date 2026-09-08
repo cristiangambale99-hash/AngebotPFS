@@ -243,6 +243,34 @@ section{padding:104px 0;position:relative;}
   .rabatt span{font-size:12px;}
 }
 
+/* Reklamationsmanagement */
+.rekla{margin-top:34px;padding:28px 30px;background:var(--surface);
+  border:1px solid var(--border-soft);border-radius:18px;
+  box-shadow:0 1px 3px rgba(14,30,29,.04);}
+.rekla h3{margin:0 0 5px;font-family:var(--head);font-size:18px;color:var(--ink);}
+.rekla-lead{margin:0 0 20px;font-size:14px;color:var(--mute);}
+.rekla-tab{border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.rekla-kopf,.rekla-zeile{display:grid;grid-template-columns:180px 1fr 150px;gap:16px;
+  padding:12px 18px;align-items:baseline;}
+.rekla-kopf{background:var(--wash);border-bottom:1px solid var(--border);}
+.rekla-kopf span{font-family:var(--head);font-weight:600;font-size:11.5px;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--mute);}
+.rekla-zeile{border-bottom:1px solid var(--border-soft);}
+.rekla-zeile:last-child{border-bottom:none;}
+.rk-nr{font-family:var(--head);font-weight:600;font-size:14px;color:var(--ink);
+  display:flex;align-items:baseline;gap:9px;}
+.rk-nr em{flex:none;width:22px;height:22px;border-radius:50%;background:var(--tint);
+  color:var(--teal-deep);font-style:normal;font-size:11.5px;font-weight:700;
+  display:inline-flex;align-items:center;justify-content:center;}
+.rk-txt{font-size:14px;line-height:1.6;color:var(--body-c);}
+.rk-zeit{font-size:13px;font-weight:600;color:var(--teal-deep);white-space:nowrap;}
+@media (max-width:820px){
+  .rekla{padding:22px 20px;}
+  .rekla-kopf{display:none;}
+  .rekla-zeile{grid-template-columns:1fr;gap:6px;padding:15px 16px;}
+  .rk-zeit{font-size:12.5px;}
+}
+
 /* ============ Feinschliff Handy ============ */
 @media (max-width:660px){
   /* Kein horizontales Wischen mehr — es liess sich auf dem Handy
@@ -1374,7 +1402,48 @@ footer a{color:var(--mute);}
         </div>
         <div class="step rv rv-d3">
           <div class="sn">03</div>
-          <div><h3>Klarer Weg bei Beanstandungen</h3><p>Wir gehen jeder Beanstandung nach und finden eine tragfähige Lösung.</p></div>
+          <div><h3>Klarer Weg bei Beanstandungen</h3><p>Jede Beanstandung durchläuft einen festgelegten Prozess mit verbindlichen Fristen — siehe unten.</p></div>
+        </div>
+      </div>
+
+      <div class="rekla rv rv-d3">
+        <h3>Unser Reklamationsmanagement</h3>
+        <p class="rekla-lead">Beanstandungen werden nach einem klar definierten, nachvollziehbaren Prozess bearbeitet.</p>
+
+        <div class="rekla-tab">
+          <div class="rekla-kopf">
+            <span>Schritt</span><span>Massnahme</span><span>Zeitrahmen</span>
+          </div>
+          <div class="rekla-zeile">
+            <span class="rk-nr"><em>1</em> Entgegennahme</span>
+            <span class="rk-txt">Beanstandung per Telefon oder E-Mail, Sie erhalten eine Eingangsbestätigung</span>
+            <span class="rk-zeit">Sofort</span>
+          </div>
+          <div class="rekla-zeile">
+            <span class="rk-nr"><em>2</em> Beurteilung</span>
+            <span class="rk-txt">Die Teamleitung beurteilt die Schwere des Mangels vor Ort oder anhand eines Fotos</span>
+            <span class="rk-zeit">Innert 1 Stunde</span>
+          </div>
+          <div class="rekla-zeile">
+            <span class="rk-nr"><em>3</em> Sofortmassnahme</span>
+            <span class="rk-txt">Behebung sofort oder beim nächstmöglichen Einsatz, je nach Dringlichkeit</span>
+            <span class="rk-zeit">Innert 2 – 24 Stunden</span>
+          </div>
+          <div class="rekla-zeile">
+            <span class="rk-nr"><em>4</em> Rückmeldung</span>
+            <span class="rk-txt">Schriftliche Rückmeldung an Sie mit Beschrieb der getroffenen Massnahme</span>
+            <span class="rk-zeit">Innert 24 Stunden</span>
+          </div>
+          <div class="rekla-zeile">
+            <span class="rk-nr"><em>5</em> Prävention</span>
+            <span class="rk-txt">Ursachenanalyse sowie Anpassung der Checkliste oder des Einsatzplans</span>
+            <span class="rk-zeit">Innert 5 Arbeitstagen</span>
+          </div>
+          <div class="rekla-zeile">
+            <span class="rk-nr"><em>6</em> Dokumentation</span>
+            <span class="rk-txt">Reklamation und Lösungsweg werden in unserem System archiviert</span>
+            <span class="rk-zeit">Dauerhaft</span>
+          </div>
         </div>
       </div>
     </section>
