@@ -110,6 +110,21 @@ body::before,body::after{display:none!important;}
 .kd-aktionen{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px;align-items:center;}
 .kd-aktionen .btn{width:auto!important;flex:none;}
 
+/* Notizverlauf */
+.nz-neu{margin-bottom:18px;}
+.nz-neu textarea{width:100%;font-family:inherit;font-size:13.5px;padding:11px 13px;
+  border:1.5px solid var(--border);border-radius:10px;resize:vertical;background:#fff;color:var(--ink);}
+.nz-neu textarea:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(43,182,183,.13);outline:none;}
+.nz-leer{margin:0;padding:16px 0 0;border-top:1px solid var(--border-soft);
+  font-size:13px;color:var(--mute);}
+.nz-liste{border-top:1px solid var(--border-soft);padding-top:4px;}
+.nz-eintrag{padding:13px 0;border-bottom:1px solid var(--border-soft);}
+.nz-eintrag:last-child{border-bottom:none;padding-bottom:0;}
+.nz-kopf{display:flex;align-items:baseline;gap:9px;margin-bottom:4px;}
+.nz-kopf span{font-size:11.5px;color:var(--mute);font-variant-numeric:tabular-nums;}
+.nz-kopf strong{font-size:12px;color:var(--teal-deep);font-weight:600;}
+.nz-text{font-size:13.5px;color:var(--ink);line-height:1.6;}
+
 /* Notizfeld */
 .notiz-box{margin-top:16px;padding:14px 16px;background:var(--surface);
   border:1px solid var(--border);border-radius:11px;}
@@ -1194,11 +1209,38 @@ jspdf/dist/jspdf.es.min.js:
     renderAdminList();
   }
 
+  /* Notizverlauf, neueste zuerst */
+  function notizVerlauf(e){
+    const liste = Array.isArray(e.notizen) ? e.notizen.slice() : [];
+    // Alte Einzelnotiz aus der Zeit vor dem Verlauf mit anzeigen
+    if(!liste.length && e.notiz){
+      liste.push({ text: e.notiz, von: e.zuletztVon || '', am: e.zuletztAm || '' });
+    }
+    if(!liste.length){
+      return '<p class="nz-leer">Noch keine Einträge vorhanden.</p>';
+    }
+    return '<div class="nz-liste">' + liste.slice().reverse().map(n => {
+      let wann = '';
+      if(n.am){
+        const d = new Date(n.am);
+        const heute = new Date();
+        const gleicherTag = d.toDateString() === heute.toDateString();
+        wann = (gleicherTag ? 'Heute' : d.toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit'}))
+             + ', ' + d.toLocaleTimeString('de-CH').slice(0,5);
+      }
+      return '<div class="nz-eintrag">' +
+        '<div class="nz-kopf">' + (wann ? '<span>' + wann + '</span>' : '') +
+          (n.von ? '<strong>' + n.von + '</strong>' : '') + '</div>' +
+        '<div class="nz-text">' + String(n.text || '').replace(/</g,'&lt;').replace(/\n/g,'<br>') + '</div>' +
+      '</div>';
+    }).join('') + '</div>';
+  }
+
   async function notizSpeichern(id, ev){
     if(ev) ev.stopPropagation();
     const feld = document.getElementById('notiz-' + id);
     if(!feld) return;
-    const text = feld.value;
+    const text = (feld.value || '').trim();
     const meldung = document.getElementById('notiz-status-' + id);
     const btn = ev && ev.target;
 
@@ -1209,10 +1251,9 @@ jspdf/dist/jspdf.es.min.js:
       meldung.style.display = 'block';
     }
 
-    if(!CS_TOKEN){
-      sagen('Nicht mehr angemeldet. Bitte Seite neu laden und Code erneut eingeben.', '#B4232C');
-      return;
-    }
+    if(!text){ sagen('Bitte zuerst etwas eintragen.', '#B4232C'); return; }
+    if(!CS_TOKEN){ sagen('Nicht mehr angemeldet. Bitte Seite neu laden.', '#B4232C'); return; }
+    if(!CS_WER){ sagen('Bitte melden Sie sich mit Ihrem Namen an, damit der Eintrag zugeordnet wird.', '#B4232C'); return; }
 
     if(btn){ btn.disabled = true; btn.textContent = 'Wird gespeichert …'; }
     sagen('Wird gespeichert …');
@@ -1220,28 +1261,41 @@ jspdf/dist/jspdf.es.min.js:
     try{
       const r = await fetch('/api/orders?aktion=update', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ id: id, notiz: text, bearbeiter: CS_WER })
+        body: JSON.stringify({ id: id, notizNeu: text, bearbeiter: CS_WER })
       });
       const d = await r.json().catch(() => ({}));
-
-      if(r.status === 401){
-        sagen('Ihre Anmeldung ist abgelaufen. Bitte Seite neu laden.', '#B4232C');
-        return;
-      }
+      if(r.status === 401){ sagen('Ihre Anmeldung ist abgelaufen. Bitte Seite neu laden.', '#B4232C'); return; }
       if(!r.ok) throw new Error(d.error || ('Serverfehler ' + r.status));
 
-      // Nur bei bestätigtem Erfolg auch lokal übernehmen
+      // Eintrag lokal ergänzen, damit er sofort im Verlauf steht.
+      // Liste und Auftragsliste teilen sich dasselbe Array — deshalb nur einmal anhängen.
+      const eintrag = { text, von: CS_WER, am: new Date().toISOString() };
       const e = (CS_LISTE || []).find(x => String(x.id) === String(id));
-      if(e){ e.notiz = text; e.zuletztAm = new Date().toISOString(); e.zuletztVon = CS_WER; }
-      const auf = (CS_AUFTRAEGE || []).find(x => String(x.id) === String(id) || x.code === (e && e.code));
-      if(auf){ auf.notiz = text; auf.zuletztAm = new Date().toISOString(); auf.zuletztVon = CS_WER; }
+      const auf = (CS_AUFTRAEGE || []).find(x => String(x.id) === String(id) || (e && x.code === e.code));
 
-      sagen('Gespeichert um ' + new Date().toLocaleTimeString('de-CH').slice(0,5) +
-            (CS_WER ? ' von ' + CS_WER : ''), 'var(--teal-deep)');
+      if(e && !Array.isArray(e.notizen)){
+        e.notizen = e.notiz ? [{ text:e.notiz, von:e.zuletztVon||'', am:e.zuletztAm||'' }] : [];
+      }
+      if(auf && !Array.isArray(auf.notizen)) auf.notizen = e ? e.notizen : [];
+
+      const ziel = (e && e.notizen) || (auf && auf.notizen);
+      if(ziel) ziel.push(eintrag);
+      if(e){ e.notizen = ziel; e.zuletztAm = eintrag.am; e.zuletztVon = CS_WER; }
+      if(auf){ auf.notizen = ziel; auf.zuletztAm = eintrag.am; auf.zuletztVon = CS_WER; }
+
+      feld.value = '';
+      if(e) renderKunde(e);
+      // Meldung nach dem Neuzeichnen setzen, sonst wird sie überschrieben
+      const m2 = document.getElementById('notiz-status-' + id);
+      if(m2){
+        m2.textContent = 'Eintrag gespeichert.';
+        m2.style.color = 'var(--teal-deep)';
+        m2.style.display = 'block';
+      }
     }catch(err){
       sagen('Nicht gespeichert: ' + err.message, '#B4232C');
     }finally{
-      if(btn){ btn.disabled = false; btn.textContent = 'Notiz speichern'; }
+      if(btn){ btn.disabled = false; btn.textContent = 'Eintrag hinzufügen'; }
     }
   }
 
@@ -1392,16 +1446,16 @@ jspdf/dist/jspdf.es.min.js:
       '</div>' +
 
       '<div class="kd-karte">' +
-        '<h3>Interne Notiz</h3>' +
-        '<p class="kd-sub">Für alle im Team sichtbar, nicht für die Kundschaft.</p>' +
-        '<textarea id="notiz-' + e.id + '" rows="3" placeholder="z. B. Kundin ruft Montag zurück">' +
-          (e.notiz || '') + '</textarea>' +
-        '<div class="notiz-fuss">' +
-          '<button class="btn btn-sm" onclick=\'notizSpeichern("' + e.id + '",event)\'>Notiz speichern</button>' +
-          (e.zuletztAm ? '<span>Zuletzt bearbeitet ' + new Date(e.zuletztAm).toLocaleString('de-CH') +
-            (e.zuletztVon ? ' von ' + e.zuletztVon : '') + '</span>' : '<span>Noch nicht bearbeitet</span>') +
+        '<h3>Notizen</h3>' +
+        '<p class="kd-sub">Für alle im Team sichtbar. Einträge bleiben erhalten und lassen sich nicht überschreiben.</p>' +
+        '<div class="nz-neu">' +
+          '<textarea id="notiz-' + e.id + '" rows="2" placeholder="Was ist zu vermerken? z. B. Kundin ruft Montag zurück"></textarea>' +
+          '<div class="notiz-fuss">' +
+            '<button class="btn btn-sm" onclick=\'notizSpeichern("' + e.id + '",event)\'>Eintrag hinzufügen</button>' +
+            '<p id="notiz-status-' + e.id + '" style="display:none;margin:0;font-size:12.5px;"></p>' +
+          '</div>' +
         '</div>' +
-        '<p id="notiz-status-' + e.id + '" style="display:none;margin:8px 0 0;font-size:12.5px;"></p>' +
+        notizVerlauf(e) +
       '</div>' +
 
       '<div class="kd-karte">' +
