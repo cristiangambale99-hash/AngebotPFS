@@ -211,6 +211,23 @@ section{padding:104px 0;position:relative;}
   #mnav.open ~ #mpos, body:has(#mnav.open) #mpos{transform:translateY(-100%);}
 }
 
+/* Wort des Bereichsleiters */
+.leiterwort{max-width:70ch;margin:26px auto 6px;padding:26px 30px;position:relative;
+  background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;
+  box-shadow:0 1px 3px rgba(14,30,29,.04);text-align:left;}
+.leiterwort::before{content:'';position:absolute;left:0;top:26px;bottom:26px;width:3px;
+  border-radius:3px;background:linear-gradient(180deg,var(--cd-haupt),var(--cd-5));}
+.leiterwort p{margin:0 0 14px;font-size:15px;line-height:1.75;color:var(--body-c);}
+.leiterwort p:last-of-type{margin-bottom:18px;}
+.leiterwort-sig{display:flex;align-items:center;gap:12px;padding-top:16px;
+  border-top:1px solid var(--border-soft);}
+.leiterwort-sig strong{display:block;font-family:var(--head);font-size:14px;color:var(--ink);}
+.leiterwort-sig span{display:block;font-size:12.5px;color:var(--mute);margin-top:1px;}
+@media (max-width:640px){
+  .leiterwort{padding:22px 20px;margin:20px auto 4px;}
+  .leiterwort p{font-size:14.5px;line-height:1.7;}
+}
+
 /* ============ Feinschliff Handy ============ */
 @media (max-width:660px){
   /* Kein horizontales Wischen mehr — es liess sich auf dem Handy
@@ -1062,8 +1079,10 @@ footer a{color:var(--mute);}
       <p class="kicker rv">1.0 — Wer wir sind</p>
       <h2 class="rv">Ein Familienunternehmen seit 1984</h2>
       <div class="sec-body rv rv-d1">
-        <p>Die Clean Service Scaramuzzo AG ist ein inhabergeführtes Schweizer Familienunternehmen, das seit 1984 Privathaushalte betreut und heute in zweiter Generation von Mirco Scaramuzzo geführt wird. Unsere Reinigung erfolgt in sorgfältiger Handarbeit mit umweltverträglichen Produkten, die für Kinder und Haustiere unbedenklich sind.</p>
-        <p>Für jedes Objekt ist eine feste Raumpflegerin sowie eine persönliche Ansprechperson zuständig. Leistungsumfang und Kosten sind von Beginn weg transparent geregelt. Unsere Organisation ist gross genug für Aufträge in der gesamten Deutschschweiz und bewusst so aufgestellt, dass Entscheidungen kurzfristig getroffen werden können.</p>
+        <p>Die Clean Service Scaramuzzo AG ist ein seit 1984 tätiges Schweizer Familienunternehmen für Reinigung und Pflege, heute in zweiter Generation von Mirco Scaramuzzo geführt. Im Putzfrauenservice betreuen wir Privathaushalte mit individuell abgestimmten Leistungen — vom regelmässigen Unterhalt bis zu einzelnen Sonderwünschen.</p>
+        <p>Wir reinigen bewusst in traditioneller Handarbeit, unterstützt durch moderne Geräte und umweltverträgliche Mittel. Reinigung ist Vertrauenssache: Leistungen, Kosten und Qualitätssicherung sind bei uns transparent geregelt, und durch laufende Weiterbildung sowie Zertifizierungen stellen wir sicher, dass jede Arbeit der vereinbarten Qualität entspricht.
+        </p>
+        <p>Unsere Organisation ist gross genug, um Aufträge in der ganzen Deutschschweiz verlässlich zu bedienen — und bewusst ein Familienunternehmen mit überschaubarer Struktur geblieben, mit kurzen Entscheidungswegen und einer festen Ansprechperson für jeden Haushalt.</p>
       </div>
 
       <ul class="feat rv rv-d2">
@@ -1122,8 +1141,8 @@ footer a{color:var(--mute);}
         <div class="wi rv">
           <span class="wq"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
           <div>
-            <h3>Sie sind in den Ferien</h3>
-            <p>Wir setzen die Reinigung aus — oder reinigen in Ihrer Abwesenheit, damit Sie sauber heimkommen.</p>
+            <h3>Sie sind abwesend</h3>
+            <p>Sie entscheiden: Wir setzen die Reinigung für die Dauer Ihrer Abwesenheit aus, oder wir reinigen wie gewohnt, sodass Sie in einen gepflegten Haushalt zurückkehren.</p>
           </div>
         </div>
         <div class="wi rv">
@@ -1147,13 +1166,7 @@ footer a{color:var(--mute);}
             <p>Frequenz, Dauer und Zusatzleistungen passen wir jederzeit an. Ein Anruf genügt.</p>
           </div>
         </div>
-        <div class="wi rv">
-          <span class="wq"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>
-          <div>
-            <h3>Sie möchten aufhören</h3>
-            <p>Es besteht keine Mindestlaufzeit. Die Kündigungsfrist beträgt einen Monat auf Ende des jeweiligen Monats — schriftlich oder telefonisch.</p>
-          </div>
-        </div>
+        
       </div>
 
       <p class="note rv" style="text-align:center;">Sie müssen keine dieser Situationen selbst organisieren. Genau dafür haben wir über vierzig Jahre hinweg klare Abläufe entwickelt.</p>
@@ -1198,7 +1211,6 @@ footer a{color:var(--mute);}
           <div class="card-head">
             <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.6V21h14V9.6"/></svg></span>
             <h3>Wohn-, Schlaf- &amp; Büroräume</h3>
-            <span class="tag">Wöchentlich</span>
           </div>
           <ul class="ticks">
             <li>Wohn- und Schlafzimmer, Homeoffice/Büroräume, Eingangsbereich</li>
@@ -1212,7 +1224,6 @@ footer a{color:var(--mute);}
           <div class="card-head">
             <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 4v6"/></svg></span>
             <h3>Küche</h3>
-            <span class="tag">Wöchentlich</span>
           </div>
           <ul class="ticks">
             <li>Alle Aussenflächen komplett gereinigt</li>
@@ -1225,7 +1236,6 @@ footer a{color:var(--mute);}
           <div class="card-head">
             <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16v3a5 5 0 01-5 5H9a5 5 0 01-5-5v-3z"/><path d="M8 12V6a2.5 2.5 0 015 0"/></svg></span>
             <h3>Badezimmer</h3>
-            <span class="tag">Wöchentlich</span>
           </div>
           <ul class="ticks">
             <li>Komplett gereinigt, inkl. Toilette</li>
@@ -1347,9 +1357,15 @@ footer a{color:var(--mute);}
       <p class="kicker rv">7.0 — Ihr Team</p>
       <h2 class="rv">Ihr Team beim Putzfrauenservice</h2>
       <p class="sec-lead rv rv-d1">Für Ihr Objekt ist ein festes Team zuständig, erreichbar auf Deutsch, Italienisch, Spanisch und Englisch.</p>
-      <div class="sec-body rv rv-d1" style="column-count:1;max-width:64ch;margin:18px auto 4px;text-align:center;">
-        <p>Mein Team betreut Sie im Tagesgeschäft und kennt Ihr Objekt. Fiorella Scalone und Tayron Moreno sind Ihre direkten Ansprechpersonen für alles Organisatorische rund um Ihre Reinigung.</p>
-        <p style="margin-bottom:0;">Sollte einmal etwas nicht wie gewünscht laufen oder eine Frage offenbleiben, stehe ich Ihnen persönlich zur Verfügung — als letzte Instanz, wenn es woanders nicht weitergeht.</p>
+      <div class="leiterwort rv rv-d1">
+        <p>Verlässlichkeit entsteht nicht durch Zufall, sondern durch klare Zuständigkeiten. Deshalb ist für Ihr Objekt ein festes Team verantwortlich, das Ihre Wohnung und Ihre Wünsche kennt. Im Tagesgeschäft sind Fiorella Scalone und Tayron Moreno Ihre direkten Ansprechpersonen — für Terminfragen, kurzfristige Anpassungen und alles Organisatorische.</p>
+        <p>Sollte eine Situation entstehen, die auf dieser Ebene nicht abschliessend geklärt werden kann, entscheide ich persönlich. Diese Verantwortung nehme ich als Bereichsleiter wahr, und Sie erreichen mich dafür jederzeit direkt.</p>
+        <div class="leiterwort-sig">
+          <div>
+            <strong>Cristian Gambale</strong>
+            <span>Bereichsleiter Putzfrauenservice</span>
+          </div>
+        </div>
       </div>
 
       <div class="grid-2">
