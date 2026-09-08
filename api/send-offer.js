@@ -35,12 +35,43 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Kein Link übergeben.' });
   }
 
-  const anredeText =
-    anrede === 'Herr' ? ('Sehr geehrter Herr ' + (nachname || ''))
-    : anrede === 'Frau' ? ('Sehr geehrte Frau ' + (nachname || ''))
-    : ('Guten Tag ' + [vorname, nachname].filter(Boolean).join(' '));
+  /* Sprachvariante: 'de' oder 'en'. Ohne Angabe bleibt es Deutsch. */
+  const spr = (req.body && req.body.sprache === 'en') ? 'en' : 'de';
+  const EN = spr === 'en';
 
-  const subject = `Ihr persönliches Reinigungsangebot${angebotsnr ? ' Nr. ' + angebotsnr : ''}`;
+  const anredeText = EN
+    ? (anrede === 'Herr' ? ('Dear Mr ' + (nachname || ''))
+      : anrede === 'Frau' ? ('Dear Mrs ' + (nachname || ''))
+      : ('Dear ' + [vorname, nachname].filter(Boolean).join(' ')))
+    : (anrede === 'Herr' ? ('Sehr geehrter Herr ' + (nachname || ''))
+      : anrede === 'Frau' ? ('Sehr geehrte Frau ' + (nachname || ''))
+      : ('Guten Tag ' + [vorname, nachname].filter(Boolean).join(' ')));
+
+  const T = EN ? {
+    betreff:    `Your personal cleaning proposal${angebotsnr ? ' no. ' + angebotsnr : ''}`,
+    kopf:       'Proposal for your household cleaning',
+    absatz1:    'Thank you for your interest in our domestic cleaning service. We are pleased to present our proposal for the regular cleaning of your home.',
+    absatz2:    'We have tailored the proposal to your situation. It sets out the services included, your rates, the team looking after you and the steps leading up to the first visit.',
+    kasten:     'YOUR PERSONAL PROPOSAL',
+    nummer:     'Proposal no.',
+    zugang:     'Access code',
+    knopf:      'View proposal',
+    hinweis:    'The proposal is intended for you alone and takes about five minutes to read.',
+    schluss:    'Should you have any questions or particular requests, I am personally at your disposal.'
+  } : {
+    betreff:    `Ihr persönliches Reinigungsangebot${angebotsnr ? ' Nr. ' + angebotsnr : ''}`,
+    kopf:       'Angebot für Ihre Haushaltreinigung',
+    absatz1:    '${T.absatz1}',
+    absatz2:    '${T.absatz2}',
+    kasten:     'IHR PERSÖNLICHES ANGEBOT',
+    nummer:     'Angebot Nr.',
+    zugang:     'Zugangscode',
+    knopf:      'Angebot ansehen',
+    hinweis:    '${T.hinweis}',
+    schluss:    '${T.schluss}'
+  };
+
+  const subject = T.betreff;
 
   const inhalt = `
     <p style="margin:0 0 16px;">${anredeText}</p>
@@ -50,21 +81,21 @@ export default async function handler(req, res) {
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:0 0 22px;border-collapse:collapse;">
       <tr>
         <td style="border:1px solid #D5E2E1;border-left:4px solid ${CS_FARBE};padding:20px 24px;background:#FBFDFD;">
-          <div style="font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};letter-spacing:.1em;margin-bottom:12px;">IHR PERSÖNLICHES ANGEBOT</div>
+          <div style="font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};letter-spacing:.1em;margin-bottom:12px;">${T.kasten}</div>
           ${angebotsnr ? `
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;">
             <tr>
-              <td style="font-family:Verdana,Geneva,sans-serif;font-size:12px;color:${CS_GRAU};padding-right:16px;">Angebot Nr.</td>
+              <td style="font-family:Verdana,Geneva,sans-serif;font-size:12px;color:${CS_GRAU};padding-right:16px;">${T.nummer}</td>
               <td style="font-family:Verdana,Geneva,sans-serif;font-size:13px;color:${CS_TEXT};font-weight:bold;">${angebotsnr}</td>
             </tr>
             ${code ? `<tr>
-              <td style="font-family:Verdana,Geneva,sans-serif;font-size:12px;color:${CS_GRAU};padding-right:16px;padding-top:6px;">Zugangscode</td>
+              <td style="font-family:Verdana,Geneva,sans-serif;font-size:12px;color:${CS_GRAU};padding-right:16px;padding-top:6px;">${T.zugang}</td>
               <td style="font-family:Verdana,Geneva,sans-serif;font-size:15px;color:${CS_DUNKEL};font-weight:bold;letter-spacing:.12em;padding-top:6px;">${code}</td>
             </tr>` : ''}
           </table>` : ''}
           <table role="presentation" cellpadding="0" cellspacing="0" border="0">
             <tr><td style="background:${CS_FARBE};">
-              <a href="${link}" style="display:inline-block;padding:13px 32px;font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:bold;color:#FFFFFF;text-decoration:none;">Angebot ansehen</a>
+              <a href="${link}" style="display:inline-block;padding:13px 32px;font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:bold;color:#FFFFFF;text-decoration:none;">${T.knopf}</a>
             </td></tr>
           </table>
           <div style="font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};margin-top:12px;line-height:1.5;">
@@ -76,21 +107,33 @@ export default async function handler(req, res) {
 
     <p style="margin:0;">Für Rückfragen oder besondere Anliegen stehe ich Ihnen gerne persönlich zur Verfügung.</p>`;
 
-  const html = csRahmen('Angebot für Ihre Haushaltreinigung', inhalt);
+  const html = csRahmen(T.kopf, inhalt);
 
-  const text =
-    anredeText + '\n\n' +
-    'Vielen Dank für Ihr Interesse an unserem Putzfrauenservice. Wir haben Ihr Angebot persönlich auf Ihre Wohnung zugeschnitten.\n\n' +
-    'Sie finden darin:\n' +
-    '- Die enthaltenen Leistungen im Detail\n' +
-    '- Ihren Preis pro Einsatz und pro Monat\n' +
-    '- Ihr Betreuungsteam und unser Springerteam\n' +
-    '- Den Umgang mit Ihrem Schlüssel und Ihren Angaben\n\n' +
-    'Angebot ansehen:\n' + link + '\n\n' +
-    (code ? ('Ihr Zugangscode: ' + code + '\n\n') : '') +
-    (angebotsnr ? ('Angebot Nr. ' + angebotsnr + '\n\n') : '') +
-    'Für Rückfragen stehe ich Ihnen gerne persönlich zur Verfügung.' +
-    csSignaturText();
+  const text = EN
+    ? (anredeText + '\n\n' +
+       'Thank you for your interest in our domestic cleaning service. We have tailored this proposal to your home.\n\n' +
+       'It contains:\n' +
+       '- The services included, in detail\n' +
+       '- Your price per visit and per month\n' +
+       '- Your dedicated team and our relief team\n' +
+       '- How we handle your keys and your data\n\n' +
+       'View the proposal:\n' + link + '\n\n' +
+       (code ? ('Your access code: ' + code + '\n\n') : '') +
+       (angebotsnr ? ('Proposal no. ' + angebotsnr + '\n\n') : '') +
+       'Should you have any questions, I am personally at your disposal.' +
+       csSignaturText())
+    : (anredeText + '\n\n' +
+       'Vielen Dank für Ihr Interesse an unserem Putzfrauenservice. Wir haben Ihr Angebot persönlich auf Ihre Wohnung zugeschnitten.\n\n' +
+       'Sie finden darin:\n' +
+       '- Die enthaltenen Leistungen im Detail\n' +
+       '- Ihren Preis pro Einsatz und pro Monat\n' +
+       '- Ihr Betreuungsteam und unser Springerteam\n' +
+       '- Den Umgang mit Ihrem Schlüssel und Ihren Angaben\n\n' +
+       'Angebot ansehen:\n' + link + '\n\n' +
+       (code ? ('Ihr Zugangscode: ' + code + '\n\n') : '') +
+       (angebotsnr ? ('Angebot Nr. ' + angebotsnr + '\n\n') : '') +
+       'Für Rückfragen stehe ich Ihnen gerne persönlich zur Verfügung.' +
+       csSignaturText());
 
   try {
     const resendRes = await fetch('https://api.resend.com/emails', {

@@ -118,21 +118,48 @@ export default async function handler(req, res) {
 }
 
 async function sendeErinnerung(apiKey, a, stufe) {
-  const anrede = a.anrede === 'Herr' ? `Sehr geehrter Herr ${a.nachname}`
-               : a.anrede === 'Frau' ? `Sehr geehrte Frau ${a.nachname}`
-               : `Guten Tag ${a.vorname} ${a.nachname}`;
+  /* Sprache aus dem gespeicherten Angebot; ohne Angabe Deutsch */
+  const EN = a.sprache === 'en';
 
-  const betreff = stufe === 1
-    ? `Ihr Reinigungsangebot${a.angebotsnr ? ' Nr. ' + a.angebotsnr : ''} — kurze Nachfrage`
-    : `Ihr Reinigungsangebot${a.angebotsnr ? ' Nr. ' + a.angebotsnr : ''} — letzte Erinnerung`;
+  const anrede = EN
+    ? (a.anrede === 'Herr' ? `Dear Mr ${a.nachname}`
+      : a.anrede === 'Frau' ? `Dear Mrs ${a.nachname}`
+      : `Dear ${a.vorname} ${a.nachname}`)
+    : (a.anrede === 'Herr' ? `Sehr geehrter Herr ${a.nachname}`
+      : a.anrede === 'Frau' ? `Sehr geehrte Frau ${a.nachname}`
+      : `Guten Tag ${a.vorname} ${a.nachname}`);
 
-  const text = stufe === 1
-    ? 'Vor einigen Tagen haben wir Ihnen unser Angebot für die Reinigung Ihres Haushalts zugestellt. Gerne erkundigen wir uns, ob Sie dazu noch Fragen haben oder ob etwas unklar geblieben ist.'
-    : 'Vor einiger Zeit haben wir Ihnen unser Angebot für die Reinigung Ihres Haushalts zugestellt. Da wir bisher keine Rückmeldung erhalten haben, melden wir uns ein letztes Mal. Sollten sich Ihre Pläne geändert haben, ist das selbstverständlich in Ordnung.';
+  const nr = a.angebotsnr ? (EN ? ' no. ' + a.angebotsnr : ' Nr. ' + a.angebotsnr) : '';
 
-  const schluss = stufe === 1
-    ? 'Selbstverständlich bespreche ich Ihre Wünsche auch gerne persönlich am Telefon.'
-    : 'Ihr Angebot bleibt vorerst abrufbar. Melden Sie sich jederzeit, auch zu einem späteren Zeitpunkt.';
+  const betreff = EN
+    ? (stufe === 1
+        ? `Your cleaning proposal${nr} — a brief follow-up`
+        : `Your cleaning proposal${nr} — final reminder`)
+    : (stufe === 1
+        ? `Ihr Reinigungsangebot${nr} — kurze Nachfrage`
+        : `Ihr Reinigungsangebot${nr} — letzte Erinnerung`);
+
+  const text = EN
+    ? (stufe === 1
+        ? 'A few days ago we sent you our proposal for the cleaning of your home. We wanted to check whether you have any questions or whether anything remained unclear.'
+        : 'Some time ago we sent you our proposal for the cleaning of your home. As we have not heard back from you, we are getting in touch one last time. Should your plans have changed, that is of course entirely understandable.')
+    : (stufe === 1
+        ? 'Vor einigen Tagen haben wir Ihnen unser Angebot für die Reinigung Ihres Haushalts zugestellt. Gerne erkundigen wir uns, ob Sie dazu noch Fragen haben oder ob etwas unklar geblieben ist.'
+        : 'Vor einiger Zeit haben wir Ihnen unser Angebot für die Reinigung Ihres Haushalts zugestellt. Da wir bisher keine Rückmeldung erhalten haben, melden wir uns ein letztes Mal. Sollten sich Ihre Pläne geändert haben, ist das selbstverständlich in Ordnung.');
+
+  const schluss = EN
+    ? (stufe === 1
+        ? 'I would of course also be glad to discuss your requirements personally by telephone.'
+        : 'Your proposal remains available for the time being. Do get in touch at any time, also at a later date.')
+    : (stufe === 1
+        ? 'Selbstverständlich bespreche ich Ihre Wünsche auch gerne persönlich am Telefon.'
+        : 'Ihr Angebot bleibt vorerst abrufbar. Melden Sie sich jederzeit, auch zu einem späteren Zeitpunkt.');
+
+  const L = EN
+    ? { kasten:'YOUR PROPOSAL', nummer:'Proposal no.', zugang:'Access code',
+        knopf:'View proposal', kopf:'Your cleaning proposal' }
+    : { kasten:'IHR ANGEBOT', nummer:'Angebot Nr.', zugang:'Zugangscode',
+        knopf:'Angebot ansehen', kopf:'Ihr Reinigungsangebot' };
 
   const inhalt = `
     <p style="margin:0 0 16px;">${anrede}</p>
@@ -141,22 +168,22 @@ async function sendeErinnerung(apiKey, a, stufe) {
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:0 0 22px;border-collapse:collapse;">
       <tr>
         <td style="border:1px solid #D5E2E1;border-left:4px solid ${CS_FARBE};padding:20px 24px;background:#FBFDFD;">
-          <div style="font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};letter-spacing:.1em;margin-bottom:12px;">IHR ANGEBOT</div>
+          <div style="font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};letter-spacing:.1em;margin-bottom:12px;">${L.kasten}</div>
           ${a.angebotsnr || a.code ? `
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;">
             ${a.angebotsnr ? `<tr>
-              <td style="font-family:Verdana,Geneva,sans-serif;font-size:12px;color:${CS_GRAU};padding-right:16px;">Angebot Nr.</td>
+              <td style="font-family:Verdana,Geneva,sans-serif;font-size:12px;color:${CS_GRAU};padding-right:16px;">${L.nummer}</td>
               <td style="font-family:Verdana,Geneva,sans-serif;font-size:13px;color:${CS_TEXT};font-weight:bold;">${a.angebotsnr}</td>
             </tr>` : ''}
             ${a.code ? `<tr>
-              <td style="font-family:Verdana,Geneva,sans-serif;font-size:12px;color:${CS_GRAU};padding-right:16px;padding-top:6px;">Zugangscode</td>
+              <td style="font-family:Verdana,Geneva,sans-serif;font-size:12px;color:${CS_GRAU};padding-right:16px;padding-top:6px;">${L.zugang}</td>
               <td style="font-family:Verdana,Geneva,sans-serif;font-size:15px;color:${CS_DUNKEL};font-weight:bold;letter-spacing:.12em;padding-top:6px;">${a.code}</td>
             </tr>` : ''}
           </table>` : ''}
           ${a.link ? `
           <table role="presentation" cellpadding="0" cellspacing="0" border="0">
             <tr><td style="background:${CS_FARBE};">
-              <a href="${a.link}" style="display:inline-block;padding:13px 32px;font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:bold;color:#FFFFFF;text-decoration:none;">Angebot erneut ansehen</a>
+              <a href="${a.link}" style="display:inline-block;padding:13px 32px;font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:bold;color:#FFFFFF;text-decoration:none;">${L.knopf}</a>
             </td></tr>
           </table>` : ''}
           <div style="font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};margin-top:12px;line-height:1.5;">
@@ -168,11 +195,13 @@ async function sendeErinnerung(apiKey, a, stufe) {
 
     <p style="margin:0;">${schluss}</p>`;
 
-  const html = csRahmen(stufe === 1 ? 'Nachfrage zu Ihrem Angebot' : 'Letzte Erinnerung zu Ihrem Angebot', inhalt);
+  const html = csRahmen(EN
+    ? (stufe === 1 ? 'Follow-up on your proposal' : 'Final reminder about your proposal')
+    : (stufe === 1 ? 'Nachfrage zu Ihrem Angebot' : 'Letzte Erinnerung zu Ihrem Angebot'), inhalt);
 
   const klartext = `${anrede},\n\n${text}\n\n` +
     (a.link ? `${a.link}\n\n` : '') +
-    (a.code ? `Ihr Zugangscode: ${a.code}\n\n` : '') +
+    (a.code ? `${EN ? 'Your access code' : 'Ihr Zugangscode'}: ${a.code}\n\n` : '') +
     schluss + csSignaturText();
 
   const r = await fetch('https://api.resend.com/emails', {

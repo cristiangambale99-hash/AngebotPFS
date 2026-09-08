@@ -48,6 +48,7 @@ async function anlegen(req, res) {
     anfrageart: b.anfrageart || '',
     quelle: b.quelle || '',
     erfasstVon: b.erfasstVon || '',
+    sprache: (b.sprache === 'en') ? 'en' : 'de',
     link: b.link || '',
     status: 'gesendet',        // gesendet · auftrag · abgesagt
     gesendetAm: jetzt,
