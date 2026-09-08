@@ -1199,22 +1199,48 @@ jspdf/dist/jspdf.es.min.js:
     const feld = document.getElementById('notiz-' + id);
     if(!feld) return;
     const text = feld.value;
-    const e = CS_LISTE.find(x => String(x.id) === String(id));
-    if(e) e.notiz = text;
-    const auf = (CS_AUFTRAEGE || []).find(x => String(x.id) === String(id));
-    if(auf) auf.notiz = text;
-
+    const meldung = document.getElementById('notiz-status-' + id);
     const btn = ev && ev.target;
+
+    function sagen(txt, farbe){
+      if(!meldung) return;
+      meldung.textContent = txt;
+      meldung.style.color = farbe || 'var(--mute)';
+      meldung.style.display = 'block';
+    }
+
+    if(!CS_TOKEN){
+      sagen('Nicht mehr angemeldet. Bitte Seite neu laden und Code erneut eingeben.', '#B4232C');
+      return;
+    }
+
     if(btn){ btn.disabled = true; btn.textContent = 'Wird gespeichert …'; }
+    sagen('Wird gespeichert …');
+
     try{
       const r = await fetch('/api/orders?aktion=update', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ id: id, notiz: text, bearbeiter: CS_WER })
       });
-      if(!r.ok) throw new Error('Server ' + r.status);
-      if(btn){ btn.textContent = 'Gespeichert'; setTimeout(() => { btn.textContent = 'Notiz speichern'; btn.disabled = false; }, 1400); }
+      const d = await r.json().catch(() => ({}));
+
+      if(r.status === 401){
+        sagen('Ihre Anmeldung ist abgelaufen. Bitte Seite neu laden.', '#B4232C');
+        return;
+      }
+      if(!r.ok) throw new Error(d.error || ('Serverfehler ' + r.status));
+
+      // Nur bei bestätigtem Erfolg auch lokal übernehmen
+      const e = (CS_LISTE || []).find(x => String(x.id) === String(id));
+      if(e){ e.notiz = text; e.zuletztAm = new Date().toISOString(); e.zuletztVon = CS_WER; }
+      const auf = (CS_AUFTRAEGE || []).find(x => String(x.id) === String(id) || x.code === (e && e.code));
+      if(auf){ auf.notiz = text; auf.zuletztAm = new Date().toISOString(); auf.zuletztVon = CS_WER; }
+
+      sagen('Gespeichert um ' + new Date().toLocaleTimeString('de-CH').slice(0,5) +
+            (CS_WER ? ' von ' + CS_WER : ''), 'var(--teal-deep)');
     }catch(err){
-      alert('Die Notiz konnte nicht gespeichert werden: ' + err.message);
+      sagen('Nicht gespeichert: ' + err.message, '#B4232C');
+    }finally{
       if(btn){ btn.disabled = false; btn.textContent = 'Notiz speichern'; }
     }
   }
@@ -1375,6 +1401,7 @@ jspdf/dist/jspdf.es.min.js:
           (e.zuletztAm ? '<span>Zuletzt bearbeitet ' + new Date(e.zuletztAm).toLocaleString('de-CH') +
             (e.zuletztVon ? ' von ' + e.zuletztVon : '') + '</span>' : '<span>Noch nicht bearbeitet</span>') +
         '</div>' +
+        '<p id="notiz-status-' + e.id + '" style="display:none;margin:8px 0 0;font-size:12.5px;"></p>' +
       '</div>' +
 
       '<div class="kd-karte">' +
