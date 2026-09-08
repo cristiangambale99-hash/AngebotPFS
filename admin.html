@@ -1277,6 +1277,15 @@ jspdf/dist/jspdf.es.min.js:
       localStorage.setItem('cs_letzte_person', wer);
       const s = document.querySelector('.adm-top .s');
       if(s && wer) s.textContent = 'Angemeldet als ' + wer;
+
+      // «Erfasst von» auf die angemeldete Person setzen — der Vorname genügt,
+      // weil die Auswahlliste im Generator mit Vornamen arbeitet.
+      const von = document.getElementById('lg-von');
+      if(von && wer){
+        const vorname = wer.split(' ')[0];
+        const treffer = [...von.options].find(o => o.value === vorname);
+        if(treffer) von.value = vorname;
+      }
       document.getElementById('admin-gate').style.display = 'none';
       document.getElementById('admin-list').style.display = 'block';
       ladeDaten();
@@ -2735,4 +2744,11 @@ function downloadLeistungsverzeichnis(id){
     // Formularanfragen kommen immer über die Homepage
     if(/offertanfrage|datenschutz akzeptiert|wie sind sie auf uns aufmerksam/i.test(roh)){
       setzen('lg-anfrageart', 'Homepage', 'Anfrageart');
+    }
+    // Erfasser bleibt die angemeldete Person
+    const vonEl = document.getElementById('lg-von');
+    if(vonEl && !vonEl.value && CS_WER){
+      const vn = CS_WER.split(' ')[0];
+      const tr = [...vonEl.options].find(o => o.value === vn);
+      if(tr) vonEl.value = vn;
     }
