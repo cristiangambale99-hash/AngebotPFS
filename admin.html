@@ -286,7 +286,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal)!important;
 
       <div class="adm-tabs">
         <button class="on" data-tab="todo" onclick="zeigeTab('todo')">Zu erledigen <span class="tab-zahl" id="todo-zahl"></span></button>
-        <button data-tab="crm" onclick="zeigeTab('crm')">Alle Kunden</button>
+        <button data-tab="angebote" onclick="zeigeTab('angebote')">Angebote</button>
+        <button data-tab="auftraege" onclick="zeigeTab('auftraege')">Aufträge</button>
         <button data-tab="neu" onclick="zeigeTab('neu')">Neues Angebot</button>
         <button data-tab="auswertung" onclick="zeigeTab('auswertung')">Auswertung</button>
       </div>
@@ -362,14 +363,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal)!important;
       <div class="crm-toolbar">
         <input type="search" id="crm-search" placeholder="Suchen: Name, Ort, Angebotsnummer …" oninput="renderAdminList()">
         <button class="btn btn-sm" onclick="ladeDaten()" style="background:var(--bg);color:var(--ink);border:1px solid var(--border);">Aktualisieren</button>
-        <div class="crm-filter" id="crm-filter">
-          <button class="on" data-f="alle" onclick="setFilter('alle')">Alle</button>
-          <button data-f="gesendet" onclick="setFilter('gesendet')">Angebot gesendet</button>
-          <button data-f="nachgefasst" onclick="setFilter('nachgefasst')">Nachgefasst</button>
-          <button data-f="auftrag" onclick="setFilter('auftrag')">Auftragserteilung</button>
-          <button data-f="aktiv" onclick="setFilter('aktiv')">Aktiv</button>
-          <button data-f="abgesagt" onclick="setFilter('abgesagt')">Abgesagt</button>
-        </div>
+        <div class="crm-filter" id="crm-filter"></div>
       </div>
       
 
@@ -1259,8 +1253,11 @@ jspdf/dist/jspdf.es.min.js:
   function zeigeTab(name){
     document.querySelectorAll('.adm-tabs button').forEach(b =>
       b.classList.toggle('on', b.dataset.tab === name));
+    // Angebote und Aufträge teilen sich dieselbe Tabelle, nur mit anderem Bereich
+    const panel = (name === 'angebote' || name === 'auftraege') ? 'crm' : name;
     document.querySelectorAll('.adm-panel').forEach(p =>
-      p.classList.toggle('on', p.id === 'tab-' + name));
+      p.classList.toggle('on', p.id === 'tab-' + panel));
+    if(name === 'angebote' || name === 'auftraege') setBereich(name);
   }
 
   /* ---------- Anmeldung ---------- */
@@ -1374,6 +1371,43 @@ jspdf/dist/jspdf.es.min.js:
     { id:'abgesagt',    label:'Abgesagt',              klasse:'st-abgesagt' }
   ];
   let CRM_FILTER = 'alle';
+  /* Zwei getrennte Prozesse: Angebote laufen bis zur Auftragserteilung,
+     Aufträge von dort bis zum aktiven Kunden. Getrennte Ansichten,
+     damit im Alltag niemand im falschen Prozess sucht. */
+  let CRM_BEREICH = 'angebote';
+  const BEREICH_FILTER = {
+    angebote: [
+      { id:'alle',        label:'Alle' },
+      { id:'gesendet',    label:'Angebot gesendet' },
+      { id:'nachgefasst', label:'Nachgefasst' },
+      { id:'abgesagt',    label:'Abgesagt' }
+    ],
+    auftraege: [
+      { id:'alle',                label:'Alle' },
+      { id:'auftrag',             label:'Eingegangen' },
+      { id:'bearbeitung',         label:'In Bearbeitung' },
+      { id:'springer_gewuenscht', label:'Springerteam gewünscht' },
+      { id:'aktiv',               label:'Aktiv' },
+      { id:'abgesagt',            label:'Abgesagt' }
+    ]
+  };
+  function imBereich(e){
+    return CRM_BEREICH === 'angebote' ? e.quelle === 'angebot' : e.quelle === 'auftrag';
+  }
+  function baueFilterleiste(){
+    const box = document.getElementById('crm-filter');
+    if(!box) return;
+    box.innerHTML = BEREICH_FILTER[CRM_BEREICH].map(f =>
+      '<button data-f="' + f.id + '" class="' + (CRM_FILTER === f.id ? 'on' : '') +
+      '" onclick="setFilter(\'' + f.id + '\')">' + f.label + '</button>').join('');
+  }
+  function setBereich(b){
+    CRM_BEREICH = b;
+    CRM_FILTER = 'alle';
+    baueFilterleiste();
+    const su = document.getElementById('crm-search'); if(su) su.value = '';
+    renderAdminList();
+  }
   let CS_LISTE = [];          // zusammengeführte Ansicht
   let CRM_OFFEN = null;       // geöffneter Kunde
 
@@ -1601,6 +1635,33 @@ jspdf/dist/jspdf.es.min.js:
 
   const VORLAUF_WERKTAGE = 7;   // muss mit api/followup.js übereinstimmen
 
+  /* Vorlaufmail sofort senden, unabhängig von der Frist */
+  async function vorlaufJetzt(id, ev){
+    if(ev) ev.stopPropagation();
+    const e = CS_LISTE.find(x => String(x.id) === String(id));
+    if(!e) return;
+    const name = [e.vorname, e.nachname].filter(Boolean).join(' ');
+    const ziel = e.mail || e.email || '';
+    if(!confirm('Nachfrage jetzt an ' + name + ' (' + ziel + ') senden?')) return;
+    const btn = ev && ev.target;
+    if(btn){ btn.disabled = true; btn.textContent = 'wird gesendet …'; }
+    try{
+      const r = await fetch('/api/followup', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ id: id })
+      });
+      const d = await r.json().catch(() => ({}));
+      if(!r.ok) throw new Error((d && d.error) ? JSON.stringify(d.error) : ('Server ' + r.status));
+      e.vorlaufMail = d.gesendetAm || new Date().toISOString();
+      const auf = (CS_AUFTRAEGE || []).find(x => String(x.id) === String(id));
+      if(auf) auf.vorlaufMail = e.vorlaufMail;
+      renderToDo();
+    }catch(err){
+      alert('Nicht gesendet: ' + err.message);
+      if(btn){ btn.disabled = false; btn.textContent = 'jetzt senden'; }
+    }
+  }
+
   /* Vorlaufmail für einen Auftrag unterdrücken oder wieder freigeben */
   async function vorlaufSchalten(id, aus, ev){
     if(ev) ev.stopPropagation();
@@ -1682,6 +1743,7 @@ jspdf/dist/jspdf.es.min.js:
             ? 'Vorlaufmail geht beim nächsten Lauf hinaus'
             : 'Vorlaufmail am ' + datum + ' (in ' + rest + ' Werktag' + (rest === 1 ? '' : 'en') + ')';
           vorlauf = '<span class="td-vorlauf ' + klasse + '">' + text +
+                    '<button onclick=\'vorlaufJetzt("' + e.id + '",event)\'>jetzt senden</button>' +
                     '<button onclick=\'vorlaufSchalten("' + e.id + '",true,event)\'>unterdrücken</button></span>';
         }
       }
@@ -1896,16 +1958,17 @@ jspdf/dist/jspdf.es.min.js:
 
     /* ---- Filtern und suchen ---- */
     const suche = ((document.getElementById('crm-search') || {}).value || '').trim().toLowerCase();
-    let liste = alle.filter(e => CRM_FILTER === 'alle' || e.stufe === CRM_FILTER);
+    let liste = alle.filter(e => imBereich(e) && (CRM_FILTER === 'alle' || e.stufe === CRM_FILTER));
     if(suche){
       liste = liste.filter(e =>
         [e.vorname, e.nachname, e.adresse, e.plzOrt, e.ort, e.angebotsnr, e.email, e.mail]
           .filter(Boolean).join(' ').toLowerCase().includes(suche));
     }
 
+    const imB = alle.filter(imBereich);
     document.querySelectorAll('#crm-filter button').forEach(b => {
       const f = b.dataset.f;
-      const n = f === 'alle' ? alle.length : zaehl(f);
+      const n = f === 'alle' ? imB.length : imB.filter(e => e.stufe === f).length;
       const basis = b.dataset.label || b.textContent.replace(/\s*\(\d+\)$/, '');
       b.dataset.label = basis;
       b.textContent = basis + ' (' + n + ')';
