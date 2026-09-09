@@ -118,7 +118,8 @@ export default async function handler(req, res) {
         };
         try {
           await senden(key, {
-            to: [mail], bcc: [EMPFAENGER], reply_to: EMPFAENGER,
+            // Ohne Kopie: der Putzfrauenservice erhält die eigene Meldung mit dem PDF
+            to: [mail], reply_to: EMPFAENGER,
             subject: L.betreff,
             html: csRahmen(L.titel, `
               <p style="margin:0 0 16px;">${anrede}</p>

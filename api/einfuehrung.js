@@ -85,8 +85,8 @@ export default async function handler(req, res) {
                 ['Kunde', name],
                 ['Objekt', [auf.adresse, auf.plzOrt || auf.ort].filter(Boolean).join(', ')],
                 ['Raumpflegerin', auf.raumpflegerin || ''],
-                ['Einführung', langDatum(auf.einfuehrungAm, false) + (auf.einfuehrungZeit ? ', ' + auf.einfuehrungZeit + ' Uhr' : '')],
-                ['Erste Reinigung', auf.erstReinigung ? langDatum(auf.erstReinigung, false) : '']
+                ['Einführung und erste Reinigung', langDatum(auf.einfuehrungAm, false) +
+                  (auf.einfuehrungZeit ? ', ' + auf.einfuehrungZeit + ' Uhr' : '')]
               ])}
               ${csKnopf('Im CRM bearbeiten', BASIS + '/admin.html')}`, '', 'de'),
             text: 'Einführungstermin bestätigt — ' + name,
@@ -106,7 +106,8 @@ export default async function handler(req, res) {
   const pflegerin = String(b.raumpflegerin || '').trim();
   const datum = String(b.datum || '').trim();
   const zeit = String(b.zeit || '').trim();
-  const erst = String(b.erstReinigung || '').trim();
+  // Einführung und erste Reinigung finden immer am selben Tag statt
+  const erst = String(b.datum || '').trim();
   if (!pflegerin || !datum || !zeit) {
     return res.status(400).json({ error: 'Raumpflegerin, Datum und Uhrzeit sind nötig.' });
   }
@@ -122,6 +123,15 @@ export default async function handler(req, res) {
     neu.einfuehrungZeit = zeit;
     if (erst) neu.erstReinigung = erst;
     neu.einfuehrungVorschlagAm = new Date().toISOString();
+    // Termin der Qualitätsnachfrage aus dem Rhythmus ableiten
+    const qd = new Date(datum);
+    if (!isNaN(qd.getTime())) {
+      if (String(auf.frequenz || '') === 'monatlich') qd.setMonth(qd.getMonth() + 2);
+      else if (String(auf.frequenz || '') === '14-taeglich') qd.setDate(qd.getDate() + 28);
+      else qd.setDate(qd.getDate() + 14);
+      neu.qualitaetAm = qd.toISOString().slice(0, 10);
+      neu.qualitaetMail = '';
+    }
     neu.einfuehrungBestaetigt = '';
     await speichern(SAMMLUNG, fund.schluessel, neu);
 
@@ -143,7 +153,7 @@ export default async function handler(req, res) {
       betreff:'Your cleaner has been assigned — proposal for the introduction',
       titel:'Your cleaner has been assigned',
       a1:'We are pleased to tell you that we have found the right cleaner for you. From now on, ' + pflegerin + ' will look after your home.',
-      a2:'The introduction and the first clean are planned for ' + wann + '. A supervisor will attend the introduction to present ' + pflegerin + ' in person and to go through all the details with you. You are warmly invited to be present as well.',
+      a2:'The introduction and the first clean take place together on ' + wann + '. A supervisor will attend to present ' + pflegerin + ' in person and to go through all the details with you. You are warmly invited to be present as well.',
       a3:'You will find your cleaning contract here. Please return it signed before the introduction — you can sign it directly online. The checklist is handed over at the introduction, together with the key receipt.',
       knopfVertrag:'View and sign contract',
       a4:'We would be grateful for a short confirmation of the appointment:',
@@ -155,7 +165,7 @@ export default async function handler(req, res) {
       betreff:'Ihre Raumpflegerin steht fest — Vorschlag für die Einführung',
       titel:'Ihre Raumpflegerin steht fest',
       a1:'Es freut uns, Ihnen mitteilen zu können, dass wir eine passende Raumpflegerin für Sie gefunden haben. Künftig wird ' + pflegerin + ' die Reinigung bei Ihnen übernehmen.',
-      a2:'Die Einführung sowie der Start der Reinigung sind für ' + wann + ' geplant. Beim Einführungstermin ist ein Vorarbeiter anwesend, um ' + pflegerin + ' persönlich vorzustellen und alle Abläufe und Details mit Ihnen zu besprechen. Gerne laden wir Sie ein, bei diesem Termin ebenfalls dabei zu sein.',
+      a2:'Die Einführung und die erste Reinigung finden gemeinsam am ' + wann + ' statt. Beim Einführungstermin ist ein Vorarbeiter anwesend, um ' + pflegerin + ' persönlich vorzustellen und alle Abläufe und Details mit Ihnen zu besprechen. Gerne laden wir Sie ein, bei diesem Termin ebenfalls dabei zu sein.',
       a3:'Ihren Reinigungsvertrag finden Sie hier. Bitte senden Sie ihn vor dem Einführungstermin unterschrieben zurück — das geht direkt online. Die Checkliste sowie die Schlüsselquittung erhalten Sie beim Einführungstermin.',
       knopfVertrag:'Vertrag ansehen und unterschreiben',
       a4:'Über eine kurze Bestätigung des Termins würden wir uns freuen:',
@@ -175,7 +185,7 @@ export default async function handler(req, res) {
       <p style="margin:0 0 16px;">${L.a2}</p>
       ${csTabelle([
         [EN ? 'Cleaner' : 'Raumpflegerin', pflegerin],
-        [EN ? 'Introduction' : 'Einführung', wann],
+        [EN ? 'Introduction and first clean' : 'Einführung und erste Reinigung', wann],
         [EN ? 'Property' : 'Objekt', [auf.adresse, auf.plzOrt || auf.ort].filter(Boolean).join(', ')]
       ])}
       <p style="margin:0 0 14px;">${L.a4}</p>
@@ -187,7 +197,8 @@ export default async function handler(req, res) {
       <p style="margin:0;">${L.a7}</p>`;
 
     await senden(key, {
-      to: [mail], bcc: [EMPFAENGER], reply_to: EMPFAENGER,
+      // Bewusst ohne Kopie: der Putzfrauenservice erhält erst die Bestätigung
+      to: [mail], reply_to: EMPFAENGER,
       subject: L.betreff,
       html: csRahmen(L.titel, inhalt, '', EN ? 'en' : 'de'),
       text: anrede + '\n\n' + L.a1 + '\n\n' + L.a2 + '\n\n' + L.a4 + '\n' + linkJa +
