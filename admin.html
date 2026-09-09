@@ -40,21 +40,21 @@
   /* Flächen und Linien */
   --cs-bg:          #FBFCFC;
   --cs-surface:     #FFFFFF;
-  --cs-border:      #E3ECEC;
-  --cs-border-soft: #EFF5F5;
+  --cs-border:      #CFE0DF;
+  --cs-border-soft: #DFEBEA;
 
   /* Schrift */
   --cs-ink:         #16292A;
-  --cs-ink-soft:    #5E7273;
-  --cs-ink-mute:    #8CA0A1;
+  --cs-ink-soft:    #4C6162;
+  --cs-ink-mute:    #74898A;
 
   /* Signale */
-  --cs-pos:         #2E9E5B;
-  --cs-pos-bg:      #EAF7EF;
-  --cs-neg:         #C1503D;
-  --cs-neg-bg:      #FBEDEA;
-  --cs-warn:        #A9791C;
-  --cs-warn-bg:     #FDF6E7;
+  --cs-pos:         #23874A;
+  --cs-pos-bg:      #D8F0E2;
+  --cs-neg:         #B23F2C;
+  --cs-neg-bg:      #F8DDD7;
+  --cs-warn:        #96690F;
+  --cs-warn-bg:     #FBEECD;
 
   /* Typografie */
   --cs-font: Verdana, Geneva, "DejaVu Sans", sans-serif;
@@ -580,6 +580,53 @@ textarea{ min-height:96px; resize:vertical; }
 .cl-add{ display:flex; gap:8px; padding:10px 13px; border-top:1px solid var(--cs-border-soft); }
 .cl-add input{ flex:1; }
 .cl-add button{ flex:none; }
+
+/* ---- Kräftigere Farbführung im Admin ---- */
+.page-head{ border-bottom:2px solid var(--cs-teal); }
+
+.card{ border-color:#C6DCDB; }
+.card > .card-head{
+  background:var(--cs-teal-light);
+  border-bottom:1px solid #B9DCDC;
+  border-radius:var(--cs-radius) var(--cs-radius) 0 0;
+}
+.card > .card-head h2, .card > .card-head h3{ color:var(--cs-teal-deep); }
+.card > .card-head p{ color:#3F6364; }
+
+.kpi{ border-top-width:4px; }
+.kpi.k-neg{ border-top-color:var(--cs-neg); }
+.kpi.k-warn{ border-top-color:var(--cs-warn); }
+.kpi.k-pos{ border-top-color:var(--cs-pos); }
+.kpi.k-neg .wert{ color:var(--cs-neg); }
+.kpi.k-warn .wert{ color:var(--cs-warn); }
+.kpi.k-pos .wert{ color:var(--cs-pos); }
+
+.table th{ background:#D9EFEF; border-bottom:2px solid #B9DCDC; }
+.table tbody tr:nth-child(even) td{ background:#F6FAFA; }
+.table tbody tr:hover td{ background:#E9F5F5; }
+
+.zeile{ background:#fff; border-color:#D7E4E3; }
+.zeile:hover{ border-color:var(--cs-teal); background:#F1FAFA; }
+.zeile.dringend{ border-left:5px solid var(--cs-neg); background:#FDF6F4; }
+.zeile.bald{ border-left:5px solid var(--cs-warn); background:#FEFAF0; }
+
+.tag{ border-width:1px; }
+.tag.pos{ background:var(--cs-pos-bg); color:#186A39; border-color:#A9DCC0; }
+.tag.neg{ background:var(--cs-neg-bg); color:#8E3121; border-color:#E4B0A4; }
+.tag.warn{ background:var(--cs-warn-bg); color:#7A5409; border-color:#E2CB94; }
+.tag.neutral{ background:#E6EDED; color:#3F5455; border-color:#CBD9D9; }
+
+.hinweis{ border-left-width:5px; }
+.hinweis.neg{ background:var(--cs-neg-bg); border-color:#E4B0A4; border-left-color:var(--cs-neg); color:#7E2C1D; }
+.hinweis.warn{ background:var(--cs-warn-bg); border-color:#E2CB94; border-left-color:var(--cs-warn); color:#6E4C08; }
+.hinweis.pos{ background:var(--cs-pos-bg); border-color:#A9DCC0; border-left-color:var(--cs-pos); color:#14603200; }
+.hinweis.pos{ color:#146032; }
+
+.schritt{ background:#F7FBFB; border-color:#D3E4E3; }
+.schritt h4{ color:var(--cs-teal-deep); }
+
+.sidebar .nav a.on{ box-shadow:inset 3px 0 0 #fff; }
+.sidebar .brand{ background:rgba(255,255,255,.05); }
 </style>
 </head>
 <body>
@@ -625,7 +672,8 @@ textarea{ min-height:96px; resize:vertical; }
     </div>
 
     <nav class="nav">
-      <a href="#" class="on" data-ansicht="eingang">Auftragserteilungen <span class="zahl" id="n-eingang">0</span></a>
+      <a href="#" class="on" data-ansicht="aufgaben">Aufgaben <span class="zahl" id="n-aufgaben">0</span></a>
+      <a href="#" data-ansicht="eingang">Auftragserteilungen <span class="zahl" id="n-eingang">0</span></a>
       <a href="#" data-ansicht="aktive">Aktive Aufträge <span class="zahl" id="n-aktive">0</span></a>
       <a href="#" data-ansicht="verkauf">Neues Angebot</a>
       <a href="#" data-ansicht="auswertung">Auswertung</a>
@@ -690,7 +738,8 @@ textarea{ min-height:96px; resize:vertical; }
 let CS_TOKEN = sessionStorage.getItem('cs_token') || '';
 let CS_WER   = sessionStorage.getItem('cs_wer') || '';
 let AUFTRAEGE = [], ANGEBOTE = null, LISTE = [];
-let ANSICHT = 'eingang', FALL = null, ZULETZT = [];
+let ANSICHT = 'aufgaben', FALL = null, ZULETZT = [];
+let TEAM_AUFGABEN = [], AUFGABEN_ALLE = false;
 let FILTERS = {verkauf:'alle', aktive:'alle'};
 let SUCHE   = {verkauf:'', aktive:''};
 
@@ -822,6 +871,10 @@ async function ladeDaten(){
     const r2 = await fetch('/api/offers', {cache:'no-store'});
     if(r2.ok) ANGEBOTE = await r2.json();
   }catch(e){ ANGEBOTE = null; }
+  try{
+    const r3 = await fetch('/api/aufgaben', {cache:'no-store'});
+    if(r3.ok){ const d3 = await r3.json(); TEAM_AUFGABEN = (d3.aufgaben || []).map(a => Object.assign({}, a, {id: a.id || a._id})); }
+  }catch(e){ /* Aufgaben sind eine Ergänzung, der Rest funktioniert auch ohne */ }
   baueListe();
   zeichnen();
 }
@@ -950,6 +1003,8 @@ function zeichnen(){
   const titel = document.getElementById('seiten-titel');
   const text = document.getElementById('seiten-text');
 
+  document.getElementById('n-aufgaben').textContent =
+    abgeleiteteAufgaben().filter(x => x.stufe <= 1).length + TEAM_AUFGABEN.filter(a => !a.erledigt).length;
   document.getElementById('n-eingang').textContent = LISTE.filter(offenerAuftrag).length;
   document.getElementById('n-aktive').textContent =
     LISTE.filter(e => e.quelle === 'auftrag' && e.stufe === 'aktiv').length;
@@ -967,14 +1022,187 @@ function zeichnen(){
     return;
   }
   const seiten = {
+    aufgaben:   ['Aufgaben', 'Was heute zu tun ist — aus den Fällen abgeleitet und selbst erfasst.', seiteAufgaben],
     eingang:    ['Auftragserteilungen', 'Alles, was noch nicht aktiv läuft — nach Dringlichkeit sortiert.', seiteEingang],
     aktive:     ['Aktive Aufträge', 'Laufende Kundschaft, Archiv und Absagen.', seiteAktive],
     verkauf:    ['Neues Angebot', 'Angebot erstellen und alle laufenden Angebote verfolgen.', seiteVerkauf],
     auswertung: ['Auswertung', 'Zahlen zum laufenden Bestand.', seiteAuswertung]
   };
-  const s = seiten[ANSICHT] || seiten.eingang;
+  const s = seiten[ANSICHT] || seiten.aufgaben;
   titel.textContent = s[0]; text.textContent = s[1];
   box.innerHTML = s[2]();
+}
+
+/* ---------- Aufgaben ----------
+   Zwei Quellen in einer Ansicht: was sich aus den Fällen von selbst ergibt
+   (Fristen, ausstehende Antworten, Reklamationen) und was das Team selbst
+   erfasst. Aufgaben gehören dem Team, nicht einer Person. */
+
+function abgeleiteteAufgaben(){
+  return LISTE
+    .filter(e => e.quelle === 'auftrag' && !['archiv','abgesagt'].includes(e.stufe))
+    .map(e => {
+      if(unzufrieden(e))
+        return {e, stufe:0, was:'Reklamation bearbeiten', warum:'Die Kundschaft ist nicht zufrieden.'};
+      if(!offenerAuftrag(e)) {
+        const w = wartetAuf(e);
+        return w ? {e, stufe: (tageSeit(w.seit) > 7 ? 0 : 2), was:'Nachfassen', warum:'Wartet auf ' + w.grund + '.'} : null;
+      }
+      const dr = dringlichkeit(e);
+      const was = terminVorgeschlagen(e) ? 'Zusage einholen'
+        : istSpringerStart(e) ? 'Disponieren und aktivieren'
+        : e.stufe === 'auftrag' ? 'In Bearbeitung nehmen'
+        : 'Weiterbearbeiten';
+      return {e, stufe: dr.stufe, was, warum: dr.text};
+    })
+    .filter(Boolean);
+}
+
+function seiteAufgaben(){
+  const abgeleitet = abgeleiteteAufgaben();
+  const g = n => abgeleitet.filter(x => x.stufe === n);
+  const offeneEigene = TEAM_AUFGABEN.filter(a => !a.erledigt);
+  const erledigte = TEAM_AUFGABEN.filter(a => a.erledigt);
+
+  const kacheln = [
+    {t:'Überfällig',            n:g(0).length, h:'Hier liegt etwas zu lange.', f:'k-neg'},
+    {t:'Heute fällig',          n:g(1).length, h:'Frist läuft in den nächsten Tagen ab.', f:'k-warn'},
+    {t:'Wartet auf Kundschaft', n:g(2).length, h:'Nichts zu tun, wir warten.', f:''},
+    {t:'Eigene Aufgaben',       n:offeneEigene.length, h:'Vom Team selbst erfasst.', f:''}
+  ];
+  const kpi = '<div class="kpi-row">' + kacheln.map(k =>
+    '<div class="kpi ' + (k.f || '') + '"><div class="label">' + k.t + '</div><div class="wert">' + k.n + '</div>' +
+    '<div class="delta">' + k.h + '</div></div>').join('') + '</div>';
+
+  const zeileAbgeleitet = x =>
+    '<div class="zeile' + (x.stufe === 0 ? ' dringend' : x.stufe === 1 ? ' bald' : '') +
+      '" onclick="oeffneFall(\'' + x.e.id + '\')">' +
+      '<div class="wer"><strong>' + esc(x.was) + '</strong><span>' + esc(name(x.e)) + ' · ' + esc(ort(x.e)) + '</span></div>' +
+      '<div class="warum">' + esc(x.warum) + '</div>' +
+      '<button class="btn secondary" onclick="event.stopPropagation();oeffneFall(\'' + x.e.id + '\')">Fall öffnen</button>' +
+    '</div>';
+
+  const gruppe = (titel, hinweis, liste) =>
+    '<div class="card"><div class="card-head"><div><h2>' + titel + '</h2><p>' + hinweis + '</p></div>' +
+      '<span class="tag neutral">' + liste.length + '</span></div>' +
+    '<div class="card-body">' +
+      (liste.length ? liste.map(zeileAbgeleitet).join('') : '<p class="cs-hint">Zurzeit nichts.</p>') +
+    '</div></div>';
+
+  /* Eigene Aufgaben */
+  const zeileEigen = a => {
+    const spaet = a.faellig && a.faellig < new Date().toISOString().slice(0,10);
+    return '<div class="zeile' + (spaet ? ' dringend' : '') + '" style="cursor:default;">' +
+      '<div class="wer"><strong>' + esc(a.text) + '</strong><span>' +
+        (a.auftragName ? esc(a.auftragName) + ' · ' : '') +
+        (a.erstelltVon ? 'erfasst von ' + esc(a.erstelltVon) : '') + '</span></div>' +
+      '<div class="warum">' + (a.faellig ? (spaet ? 'Fällig war ' : 'Fällig ') + dat(a.faellig) : 'Ohne Frist') +
+        (a.erledigt ? ' · erledigt ' + dat(a.erledigtAm) + (a.erledigtVon ? ' von ' + esc(a.erledigtVon) : '') : '') + '</div>' +
+      '<div class="btn-row" style="justify-content:flex-end;">' +
+        (a.auftragId ? '<button class="btn klein secondary" onclick="oeffneFall(\'' + a.auftragId + '\')">Fall</button>' : '') +
+        (a.erledigt
+          ? '<button class="btn klein" onclick="aufgabeStatus(\'' + a.id + '\', false, this)">Wieder öffnen</button>'
+          : '<button class="btn klein primary-action" onclick="aufgabeStatus(\'' + a.id + '\', true, this)">Erledigt</button>') +
+        '<button class="btn klein danger" onclick="aufgabeLoeschen(\'' + a.id + '\')">Löschen</button>' +
+      '</div></div>';
+  };
+
+  const faelleFuerAuswahl = LISTE
+    .filter(e => e.quelle === 'auftrag' && !['archiv','abgesagt'].includes(e.stufe))
+    .map(e => '<option value="' + esc(e.id) + '">' + esc(name(e)) + ' · ' + esc(ort(e)) + '</option>').join('');
+
+  const eigen =
+    '<div class="card"><div class="card-head"><div><h2>Eigene Aufgaben</h2>' +
+      '<p>Alles, was sonst auf einem Zettel landet. Sichtbar für das ganze Team.</p></div>' +
+      '<span class="tag neutral">' + offeneEigene.length + '</span></div>' +
+    '<div class="card-body">' +
+      '<div class="feld-reihe" style="margin-bottom:10px;">' +
+        '<div class="feld" style="grid-column:span 2;"><label for="au-text">Neue Aufgabe</label>' +
+          '<input id="au-text" type="text" placeholder="Was ist zu tun?" ' +
+          'onkeydown="if(event.key===\'Enter\')aufgabeAnlegen(this)"></div>' +
+        '<div class="feld"><label for="au-datum">Fällig bis</label><input id="au-datum" type="date"></div>' +
+        '<div class="feld"><label for="au-fall">Zu welchem Fall</label><select id="au-fall">' +
+          '<option value="">Ohne Fall</option>' + faelleFuerAuswahl + '</select></div>' +
+      '</div>' +
+      '<div class="btn-row" style="margin-bottom:16px;">' +
+        '<button class="btn primary-action" onclick="aufgabeAnlegen(this)">Aufgabe erfassen</button>' +
+      '</div>' +
+      (offeneEigene.length
+        ? offeneEigene.sort((a,b) => String(a.faellig || '9999').localeCompare(String(b.faellig || '9999'))).map(zeileEigen).join('')
+        : '<p class="cs-hint">Keine offenen eigenen Aufgaben.</p>') +
+      (erledigte.length
+        ? '<div style="margin-top:14px;">' +
+          '<a href="#" onclick="AUFGABEN_ALLE=!AUFGABEN_ALLE;zeichnen();return false;">' +
+          (AUFGABEN_ALLE ? 'Erledigte ausblenden' : 'Erledigte anzeigen (' + erledigte.length + ')') + '</a>' +
+          (AUFGABEN_ALLE ? '<div style="margin-top:10px;">' + erledigte.slice(0, 30).map(zeileEigen).join('') + '</div>' : '') +
+          '</div>'
+        : '') +
+    '</div></div>';
+
+  return kpi +
+    gruppe('Überfällig', 'Das zuerst. Fristen sind abgelaufen oder eine Reklamation ist offen.', g(0)) +
+    gruppe('Heute fällig', 'In den nächsten Werktagen läuft eine Frist ab.', g(1)) +
+    eigen +
+    gruppe('Wartet auf Kundschaft', 'Nichts zu tun, ausser im Blick behalten.', g(2)) +
+    gruppe('Laufend', 'In Arbeit, ohne Dringlichkeit.', g(3));
+}
+
+/* ---------- Eigene Aufgaben: anlegen, abhaken, löschen ---------- */
+async function aufgabeAnlegen(btn){
+  const feld = document.getElementById('au-text');
+  const text = (feld.value || '').trim();
+  if(!text){ meldung('Bitte zuerst beschreiben, was zu tun ist.', 'neg'); return; }
+  const faellig = (document.getElementById('au-datum') || {}).value || '';
+  const fallId = (document.getElementById('au-fall') || {}).value || '';
+  const fall = fallId ? LISTE.find(x => String(x.id) === String(fallId)) : null;
+  btn.disabled = true;
+  try{
+    const r = await fetch('/api/aufgaben', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({text, faellig, auftragId: fallId,
+                            auftragName: fall ? name(fall) : '', bearbeiter: CS_WER})
+    });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(d.error || 'Server ' + r.status);
+    TEAM_AUFGABEN.unshift(d.aufgabe);
+    zeichnen();
+    meldung('Aufgabe erfasst.');
+  }catch(err){
+    meldung('Nicht gespeichert: ' + err.message, 'neg');
+  }
+  btn.disabled = false;
+}
+
+async function aufgabeStatus(id, erledigt, btn){
+  const a = TEAM_AUFGABEN.find(x => String(x.id) === String(id));
+  if(!a) return;
+  btn.disabled = true;
+  a.erledigt = erledigt;
+  a.erledigtAm = erledigt ? new Date().toISOString() : '';
+  a.erledigtVon = erledigt ? CS_WER : '';
+  zeichnen();
+  try{
+    const r = await fetch('/api/aufgaben?aktion=status', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({id, erledigt, bearbeiter: CS_WER})
+    });
+    if(!r.ok) throw new Error('Server ' + r.status);
+  }catch(err){ meldung('Nicht gespeichert: ' + err.message, 'neg'); }
+}
+
+async function aufgabeLoeschen(id){
+  const a = TEAM_AUFGABEN.find(x => String(x.id) === String(id));
+  if(!a) return;
+  if(!confirm('Aufgabe «' + a.text + '» löschen?')) return;
+  TEAM_AUFGABEN = TEAM_AUFGABEN.filter(x => String(x.id) !== String(id));
+  zeichnen();
+  try{
+    const r = await fetch('/api/aufgaben?aktion=delete', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id})
+    });
+    if(!r.ok) throw new Error('Server ' + r.status);
+    meldung('Aufgabe gelöscht.');
+  }catch(err){ meldung('Nicht gelöscht: ' + err.message, 'neg'); }
 }
 
 /* ---------- Auftragserteilungen ---------- */
@@ -1466,8 +1694,8 @@ function linkKopieren(link){
 
 /* ---------- Aufträge: CRM-Stufen für den Tagesdienst ---------- */
 const AKTIV_STUFEN = [
-  {f:'unzufrieden', t:'Unzufrieden', h:'Reklamation offen — zuerst anschauen.'},
-  {f:'aktiv',    t:'Aktiv',    h:'Reinigung läuft.'},
+  {f:'unzufrieden', t:'Unzufrieden', h:'Reklamation offen — zuerst anschauen.', k:'k-neg'},
+  {f:'aktiv',    t:'Aktiv',    h:'Reinigung läuft.', k:'k-pos'},
   {f:'archiv',   t:'Archiv',   h:'Abgeschlossen.'},
   {f:'abgesagt', t:'Abgesagt', h:'Kundschaft abgesprungen.'}
 ];
@@ -1510,7 +1738,7 @@ function seiteAktive(){
   const springer = alle.filter(e => e.stufe === 'aktiv' && istSpringerStart(e)).length;
 
   const kpi = '<div class="kpi-row">' + AKTIV_STUFEN.map(x =>
-    '<div class="kpi klick' + (F === x.f ? ' on' : '') + '" onclick="setFilter(\'aktive\',\'' + x.f + '\')">' +
+    '<div class="kpi klick ' + (x.k || '') + (F === x.f ? ' on' : '') + '" onclick="setFilter(\'aktive\',\'' + x.f + '\')">' +
       '<div class="label">' + x.t + '</div>' +
       '<div class="wert">' + (x.f === 'unzufrieden' ? alle.filter(unzufrieden).length
         : alle.filter(e => e.stufe === x.f).length) + '</div>' +
