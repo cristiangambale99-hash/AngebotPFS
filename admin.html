@@ -69,6 +69,14 @@ body::before,body::after{display:none!important;}
   border-radius:100px;font-size:11px;font-weight:bold;letter-spacing:.02em;}
 .td-start.td-springer{background:#E4F5F5;color:#12797A;border:1px solid #9FD8D8;}
 .td-start.td-warten{background:var(--wash);color:var(--mute);border:1px solid var(--border-soft);}
+.td-vorlauf{display:block;font-size:11.5px;margin-top:4px;}
+.td-vorlauf.vl-offen{color:var(--mute);}
+.td-vorlauf.vl-bald{color:#B4232C;font-weight:600;}
+.td-vorlauf.vl-weg{color:var(--teal-deep);}
+.td-vorlauf.vl-aus{color:var(--mute);font-style:italic;}
+.td-vorlauf button{margin-left:8px;font-size:11px;padding:1px 8px;border-radius:100px;
+  border:1px solid var(--border);background:var(--surface);color:var(--body-c);cursor:pointer;}
+.td-vorlauf button:hover{border-color:var(--teal);color:var(--teal-deep);}
 .td-r{display:flex;gap:7px;}
 .td-r a{font-size:12px;color:var(--teal-deep);text-decoration:none;padding:6px 12px;
   border:1px solid var(--border);border-radius:100px;background:var(--surface);white-space:nowrap;}
@@ -1360,6 +1368,8 @@ jspdf/dist/jspdf.es.min.js:
     { id:'gesendet',    label:'Angebot gesendet',      klasse:'st-angebot' },
     { id:'nachgefasst', label:'Nachgefasst',           klasse:'st-nachgefasst' },
     { id:'auftrag',     label:'Auftragserteilung',     klasse:'st-auftrag' },
+    { id:'bearbeitung', label:'In Bearbeitung',        klasse:'st-auftrag' },
+    { id:'springer_gewuenscht', label:'Springerteam gewünscht', klasse:'st-aktiv' },
     { id:'aktiv',       label:'Aktiv',                 klasse:'st-aktiv' },
     { id:'abgesagt',    label:'Abgesagt',              klasse:'st-abgesagt' }
   ];
@@ -1375,6 +1385,12 @@ jspdf/dist/jspdf.es.min.js:
   /* Angebote und Aufträge zu einer Liste verschmelzen.
      Ein Angebot ohne Auftrag durchläuft: gesendet → nachgefasst → abgesagt
      Sobald die Auftragserteilung da ist: auftrag → aktiv */
+  /* Zulaessige Stufen eines Auftrags; unbekannte Werte gelten als Eingang */
+  function auftragStufe(auf){
+    const s = String(auf.stufe || '');
+    return ['aktiv','bearbeitung','springer_gewuenscht','abgesagt'].includes(s) ? s : 'auftrag';
+  }
+
   function baueListe(){
     const auftraege = CS_AUFTRAEGE || [];
     const angebote = (CS_ANGEBOTE && CS_ANGEBOTE.angebote) || [];
@@ -1388,7 +1404,7 @@ jspdf/dist/jspdf.es.min.js:
       if(auf){
         liste.push(Object.assign({}, ang, auf, {
           quelle:'auftrag', quelleKontakt: (ang && ang.quelle) || '', id: auf.id || auf._id || ang.code,
-          stufe: (auf.stufe === 'aktiv') ? 'aktiv' : 'auftrag',
+          stufe: auftragStufe(auf),
           datum: auf.eingegangenAm || ang.gesendetAm,
           alter: tageSeit(ang.gesendetAm)
         }));
@@ -1412,7 +1428,7 @@ jspdf/dist/jspdf.es.min.js:
     Object.values(nachCode).forEach(auf => {
       liste.push(Object.assign({}, auf, {
         quelle:'auftrag', quelleKontakt: auf.quelle || '', id: auf.id || auf._id,
-        stufe: (auf.stufe === 'aktiv') ? 'aktiv' : 'auftrag',
+        stufe: auftragStufe(auf),
         datum: auf.eingegangenAm,
         alter: tageSeit(auf.eingegangenAm)
       }));
@@ -1530,16 +1546,19 @@ jspdf/dist/jspdf.es.min.js:
     const e = CS_LISTE.find(x => String(x.id) === String(id));
     if(!e) return;
     e.stufe = stufe;
+    // Die Sieben-Werktage-Frist der Vorlaufmail laeuft ab diesem Wechsel
+    if(stufe === 'bearbeitung' && !e.bearbeitungAb) e.bearbeitungAb = new Date().toISOString();
 
     // In der Ursprungsliste ebenfalls setzen, damit ein Neuaufbau stimmt
     const auf = (CS_AUFTRAEGE || []).find(x => String(x.id) === String(id) || x.code === e.code);
-    if(auf) auf.stufe = stufe;
+    if(auf){ auf.stufe = stufe; if(e.bearbeitungAb) auf.bearbeitungAb = e.bearbeitungAb; }
     renderAdminList();
 
     try{
       const ziel = e.quelle === 'auftrag' ? '/api/orders?aktion=update' : '/api/offers?aktion=status';
       const rumpf = e.quelle === 'auftrag'
-        ? { id: id, stufe: stufe, bearbeiter: CS_WER }
+        ? Object.assign({ id: id, stufe: stufe, bearbeiter: CS_WER },
+                        stufe === 'bearbeitung' ? { bearbeitungAb: e.bearbeitungAb } : {})
         : { code: e.code, status: stufe === 'abgesagt' ? 'abgesagt' : 'gesendet' };
       const r = await fetch(ziel, {
         method:'POST', headers:{'Content-Type':'application/json'},
@@ -1551,6 +1570,57 @@ jspdf/dist/jspdf.es.min.js:
     }
   }
 
+  /* Werktage seit einem Datum, Wochenende zaehlt nicht mit */
+  function werktageSeit(iso){
+    const start = new Date(iso);
+    if(isNaN(start.getTime())) return 0;
+    const heute = new Date();
+    const lauf = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const ende = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate());
+    let tage = 0;
+    while(lauf < ende){
+      lauf.setDate(lauf.getDate() + 1);
+      const wt = lauf.getDay();
+      if(wt !== 0 && wt !== 6) tage++;
+    }
+    return tage;
+  }
+
+  /* Datum, an dem die Vorlaufmail faellig wird */
+  function vorlaufDatum(iso, werktage){
+    const d = new Date(iso);
+    if(isNaN(d.getTime())) return null;
+    let offen = werktage;
+    while(offen > 0){
+      d.setDate(d.getDate() + 1);
+      const wt = d.getDay();
+      if(wt !== 0 && wt !== 6) offen--;
+    }
+    return d;
+  }
+
+  const VORLAUF_WERKTAGE = 7;   // muss mit api/followup.js übereinstimmen
+
+  /* Vorlaufmail für einen Auftrag unterdrücken oder wieder freigeben */
+  async function vorlaufSchalten(id, aus, ev){
+    if(ev) ev.stopPropagation();
+    const e = CS_LISTE.find(x => String(x.id) === String(id));
+    if(!e) return;
+    e.vorlaufAus = aus;
+    const auf = (CS_AUFTRAEGE || []).find(x => String(x.id) === String(id));
+    if(auf) auf.vorlaufAus = aus;
+    renderToDo();
+    try{
+      const r = await fetch('/api/orders?aktion=update', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ id: id, vorlaufAus: aus })
+      });
+      if(!r.ok) throw new Error('Server ' + r.status);
+    }catch(err){
+      alert('Nicht gespeichert: ' + err.message);
+    }
+  }
+
   /* ---------- Reiter «Zu erledigen» ---------- */
   function renderToDo(){
     const box = document.getElementById('todo-body');
@@ -1559,6 +1629,8 @@ jspdf/dist/jspdf.es.min.js:
     const jetzt = Date.now();
 
     const neuEing = alle.filter(e => e.stufe === 'auftrag');
+    const inArbeit = alle.filter(e => e.stufe === 'bearbeitung');
+    const springerJa = alle.filter(e => e.stufe === 'springer_gewuenscht');
     // Sofortstarts zuerst: dort drueckt die Zeit am meisten
     neuEing.sort((a, b) => {
       const sa = String(a.springerSofort || '').toLowerCase() === 'ja' ? 0 : 1;
@@ -1566,7 +1638,7 @@ jspdf/dist/jspdf.es.min.js:
       return sa - sb;
     });
 
-    const zahl = neuEing.length;
+    const zahl = neuEing.length + inArbeit.length + springerJa.length;
     const badge = document.getElementById('todo-zahl');
     if(badge){ badge.textContent = zahl || ''; badge.style.display = zahl ? 'inline-flex' : 'none'; }
 
@@ -1581,10 +1653,42 @@ jspdf/dist/jspdf.es.min.js:
         ? '<span class="td-start ' + (springer ? 'td-springer' : 'td-warten') + '">' +
             (springer ? 'Start mit Springerteam' : 'Wartet auf feste Raumpflegerin') + '</span>'
         : '';
+      // Antwort der Kundschaft auf die Vorlaufmail
+      let antwort = '';
+      if(e.springerAntwort === 'ja')
+        antwort = '<span class="td-start td-springer">Springerteam gewünscht</span>';
+      else if(e.springerAntwort === 'nein')
+        antwort = '<span class="td-start td-warten">Springerteam abgelehnt</span>';
+
+      // Vorlaufmail: laeuft erst ab dem Wechsel auf «in Bearbeitung»
+      let vorlauf = '';
+      if(!springer && e.stufe === 'bearbeitung' && !e.springerAntwort){
+        if(!e.bearbeitungAb){
+          vorlauf = '<span class="td-vorlauf vl-offen">Vorlaufmail: Datum des Statuswechsels fehlt</span>';
+        } else if(e.vorlaufMail){
+          const d = new Date(e.vorlaufMail);
+          vorlauf = '<span class="td-vorlauf vl-weg">Vorlaufmail gesendet am ' +
+                    d.toLocaleDateString('de-CH') + '</span>';
+        } else if(e.vorlaufAus){
+          vorlauf = '<span class="td-vorlauf vl-aus">Vorlaufmail unterdrückt' +
+                    '<button onclick=\'vorlaufSchalten("' + e.id + '",false,event)\'>wieder aktivieren</button></span>';
+        } else {
+          const wt = werktageSeit(e.bearbeitungAb);
+          const rest = VORLAUF_WERKTAGE - wt;
+          const faellig = vorlaufDatum(e.bearbeitungAb, VORLAUF_WERKTAGE);
+          const datum = faellig ? faellig.toLocaleDateString('de-CH') : '';
+          const klasse = rest <= 2 ? 'vl-bald' : 'vl-offen';
+          const text = rest <= 0
+            ? 'Vorlaufmail geht beim nächsten Lauf hinaus'
+            : 'Vorlaufmail am ' + datum + ' (in ' + rest + ' Werktag' + (rest === 1 ? '' : 'en') + ')';
+          vorlauf = '<span class="td-vorlauf ' + klasse + '">' + text +
+                    '<button onclick=\'vorlaufSchalten("' + e.id + '",true,event)\'>unterdrücken</button></span>';
+        }
+      }
       return '<div class="td-row" onclick=\'zuKunde("' + e.id + '","todo")\'>' +
         '<div class="td-l"><strong>' + (e.vorname||'') + ' ' + (e.nachname||'') + '</strong>' +
           '<span>' + (e.adresse||'') + (e.plzOrt||e.ort ? ', ' + (e.plzOrt||e.ort) : '') + '</span>' +
-          startTag + '</div>' +
+          startTag + antwort + vorlauf + '</div>' +
         '<div class="td-m">' + (e.alter !== null && e.alter !== undefined ? 'vor ' + e.alter + ' Tagen' : '') +
           (wann ? '<span class="td-spur">zuletzt ' + wann + '</span>' : '<span class="td-spur td-neu">noch nicht bearbeitet</span>') +
         '</div>' +
@@ -1602,13 +1706,20 @@ jspdf/dist/jspdf.es.min.js:
         liste.map(zeile).join('') + '</div>';
     }
 
-    const inhalt = block('Neue Auftragserteilungen',
-      'Raumpflegerin einplanen, dann auf «Aktiv» setzen. Das Nachfassen bei offenen Angeboten läuft automatisch.',
-      neuEing, '#2BB6B7');
+    const inhalt =
+      block('Neue Auftragserteilungen',
+        'Erfassen und prüfen, dann auf «In Bearbeitung» setzen — damit startet die Koordination und die Sieben-Werktage-Frist der Vorlaufmail.',
+        neuEing, '#2BB6B7') +
+      block('In Bearbeitung — feste Raumpflegerin wird koordiniert',
+        'Nach sieben Werktagen ohne Zuteilung geht automatisch die Vorlaufmail an die Kundschaft. Sobald die Raumpflegerin steht, auf «Aktiv» setzen.',
+        inArbeit, '#E0B454') +
+      block('Start mit Springerteam gewünscht',
+        'Die Kundschaft hat auf die Vorlaufmail geantwortet. Ersten Einsatz über das Springerteam einplanen, dann auf «Aktiv» setzen.',
+        springerJa, '#60BEB3');
 
     box.innerHTML = inhalt || '<div class="td-leer">' +
       '<div class="td-leer-ico">&#10003;</div><h3>Alles erledigt</h3>' +
-      '<p>Derzeit sind keine neuen Auftragserteilungen offen.<br>' +
+      '<p>Derzeit ist keine Auftragserteilung offen.<br>' +
       'Sobald eine eingeht, erscheint sie hier automatisch.</p></div>';
   }
 
@@ -1643,9 +1754,34 @@ jspdf/dist/jspdf.es.min.js:
 
     let weiter = '';
     if(e.stufe === 'auftrag')
+      weiter = '<button class="btn" onclick=\'setStufe("' + e.id + '","bearbeitung",event)\'>In Bearbeitung setzen</button>' +
+               '<button class="btn btn-sm" style="' + hell + '" onclick=\'setStufe("' + e.id + '","aktiv",event)\'>Direkt auf aktiv setzen</button>';
+    else if(e.stufe === 'bearbeitung' || e.stufe === 'springer_gewuenscht')
       weiter = '<button class="btn" onclick=\'setStufe("' + e.id + '","aktiv",event)\'>Auf aktiv setzen</button>';
     else if(e.stufe === 'aktiv')
       weiter = '<span class="crm-status st-aktiv">Kunde ist aktiv</span>';
+
+    /* Statusverlauf als Text, damit auf einen Blick klar ist, wo der Auftrag steht */
+    let statusInfo = '';
+    if(e.quelle === 'auftrag'){
+      const zeilen = [];
+      zeilen.push('Aktueller Status: <strong>' + def.label + '</strong>');
+      if(e.springerSofort)
+        zeilen.push('Start: <strong>' + (String(e.springerSofort).toLowerCase() === 'ja'
+          ? 'sofort mit Springerteam' : 'auf feste Raumpflegerin warten') + '</strong>');
+      if(e.bearbeitungAb)
+        zeilen.push('In Bearbeitung seit ' + new Date(e.bearbeitungAb).toLocaleDateString('de-CH'));
+      if(e.vorlaufMail)
+        zeilen.push('Vorlaufmail gesendet am ' + new Date(e.vorlaufMail).toLocaleDateString('de-CH'));
+      else if(e.vorlaufAus)
+        zeilen.push('Vorlaufmail unterdrückt');
+      if(e.springerAntwort)
+        zeilen.push('Antwort der Kundschaft: <strong>' + (e.springerAntwort === 'ja'
+          ? 'Start mit Springerteam gewünscht' : 'Springerteam abgelehnt') + '</strong>' +
+          (e.springerAntwortAm ? ' (' + new Date(e.springerAntwortAm).toLocaleDateString('de-CH') + ')' : ''));
+      statusInfo = '<p style="margin:0 0 14px;font-size:13px;color:var(--body-c);line-height:1.8;">' +
+                   zeilen.join('<br>') + '</p>';
+    }
 
     box.innerHTML =
       '<button class="kd-back" onclick="zurueckVonKunde()">← Zurück zur Übersicht</button>' +
@@ -1698,13 +1834,20 @@ jspdf/dist/jspdf.es.min.js:
       '</div>' +
 
       '<div class="kd-karte">' +
-        '<h3>Dokumente und Status</h3>' +
+        '<h3>Dokumente</h3>' +
         '<div class="kd-aktionen">' +
-          weiter +
           (e.quelle === 'auftrag'
             ? '<button class="btn btn-sm" style="' + hell + '" onclick=\'openChecklistEditor("' + e.id + '")\'>Checkliste anpassen</button>' +
               '<button class="btn btn-sm" style="' + hell + '" onclick=\'downloadLeistungsverzeichnis("' + e.id + '")\'>Leistungsverzeichnis (PDF)</button>'
             : (e.link ? '<a class="btn btn-sm" style="' + hell + 'text-decoration:none;" href="' + e.link + '" target="_blank">Angebot ansehen</a>' : '')) +
+        '</div>' +
+      '</div>' +
+
+      '<div class="kd-karte">' +
+        '<h3>Status</h3>' +
+        statusInfo +
+        '<div class="kd-aktionen">' +
+          weiter +
           (e.stufe !== 'abgesagt'
             ? '<button class="btn btn-sm btn-danger" onclick=\'setStufe("' + e.id + '","abgesagt",event)\'>Als abgesagt markieren</button>'
             : '<button class="btn btn-sm" style="' + hell + '" onclick=\'setStufe("' + e.id + '","' + (e.quelle === 'auftrag' ? 'auftrag' : 'gesendet') + '",event)\'>Zurückholen</button>') +
@@ -1864,14 +2007,15 @@ jspdf/dist/jspdf.es.min.js:
 
     /* --- Kennzahlen --- */
     const angebote  = alle.length;
-    const auftraege = alle.filter(e => e.stufe === 'auftrag' || e.stufe === 'aktiv').length;
+    const ERTEILT = ['auftrag','bearbeitung','springer_gewuenscht','aktiv'];
+    const auftraege = alle.filter(e => ERTEILT.includes(e.stufe)).length;
     const aktiv     = alle.filter(e => e.stufe === 'aktiv').length;
     const abgesagt  = alle.filter(e => e.stufe === 'abgesagt').length;
     const offen     = alle.filter(e => e.stufe === 'gesendet' || e.stufe === 'nachgefasst').length;
     const quote     = angebote ? Math.round(auftraege / angebote * 100) : 0;
 
     // Durchschnittliche Zeit bis zur Erteilung
-    const zeiten = alle.filter(e => e.stufe === 'auftrag' || e.stufe === 'aktiv')
+    const zeiten = alle.filter(e => ERTEILT.includes(e.stufe))
       .map(e => e.alter).filter(x => typeof x === 'number');
     const schnitt = zeiten.length ? Math.round(zeiten.reduce((a2,b2) => a2+b2, 0) / zeiten.length) : null;
 
@@ -1888,7 +2032,7 @@ jspdf/dist/jspdf.es.min.js:
       const k = d2.getFullYear() + '-' + String(d2.getMonth()+1).padStart(2,'0');
       if(!proMonat[k]) proMonat[k] = { anfragen:0, erteilungen:0 };
       proMonat[k].anfragen++;
-      if(e.stufe === 'auftrag' || e.stufe === 'aktiv') proMonat[k].erteilungen++;
+      if(ERTEILT.includes(e.stufe)) proMonat[k].erteilungen++;
     });
     const monate = Object.keys(proMonat).sort().reverse();
     const maxAnfr = Math.max(1, ...monate.map(m => proMonat[m].anfragen));
