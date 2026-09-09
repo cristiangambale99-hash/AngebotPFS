@@ -213,9 +213,11 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
           <input type="number" id="f-bad" min="1" value="1" required></div>
       </div>
 
-      <div class="row">
-        <div data-i18n="a21"><label class="fl" for="f-stockwerk">Stockwerk</label>
-          <input type="text" id="f-stockwerk" placeholder="z. B. 2. OG"></div>
+      <div class="row two">
+        <div><label data-i18n="a21" class="fl" for="f-stockwerk">Stockwerk</label>
+          <select id="f-stockwerk"><option data-i18n="s0" value="">Bitte wählen</option><option data-i18n="s1" value="UG">UG / Souterrain</option><option data-i18n="s2" value="EG">EG</option><option data-i18n="s3" value="Hochparterre">Hochparterre</option><option data-i18n="s4" value="1. OG">1. OG</option><option data-i18n="s5" value="2. OG">2. OG</option><option data-i18n="s6" value="3. OG">3. OG</option><option data-i18n="s7" value="4. OG">4. OG</option><option data-i18n="s8" value="5. OG">5. OG</option><option data-i18n="s9" value="6. OG oder höher">6. OG oder höher</option><option data-i18n="s10" value="Attika">Attika</option><option data-i18n="s11" value="Mehrere Stockwerke">Mehrere Stockwerke (Haus/Maisonette)</option></select></div>
+        <div><label data-i18n="a73" class="fl" for="f-lift">Lift vorhanden</label>
+          <select id="f-lift"><option data-i18n="l0" value="Ja">Ja</option><option data-i18n="l1" value="Nein">Nein</option></select></div>
       </div>
 
       <div class="row" style="margin-bottom:0;">
@@ -415,7 +417,6 @@ const I18N_EN = {
 "a18": "<label class=\"fl\" for=\"f-zimmer\">Rooms</label>\n          <input type=\"number\" id=\"f-zimmer\" step=\"0.5\" min=\"1\" placeholder=\"3.5\" required>",
 "a19": "<label class=\"fl\" for=\"f-qm\">Area in m²</label>\n          <input type=\"number\" id=\"f-qm\" min=\"10\" placeholder=\"85\">",
 "a20": "<label class=\"fl\" for=\"f-bad\">Bathrooms</label>\n          <input type=\"number\" id=\"f-bad\" min=\"1\" value=\"1\" required>",
-"a21": "<label class=\"fl\" for=\"f-stockwerk\">Floor</label>\n          <input type=\"text\" id=\"f-stockwerk\" placeholder=\"z. B. 2. OG\">",
 "a23": "Cleaning frequency",
 "a24": "Weekly",
 "a25": "Every two weeks",
@@ -464,9 +465,25 @@ const I18N_EN = {
 "a69": "No parking space",
 "a70": "<strong>Monthly cleaning</strong><span class=\"note-tag\">CHF 48.65 per hour</span>",
 "a71": "With a monthly rhythm the hourly rate is CHF 48.65 incl. VAT — likewise including social security contributions and travel. The one-off flat fee of CHF 70.00 for cleaning materials remains unchanged.",
-"a72": "The work is carried out by our <strong>relief team</strong>. Unlike weekly or fortnightly cleaning, no fixed cleaner is assigned — in return you remain completely flexible on timing."
+"a72": "The work is carried out by our <strong>relief team</strong>. Unlike weekly or fortnightly cleaning, no fixed cleaner is assigned — in return you remain completely flexible on timing.",
+"a21": "Floor",
+"a73": "Lift available",
+"s0": "Please select",
+"s1": "Basement",
+"s2": "Ground floor",
+"s3": "Raised ground floor",
+"s4": "1st floor",
+"s5": "2nd floor",
+"s6": "3rd floor",
+"s7": "4th floor",
+"s8": "5th floor",
+"s9": "6th floor or higher",
+"s10": "Penthouse floor",
+"s11": "Several floors (house/maisonette)",
+"l0": "Yes",
+"l1": "No"
 };
-const I18N_ATTR_EN = [["#f-boden", "placeholder", "e.g. parquet, tiles"], ["#f-stockwerk", "placeholder", "e.g. 2nd floor"], ["#f-boden-text", "placeholder", "e.g. cork, vinyl"], ["#f-alarmcode", "placeholder", "Treated confidentially"], ["#f-tier-text", "placeholder", "e.g. rabbit, bird"], ["#f-vereinbarungen", "placeholder", "e.g. delicate surfaces, access via neighbours"]];
+const I18N_ATTR_EN = [["#f-boden", "placeholder", "e.g. parquet, tiles"], ["#f-boden-text", "placeholder", "e.g. cork, vinyl"], ["#f-alarmcode", "placeholder", "Treated confidentially"], ["#f-tier-text", "placeholder", "e.g. rabbit, bird"], ["#f-vereinbarungen", "placeholder", "e.g. delicate surfaces, access via neighbours"]];
 
 (function uebersetzeSeite(){
   if(!EN()) return;
@@ -649,6 +666,8 @@ function submitOrder(e){
     angebotsnr: document.getElementById('f-angebotsnr').value,
     zimmer: zimmer,
     qm: document.getElementById('f-qm').value,
+    stockwerk: document.getElementById('f-stockwerk').value,
+    lift: document.getElementById('f-lift').value,
     bodenbelaege: (() => {
       const gewaehlt = [...document.querySelectorAll('.f-boden:checked')].map(c => c.value);
       const frei = (document.getElementById('f-boden-text').value || '').trim();
