@@ -827,8 +827,10 @@ jspdf/dist/jspdf.es.min.js:
     const zimmer = (document.getElementById('lg-zimmer').value || '').trim();
     const frequenz = document.getElementById('lg-frequenz').value;
     const sprache = (document.getElementById('lg-sprache') || {}).value || 'de';
-    // Sprache als zehntes Feld — ältere Links ohne dieses Feld bleiben gültig
-    const packed = [an, vn, nn, adr, ort, angebotsnr, code, zimmer, frequenz, sprache].join('|');
+    // Sprache als zehntes, E-Mail als elftes Feld — ältere Links ohne diese
+    // Felder bleiben gültig und laufen unverändert weiter
+    const mailFuerLink = (document.getElementById('lg-email').value || '').trim();
+    const packed = [an, vn, nn, adr, ort, angebotsnr, code, zimmer, frequenz, sprache, mailFuerLink].join('|');
     const token = b64encode(packed).replace(/=+$/, '');
     const base = window.location.href.replace(/admin\.html.*$/, 'index.html');
     const link = base + '?t=' + token;

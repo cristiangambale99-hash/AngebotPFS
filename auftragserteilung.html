@@ -207,11 +207,9 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
           <input type="number" id="f-bad" min="1" value="1" required></div>
       </div>
 
-      <div class="row two">
+      <div class="row">
         <div data-i18n="a21"><label class="fl" for="f-stockwerk">Stockwerk</label>
           <input type="text" id="f-stockwerk" placeholder="z. B. 2. OG"></div>
-        <div data-i18n="a22"><label class="fl" for="f-boden">Bodenbeläge</label>
-          <input type="text" id="f-boden" placeholder="z. B. Parkett, Fliesen"></div>
       </div>
 
       <div class="row" style="margin-bottom:0;">
@@ -277,8 +275,8 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
       <p data-i18n="a39" class="hint">Damit die Reinigung reibungslos abläuft.</p>
 
       <div class="row two">
-        <div><label data-i18n="a40" class="fl" for="f-pp">Parkplatz vorhanden</label>
-          <select id="f-pp"><option data-i18n="a41" value="Ja">Ja</option><option data-i18n="a42" value="Nein">Nein</option><option data-i18n="a43" value="In der Nähe">In der Nähe</option></select></div>
+        <div><label data-i18n="a40" class="fl" for="f-pp">Parkplatz</label>
+          <select id="f-pp"><option data-i18n="a41" value="Besucherparkplatz">Besucherparkplatz</option><option data-i18n="a42" value="Privatparkplatz">Privatparkplatz</option><option data-i18n="a43" value="Blaue Zone">Blaue Zone</option><option data-i18n="a69" value="Kein Parkplatz">Kein Parkplatz</option></select></div>
         <div><label data-i18n="a44" class="fl" for="f-alarm">Alarmanlage</label>
           <select id="f-alarm" onchange="toggleAlarm()"><option data-i18n="a45" value="Nein">Nein</option><option data-i18n="a46" value="Ja">Ja</option></select></div>
       </div>
@@ -344,8 +342,9 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
       </div>
 
       <div class="row" style="margin-top:16px;margin-bottom:0;">
-        <div data-i18n="a65"><label class="fl" for="f-vereinbarungen">Besondere Wünsche oder Hinweise</label>
-          <textarea id="f-vereinbarungen" placeholder="z. B. empfindliche Oberflächen, Zugang über Nachbarn"></textarea></div>
+        <div data-i18n="a65"><label class="fl" for="f-vereinbarungen">Spezielle Vereinbarungen</label>
+          <textarea id="f-vereinbarungen" placeholder="z. B. empfindliche Oberflächen, Zugang über Nachbarn"></textarea>
+          <div class="note">Diese Angaben werden in der Checkliste Ihrer Raumpflegerin als spezielle Vereinbarung festgehalten.</div></div>
       </div>
     </div>
 
@@ -406,7 +405,6 @@ const I18N_EN = {
 "a19": "<label class=\"fl\" for=\"f-qm\">Area in m²</label>\n          <input type=\"number\" id=\"f-qm\" min=\"10\" placeholder=\"85\">",
 "a20": "<label class=\"fl\" for=\"f-bad\">Bathrooms</label>\n          <input type=\"number\" id=\"f-bad\" min=\"1\" value=\"1\" required>",
 "a21": "<label class=\"fl\" for=\"f-stockwerk\">Floor</label>\n          <input type=\"text\" id=\"f-stockwerk\" placeholder=\"z. B. 2. OG\">",
-"a22": "<label class=\"fl\" for=\"f-boden\">Floor coverings</label>\n          <input type=\"text\" id=\"f-boden\" placeholder=\"z. B. Parkett, Fliesen\">",
 "a23": "Cleaning frequency",
 "a24": "Weekly",
 "a25": "Every two weeks",
@@ -424,10 +422,10 @@ const I18N_EN = {
 "a37": "\n        <label class=\"opt\"><input type=\"radio\" name=\"f-uhrzeit\" value=\"08:00 – 12:00 Uhr (Vormittag)\" checked>08:00–12:00 <span class=\"sub\">Morning</span></label>\n        <label class=\"opt\"><input type=\"radio\" name=\"f-uhrzeit\" value=\"13:00 – 17:00 Uhr (Nachmittag)\">13:00–17:00 <span class=\"sub\">Afternoon</span></label>\n        <label class=\"opt\"><input type=\"radio\" name=\"f-uhrzeit\" value=\"08:00 – 17:00 Uhr (ganztags)\">08:00–17:00 <span class=\"sub\">All day</span></label>\n      ",
 "a38": "<span class=\"n\">4</span> Access and surroundings",
 "a39": "So that the cleaning runs smoothly.",
-"a40": "Parking available",
-"a41": "Yes",
-"a42": "No",
-"a43": "Nearby",
+"a40": "Parking",
+"a41": "Visitor parking space",
+"a42": "Private parking space",
+"a43": "Blue zone",
 "a44": "Alarm system",
 "a45": "No",
 "a46": "Yes",
@@ -449,10 +447,11 @@ const I18N_EN = {
 "a62": "Would you like a non-binding window cleaning quotation?",
 "a63": "\n        <label class=\"opt\"><input type=\"radio\" name=\"f-fenster\" value=\"Nein\" checked>No</label>\n        <label class=\"opt\"><input type=\"radio\" name=\"f-fenster\" value=\"Ja\" onchange=\"toggleFenster()\">Yes, please</label>\n      ",
 "a64": "\n        Our <strong>specialist cleaning department</strong> will contact you with a separate, non-binding offer.\n      ",
-"a65": "<label class=\"fl\" for=\"f-vereinbarungen\">Special requests or notes</label>\n          <textarea id=\"f-vereinbarungen\" placeholder=\"z. B. empfindliche Oberflächen, Zugang über Nachbarn\"></textarea>",
+"a65": "<label class=\"fl\" for=\"f-vereinbarungen\">Special arrangements</label>\n          <textarea id=\"f-vereinbarungen\" placeholder=\"e.g. delicate surfaces, access via neighbours\"></textarea>\n          <div class=\"note\">These details are recorded as a special arrangement on your cleaner's checklist.</div>",
 "a66": "\n        <input type=\"checkbox\" id=\"f-agb\" required>\n        <span>I hereby place a binding order and accept the <a href=\"agb.html\" target=\"_blank\" rel=\"noopener\">general terms and conditions</a>.</span>\n      ",
 "a67": "Place binding order",
-"a68": "You will receive a confirmation by e-mail immediately."
+"a68": "You will receive a confirmation by e-mail immediately.",
+"a69": "No parking space"
 };
 const I18N_ATTR_EN = [["#f-boden", "placeholder", "e.g. parquet, tiles"], ["#f-stockwerk", "placeholder", "e.g. 2nd floor"], ["#f-boden-text", "placeholder", "e.g. cork, vinyl"], ["#f-alarmcode", "placeholder", "Treated confidentially"], ["#f-tier-text", "placeholder", "e.g. rabbit, bird"], ["#f-vereinbarungen", "placeholder", "e.g. delicate surfaces, access via neighbours"]];
 
@@ -581,7 +580,10 @@ document.getElementById('orderForm').addEventListener('change', updateSteps);
   setz('f-adresse', p.get('adr'));
   setz('f-plzort', p.get('ort'));
   setz('f-angebotsnr', p.get('angebotsnr'));
-  if(p.get('zimmer')) { setz('f-zimmer', p.get('zimmer')); updateAufwand(); }
+  setz('f-mail', p.get('mail'));
+  if(p.get('frequenz')) setz('f-frequenz', p.get('frequenz'));
+  if(p.get('zimmer')) setz('f-zimmer', p.get('zimmer'));
+  if(p.get('zimmer') || p.get('frequenz')) updateAufwand();
   updateSteps();
 })();
 
