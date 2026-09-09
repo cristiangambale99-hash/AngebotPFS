@@ -24,6 +24,34 @@ const AUFTRAG_SAMMLUNG = 'auftraege';
 const VORLAUF_WERKTAGE = 7;
 
 export default async function handler(req, res) {
+  /* Einzelversand auf Knopfdruck aus dem Admin-Bereich:
+     POST /api/followup  { id: "<Auftragsnummer>" }
+     Schickt die Vorlaufmail sofort, unabhaengig von der Frist, und setzt
+     den Zeitstempel. Gedacht zum Nachschauen, wie die Mail beim Kunden
+     ankommt, und fuer Faelle, die keinen Aufschub dulden. */
+  if (req.method === 'POST') {
+    const id = String((req.body && req.body.id) || '');
+    if (!id) return res.status(400).json({ error: 'Keine Auftragsnummer übergeben.' });
+    const key = process.env.RESEND_API_KEY;
+    if (!key) return res.status(500).json({ error: 'RESEND_API_KEY fehlt.' });
+    try {
+      const auf = await lesen(AUFTRAG_SAMMLUNG, id);
+      if (!auf) return res.status(404).json({ error: 'Auftrag nicht gefunden.' });
+      const mail = auf.mail || auf.email || '';
+      if (!mail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
+        return res.status(400).json({ error: 'Keine gültige E-Mail-Adresse hinterlegt.' });
+      }
+      await sendeVorlaufmail(key, auf, mail);
+      const neu = { ...auf };
+      delete neu._id;
+      neu.vorlaufMail = new Date().toISOString();
+      await speichern(AUFTRAG_SAMMLUNG, id, neu);
+      return res.status(200).json({ ok: true, empfaenger: mail, gesendetAm: neu.vorlaufMail });
+    } catch (e) {
+      return res.status(500).json({ error: (e && e.message) || String(e) });
+    }
+  }
+
   // Zugriffsschutz: Vercel sendet den Cron-Schlüssel im Authorization-Header
   // Zugriff ausschliesslich über den Cron-Schlüssel von Vercel.
   // Kein Zugang aus dem Browser: der Admin-Code steht im Seitenquelltext
