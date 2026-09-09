@@ -269,6 +269,44 @@ export default async function handler(req, res) {
         }
       }
 
+      /* ---- Kunde im Stellenportal anlegen ----
+         Laeuft bewusst nach den Mails und mit eigenem try: Ist das Portal
+         nicht erreichbar, darf das die Auftragsbestaetigung nicht stoeren. */
+      try {
+        const portal = process.env.STELLENPORTAL_URL;
+        if (portal) {
+          const std = (String(b.aufwandText || '').match(/([\d.]+)\s*(Std|hrs)/) || [])[1] || '';
+          const pr = await fetch(portal.replace(/\/+$/, '') + '/api/kunde-anlegen', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-portal-schluessel': process.env.PORTAL_SECRET || ''
+            },
+            body: JSON.stringify({
+              vorname: b.vorname, nachname: b.nachname,
+              adresse: b.adresse, plzOrt: b.plzOrt || b.ort,
+              frequenz: b.frequenz, tage: b.tage, uhrzeit: b.uhrzeit,
+              aufwandStunden: std,
+              springerSofort: b.springerSofort,
+              zimmer: b.zimmer, qm: b.qm, badezimmer: b.badezimmer,
+              bodenbelaege: b.bodenbelaege, stockwerk: b.stockwerk, lift: b.lift,
+              pp: b.pp, haustiere: b.haustiere, alarmanlage: b.alarmanlage,
+              vereinbarungen: b.vereinbarungen, angebotsnr: b.angebotsnr,
+              mail: b.mail || b.email, mobile: b.mobile
+            })
+          });
+          const pd = await pr.json().catch(() => ({}));
+          ergebnis.stellenportal = pr.ok ? { angelegt: true, id: pd.id, region: pd.region }
+                                         : { angelegt: false, fehler: pd.error || ('HTTP ' + pr.status) };
+          if (!pr.ok) console.error('Stellenportal: Kunde nicht angelegt', pd);
+        } else {
+          ergebnis.stellenportal = { angelegt: false, fehler: 'STELLENPORTAL_URL nicht gesetzt' };
+        }
+      } catch (e) {
+        ergebnis.stellenportal = { angelegt: false, fehler: (e && e.message) || String(e) };
+        console.error('Stellenportal: Aufruf fehlgeschlagen', e);
+      }
+
       /* ---- Fensterreinigung gewünscht: Spezialreinigung informieren ---- */
       if (String(b.fensterOfferte || '').toLowerCase() === 'ja') {
         const zeilenF = [

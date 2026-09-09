@@ -69,7 +69,7 @@ export default async function handler(req, res) {
         neu.notizen = bisher.slice(-60);
       }
       if (Array.isArray(b.checklistOverride)) neu.checklistOverride = b.checklistOverride;
-      ['angebotsnr', 'notiz', 'vereinbarungen', 'stufe', 'checkliste'].forEach(f => {
+      ['angebotsnr', 'notiz', 'vereinbarungen', 'stufe', 'checkliste', 'vorlaufAus', 'vorlaufMail', 'bearbeitungAb', 'springerAntwort', 'springerAntwortAm'].forEach(f => {
         if (typeof b[f] === 'string') neu[f] = b[f];
       });
       if (typeof b.bearbeitet === 'boolean') neu.bearbeitet = b.bearbeitet;
