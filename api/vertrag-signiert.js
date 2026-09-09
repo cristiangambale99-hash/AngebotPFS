@@ -156,7 +156,7 @@ async function senden(key, daten) {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: 'Cristian Gambale · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
+      from: CS_ABSENDER_TEAM,
       ...daten
     })
   });
@@ -366,6 +366,13 @@ const CS_LOGO = 'iVBORw0KGgoAAAANSUhEUgAAAbgAAACVCAIAAACl7Xi4AABsOElEQVR42u29d5w
 const CS_FARBE = '#2BB6B7', CS_DUNKEL = '#12797A', CS_TEXT = '#333333', CS_GRAU = '#767676';
 
 const CS_ROLLE = { de:'Bereichsleiter Putzfrauenservice', en:'Head of Putzfrauenservice' };
+/* Ab der Auftragserteilung zeichnet das Admin-Team des Putzfrauenservice,
+   davor Cristian Gambale. */
+const CS_TEAM_NAME = 'Putzfrauenservice · Admin-Team';
+const CS_TEAM_ROLLE = 'Clean Service Scaramuzzo AG';
+const CS_TEAM_TEL = '0844 355 355';
+const CS_ABSENDER_TEAM = 'Putzfrauenservice Admin-Team · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>';
+
 const CS_CLAIM = { de:'Putzfrauenservice<br>seit 1984', en:'Putzfrauenservice<br>since 1984' };
 
 function csSignatur(spr){
@@ -374,9 +381,9 @@ function csSignatur(spr){
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin-top:26px;">
     <tr><td style="padding-top:18px;border-top:2px solid ${CS_FARBE};">
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.55;color:${CS_TEXT};">
-        <strong>Cristian Gambale</strong><br>
-        ${CS_ROLLE[s]}<br>
-        Direkt 052 557 02 08 / 076 822 00 16
+        <strong>${CS_TEAM_NAME}</strong><br>
+        ${CS_TEAM_ROLLE}<br>
+        ${CS_TEAM_TEL}
       </div>
       <div style="border-top:1px solid #D8D8D8;margin:12px 0;width:220px;"></div>
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:12px;line-height:1.55;color:${CS_GRAU};">
@@ -443,9 +450,9 @@ function csKnopf(text, link){
 function csSignaturText(spr){
   const s = spr === 'en' ? 'en' : 'de';
   return '\n\n' + (s === 'en' ? 'Kind regards' : 'Freundliche Grüsse') + '\n\n' +
-    'Cristian Gambale\n' +
-    CS_ROLLE[s] + '\n' +
-    'Direkt 052 557 02 08 / 076 822 00 16\n' +
+    CS_TEAM_NAME + '\n' +
+    CS_TEAM_ROLLE + '\n' +
+    CS_TEAM_TEL + '\n' +
     '---------------------------------\n' +
     'Clean Service Scaramuzzo AG\n' +
     'Industriestrasse 5\n' +

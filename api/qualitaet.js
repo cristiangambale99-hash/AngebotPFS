@@ -47,7 +47,11 @@ export default async function handler(req, res) {
     const spr = q.spr === 'en' ? 'en' : 'de';
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     if (!id || !pruefen(id, st, sig)) return res.status(400).send(seite(spr, 'fehler'));
-    return res.status(200).send(seite(spr, 'frage', st, id, sig));
+    /* Die Kundschaft soll auf der Seite noch wechseln können, deshalb
+       bekommt jede der vier Stufen ihre eigene Signatur mit. */
+    const sigs = {};
+    Object.keys(STUFEN).forEach(k => { sigs[k] = signieren(id, k); });
+    return res.status(200).send(seite(spr, 'frage', st, id, sig, sigs));
   }
 
   if (req.method !== 'POST') {
@@ -68,10 +72,15 @@ export default async function handler(req, res) {
     delete neu._id;
     neu.qualitaetAntwort = st;
     neu.qualitaetAntwortAm = new Date().toISOString();
+    const rueckmeldung = String((b.text || '')).trim().slice(0, 2000);
+    if (rueckmeldung) neu.qualitaetText = rueckmeldung;
+    // Ist die Kundschaft zufrieden, ist der Fall abgeschlossen und wandert ins Archiv.
+    // Bei den unteren Stufen bleibt er offen, damit jemand nachfasst.
+    if (STUFEN[st].rang >= 3) neu.stufe = 'archiv';
     await speichern(SAMMLUNG, fund.schluessel, neu);
     bericht.gespeichert = true;
 
-    try { await melden(auf, st); bericht.gemeldet = true; }
+    try { await melden(auf, st, rueckmeldung); bericht.gemeldet = true; }
     catch (e) { bericht.meldefehler = String(e.message || e).slice(0, 300);
                 console.error('qualitaet.js: Meldung fehlgeschlagen', e); }
 
@@ -98,7 +107,7 @@ async function auftragFinden(id) {
 }
 
 /* Meldung an den Putzfrauenservice */
-async function melden(auf, st) {
+async function melden(auf, st, rueckmeldung) {
   const key = process.env.RESEND_API_KEY;
   if (!key) throw new Error('RESEND_API_KEY fehlt.');
   const name = [auf.anrede, auf.vorname, auf.nachname].filter(Boolean).join(' ') || 'Unbekannt';
@@ -121,7 +130,15 @@ async function melden(auf, st) {
     zeile('Rhythmus', auf.frequenzText || auf.frequenz || '') +
     zeile('Erste Reinigung', auf.erstReinigung || '') +
     zeile('Rückmeldung', s.de) +
-    '</table></div></div>';
+    '</table>' +
+    (rueckmeldung
+      ? '<div style="margin-top:18px;border-left:3px solid ' + (gut ? '#2BB6B7' : '#B4232C') + ';' +
+        'background:#F5F9F9;padding:12px 16px;font-size:13px;line-height:1.7;color:#333;">' +
+        '<div style="font-size:11.5px;color:#767676;margin-bottom:6px;">Das schreibt die Kundschaft</div>' +
+        String(rueckmeldung).replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])).replace(/\n/g, '<br>') +
+        '</div>'
+      : '') +
+    '</div></div>';
   const r = await fetch('https://api.resend.com/emails', {
     method:'POST',
     headers:{ Authorization:'Bearer ' + key, 'Content-Type':'application/json' },
@@ -129,18 +146,20 @@ async function melden(auf, st) {
       from:'Angebotssystem PFS <putzfrauenservice@clean-service.ch>',
       to:[EMPFAENGER], reply_to: auf.mail || auf.email || EMPFAENGER,
       subject: titel, html,
-      text: titel + '\n\n' + satz
+      text: titel + '\n\n' + satz + (rueckmeldung ? '\n\n' + rueckmeldung : '')
     })
   });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error('Resend: ' + JSON.stringify(d));
 }
 
-/* Bitte um eine Google-Bewertung an die Kundschaft */
-async function bewertungBitten(auf) {
+/* Bitte um eine Google-Bewertung an die Kundschaft.
+   Zweiter Parameter nur fuer den Probeversand aus dem Admin-Bereich:
+   die Nachricht geht dann an diese Adresse statt an die Kundschaft. */
+export async function bewertungBitten(auf, zielAdresse) {
   const key = process.env.RESEND_API_KEY;
   if (!key) throw new Error('RESEND_API_KEY fehlt.');
-  const mail = auf.mail || auf.email || '';
+  const mail = String(zielAdresse || auf.mail || auf.email || '');
   if (!mail) throw new Error('Keine Kundenadresse hinterlegt.');
   const EN = String(auf.sprache || 'de').toLowerCase() === 'en';
   const nn = auf.nachname || '';
@@ -150,49 +169,96 @@ async function bewertungBitten(auf) {
     : (auf.anrede === 'Herr' ? 'Sehr geehrter Herr ' + nn : auf.anrede === 'Frau' ? 'Sehr geehrte Frau ' + nn
       : 'Guten Tag ' + [auf.vorname, nn].filter(Boolean).join(' '));
 
+  const pflegerin = auf.raumpflegerin || '';
+
   const L = EN ? {
-    betreff:'Thank you — and a small favour',
-    a1:'Thank you very much for your feedback. It is good to hear that you are satisfied with our work.',
-    a2:'If you have two minutes: a short review on Google helps other households find us — and it means a great deal to the team that looks after you.',
-    knopf:'Write a review on Google',
-    a3:'If anything is ever not to your satisfaction, please come to me directly at any time.',
-    gruss:'Kind regards', rolle:'Head of Putzfrauenservice'
+    betreff: 'Five stars for ' + (pflegerin || 'your cleaner') + '?',
+    vorspann: 'Two minutes, five stars',
+    titel: 'Thank you for your feedback',
+    a1: 'It is good to hear that you are happy with our work. May we ask for two minutes in return?',
+    a2: pflegerin
+      ? 'A review on Google is the finest recognition ' + pflegerin + ' can receive — and it helps other households find a service they can trust.'
+      : 'A review on Google is the finest recognition our team can receive — and it helps other households find a service they can trust.',
+    sterne: 'Tap a star to open Google',
+    knopf: 'Write my review',
+    dauer: 'Takes about two minutes · no account details needed beyond your Google login',
+    a3: 'And if something is ever not right, tell us straight away — that is what we are here for.',
+    gruss: 'Kind regards', rolle: 'Head of Putzfrauenservice'
   } : {
-    betreff:'Herzlichen Dank — und eine kleine Bitte',
-    a1:'Vielen Dank für Ihre Rückmeldung. Es freut uns zu hören, dass Sie mit unserer Arbeit zufrieden sind.',
-    a2:'Wenn Sie zwei Minuten erübrigen: Eine kurze Bewertung auf Google hilft anderen Haushalten, uns zu finden — und sie bedeutet dem Team, das Sie betreut, sehr viel.',
-    knopf:'Bewertung auf Google schreiben',
-    a3:'Sollte einmal etwas nicht passen, wenden Sie sich jederzeit direkt an mich.',
-    gruss:'Freundliche Grüsse', rolle:'Bereichsleiter Putzfrauenservice'
+    betreff: 'Fünf Sterne für ' + (pflegerin || 'Ihre Raumpflegerin') + '?',
+    vorspann: 'Zwei Minuten, fünf Sterne',
+    titel: 'Danke für Ihre Rückmeldung',
+    a1: 'Es freut uns zu hören, dass Sie mit unserer Arbeit zufrieden sind. Dürfen wir Sie im Gegenzug um zwei Minuten bitten?',
+    a2: pflegerin
+      ? 'Eine Bewertung auf Google ist die schönste Anerkennung, die ' + pflegerin + ' bekommen kann — und sie hilft anderen Haushalten, einen Dienst zu finden, dem sie vertrauen können.'
+      : 'Eine Bewertung auf Google ist die schönste Anerkennung, die unser Team bekommen kann — und sie hilft anderen Haushalten, einen Dienst zu finden, dem sie vertrauen können.',
+    sterne: 'Auf einen Stern tippen und Google öffnen',
+    knopf: 'Jetzt bewerten',
+    dauer: 'Dauert rund zwei Minuten · es genügt Ihr Google-Konto',
+    a3: 'Und sollte einmal etwas nicht passen, sagen Sie es uns direkt. Genau dafür sind wir da.',
+    gruss: 'Freundliche Grüsse', rolle: 'Bereichsleiter Putzfrauenservice'
   };
 
+  /* Fünf Sterne, jeder einzeln verlinkt. Als Textzeichen, damit sie in jedem
+     Mailprogramm ankommen — Bilder werden häufig blockiert. */
+  const stern = '<a href="' + GOOGLE_LINK + '" style="text-decoration:none;color:#F5B301;font-size:34px;line-height:1;">&#9733;</a>';
+  const sterne = new Array(5).fill(stern).join('<span style="display:inline-block;width:6px;">&nbsp;</span>');
+
   const html =
-    '<div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;color:#333;line-height:1.7;max-width:640px;">' +
-    '<div style="height:3px;background:#2BB6B7;font-size:0;">&nbsp;</div>' +
-    '<div style="padding:24px 4px;">' +
-    '<p style="margin:0 0 16px;">' + anrede + '</p>' +
-    '<p style="margin:0 0 16px;">' + L.a1 + '</p>' +
-    '<p style="margin:0 0 18px;">' + L.a2 + '</p>' +
-    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;"><tr>' +
-    '<td style="background:#2BB6B7;"><a href="' + GOOGLE_LINK + '" style="display:inline-block;padding:13px 28px;' +
-    'font-family:Verdana,sans-serif;font-size:13px;font-weight:bold;color:#fff;text-decoration:none;">' + L.knopf + '</a></td>' +
-    '</tr></table>' +
-    '<p style="margin:0 0 20px;">' + L.a3 + '</p>' +
-    '<div style="border-top:2px solid #2BB6B7;padding-top:16px;font-size:13px;">' +
-    '<strong>Cristian Gambale</strong><br>' + L.rolle + '<br>Direkt 052 557 02 08<br><br>' +
-    '<span style="color:#767676;">Clean Service Scaramuzzo AG · Industriestrasse 5 · 8307 Effretikon<br>' +
-    'T 0844 355 355 · clean-service.ch</span></div>' +
-    '</div></div>';
+  '<div style="background:#F2F8F8;padding:26px 12px;font-family:Verdana,Geneva,sans-serif;">' +
+  '<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="max-width:600px;width:100%;background:#FFFFFF;border-radius:12px;overflow:hidden;">' +
+
+    '<tr><td style="height:4px;background:#2BB6B7;font-size:0;line-height:0;">&nbsp;</td></tr>' +
+
+    /* Kopf mit Sternen */
+    '<tr><td align="center" style="padding:30px 28px 22px;background:#EAF6F6;">' +
+      '<div style="font-size:11px;letter-spacing:.08em;color:#12797A;margin-bottom:12px;">' + L.vorspann + '</div>' +
+      '<div style="margin-bottom:10px;">' + sterne + '</div>' +
+      '<div style="font-size:12px;color:#5E7273;">' + L.sterne + '</div>' +
+    '</td></tr>' +
+
+    '<tr><td style="padding:26px 28px 8px;">' +
+      '<div style="font-size:19px;font-weight:bold;color:#0E1E1D;margin-bottom:14px;">' + L.titel + '</div>' +
+      '<p style="margin:0 0 14px;font-size:13.5px;line-height:1.7;color:#3C4A48;">' + anrede + '</p>' +
+      '<p style="margin:0 0 14px;font-size:13.5px;line-height:1.7;color:#3C4A48;">' + L.a1 + '</p>' +
+      '<p style="margin:0 0 22px;font-size:13.5px;line-height:1.7;color:#3C4A48;">' + L.a2 + '</p>' +
+    '</td></tr>' +
+
+    /* Schaltfläche */
+    '<tr><td align="center" style="padding:0 28px 10px;">' +
+      '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>' +
+      '<td style="background:#2BB6B7;border-radius:8px;">' +
+        '<a href="' + GOOGLE_LINK + '" style="display:inline-block;padding:15px 34px;font-family:Verdana,sans-serif;' +
+        'font-size:14px;font-weight:bold;color:#ffffff;text-decoration:none;">' + L.knopf + '</a>' +
+      '</td></tr></table>' +
+      '<div style="font-size:11.5px;color:#7C8C8B;margin-top:10px;">' + L.dauer + '</div>' +
+    '</td></tr>' +
+
+    '<tr><td style="padding:22px 28px 0;">' +
+      '<p style="margin:0 0 20px;font-size:13.5px;line-height:1.7;color:#3C4A48;">' + L.a3 + '</p>' +
+    '</td></tr>' +
+
+    /* Signatur */
+    '<tr><td style="padding:0 28px 28px;">' +
+      '<div style="border-top:2px solid #2BB6B7;padding-top:16px;font-size:13px;color:#3C4A48;line-height:1.6;">' +
+        '<strong style="color:#0E1E1D;">Putzfrauenservice · Admin-Team</strong><br>Clean Service Scaramuzzo AG<br>0844 355 355' +
+        '<div style="margin-top:12px;font-size:11.5px;color:#7C8C8B;">' +
+          'Clean Service Scaramuzzo AG · Industriestrasse 5 · 8307 Effretikon<br>' +
+          'T 0844 355 355 · clean-service.ch</div>' +
+      '</div>' +
+    '</td></tr>' +
+
+  '</table></div>';
 
   const r = await fetch('https://api.resend.com/emails', {
     method:'POST',
     headers:{ Authorization:'Bearer ' + key, 'Content-Type':'application/json' },
     body: JSON.stringify({
-      from:'Cristian Gambale · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
-      to:[mail], bcc:[EMPFAENGER], reply_to: EMPFAENGER,
+      from:'Putzfrauenservice Admin-Team · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
+      to:[mail], bcc: zielAdresse ? [] : [EMPFAENGER], reply_to: EMPFAENGER,
       subject: L.betreff, html,
-      text: anrede + '\n\n' + L.a1 + '\n\n' + L.a2 + '\n\n' + GOOGLE_LINK + '\n\n' + L.a3 +
-            '\n\n' + L.gruss + '\n\nCristian Gambale\n' + L.rolle
+      text: anrede + '\n\n' + L.a1 + '\n\n' + L.a2 + '\n\n' + L.knopf + ': ' + GOOGLE_LINK + '\n\n' + L.a3 +
+            '\n\n' + L.gruss + '\n\nPutzfrauenservice · Admin-Team\nClean Service Scaramuzzo AG'
     })
   });
   const d = await r.json().catch(() => ({}));
@@ -205,26 +271,35 @@ function zeile(k, v) {
          '</td><td style="padding:7px 0;font-size:13px;color:#333;font-weight:bold;border-bottom:1px solid #EDEFEF;">' + v + '</td></tr>';
 }
 
-/* Bestaetigungsseite */
-function seite(spr, art, st, id, sig) {
+/* Rueckmeldeseite: Stufe waehlen und frei dazuschreiben */
+function seite(spr, art, st, id, sig, sigs) {
   const EN = spr === 'en';
-  const s = STUFEN[st] || {};
   const T = EN ? {
-    titel:'Your feedback: ' + (s.en || ''),
-    frage:'Please confirm your feedback. It goes straight to the team looking after you.',
-    knopf:'Confirm', dankeT:'Thank you',
+    titel:'How satisfied are you?',
+    frage:'Your answer goes straight to the team looking after you. You can change your choice here.',
+    textLabel:'Anything you would like to add? (optional)',
+    textHint:'What went well, what should we do differently?',
+    platzhalter:'Your message to us …',
+    knopf:'Send feedback', dankeT:'Thank you',
     danke:'We have received your feedback. Thank you for taking the time.',
     fehlerT:'This link is no longer valid',
     fehler:'Please contact us directly, we will be glad to help: T 0844 355 355.',
-    warten:'Saving …', pech:'Something went wrong. Please contact us at T 0844 355 355.'
+    warten:'Sending …', pech:'Something went wrong. Please contact us at T 0844 355 355.',
+    stufen:[['sehr_zufrieden','Very satisfied'],['zufrieden','Satisfied'],
+            ['teilweise','Partly satisfied'],['nicht','Not satisfied']]
   } : {
-    titel:'Ihre Rückmeldung: ' + (s.de || ''),
-    frage:'Bitte bestätigen Sie Ihre Rückmeldung. Sie geht direkt an das Team, das Sie betreut.',
-    knopf:'Bestätigen', dankeT:'Vielen Dank',
+    titel:'Wie zufrieden sind Sie?',
+    frage:'Ihre Antwort geht direkt an das Team, das Sie betreut. Sie können Ihre Wahl hier noch ändern.',
+    textLabel:'Möchten Sie uns etwas mitgeben? (freiwillig)',
+    textHint:'Was läuft gut, was sollten wir anders machen?',
+    platzhalter:'Ihre Nachricht an uns …',
+    knopf:'Rückmeldung senden', dankeT:'Vielen Dank',
     danke:'Ihre Rückmeldung ist bei uns eingegangen. Danke, dass Sie sich die Zeit genommen haben.',
     fehlerT:'Dieser Link ist nicht mehr gültig',
     fehler:'Bitte melden Sie sich direkt bei uns, wir helfen gerne weiter: T 0844 355 355.',
-    warten:'Wird gespeichert …', pech:'Da ist etwas schiefgelaufen. Bitte melden Sie sich unter T 0844 355 355.'
+    warten:'Wird gesendet …', pech:'Da ist etwas schiefgelaufen. Bitte melden Sie sich unter T 0844 355 355.',
+    stufen:[['sehr_zufrieden','Sehr zufrieden'],['zufrieden','Zufrieden'],
+            ['teilweise','Teilweise zufrieden'],['nicht','Nicht zufrieden']]
   };
 
   const kopf = `<!DOCTYPE html><html lang="${EN?'en':'de'}"><head>
@@ -234,48 +309,84 @@ function seite(spr, art, st, id, sig) {
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Mulish:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{--teal:#2BB6B7;--teal-deep:#1C7878;--tint:#EAF6F6;--bg:#FCFDFD;--ink:#0E1E1D;
- --body-c:#485655;--mute:#7C8C8B;--head:'Poppins',sans-serif;--body:'Mulish',sans-serif;}
+ --body-c:#485655;--mute:#7C8C8B;--linie:#E1EAE9;--head:'Poppins',sans-serif;--body:'Mulish',sans-serif;}
 *{box-sizing:border-box;}
 body{margin:0;background:var(--bg);color:var(--body-c);font-family:var(--body);
  font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased;}
-.shell{max-width:560px;margin:0 auto;padding:60px 24px 90px;text-align:center;}
-h1{font-family:var(--head);font-weight:700;color:var(--ink);font-size:25px;line-height:1.3;margin:0 0 14px;}
-p{margin:0 0 22px;}
+.shell{max-width:560px;margin:0 auto;padding:54px 22px 80px;}
+h1{font-family:var(--head);font-weight:700;color:var(--ink);font-size:25px;line-height:1.3;margin:0 0 12px;text-align:center;}
+p.lede{margin:0 0 26px;text-align:center;}
+.wahl{display:block;width:100%;text-align:left;background:#fff;border:1.5px solid var(--linie);
+ border-radius:14px;padding:15px 18px;margin-bottom:10px;cursor:pointer;font-family:var(--body);
+ font-size:15px;color:var(--ink);display:flex;align-items:center;gap:13px;transition:border-color .15s,background .15s;}
+.wahl:hover{border-color:#BCDDDC;background:#F7FBFB;}
+.wahl.on{border-color:var(--teal);background:var(--tint);}
+.punkt{width:20px;height:20px;border-radius:50%;border:2px solid var(--linie);flex:none;position:relative;}
+.wahl.on .punkt{border-color:var(--teal);}
+.wahl.on .punkt::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--teal);}
+.feld{margin:26px 0 8px;}
+.feld label{display:block;font-family:var(--head);font-weight:600;font-size:14px;color:var(--ink);margin-bottom:4px;}
+.feld .hint{font-size:13px;color:var(--mute);margin-bottom:9px;}
+textarea{width:100%;min-height:120px;font-family:var(--body);font-size:15px;color:var(--ink);
+ background:#fff;border:1.5px solid var(--linie);border-radius:14px;padding:13px 15px;resize:vertical;line-height:1.6;}
+textarea:focus{outline:none;border-color:var(--teal);}
+.mitte{text-align:center;margin-top:22px;}
 button{font-family:var(--head);font-weight:600;font-size:15px;color:#fff;background:var(--teal);
  border:none;border-radius:100px;padding:14px 34px;cursor:pointer;}
 button:hover{background:var(--teal-deep);} button[disabled]{background:var(--mute);cursor:default;}
 .haken{width:58px;height:58px;margin:0 auto 20px;border-radius:50%;background:var(--tint);
  display:flex;align-items:center;justify-content:center;color:var(--teal-deep);font-size:26px;}
-.fuss{margin-top:34px;font-size:12px;color:var(--mute);}
+.fuss{margin-top:34px;font-size:12px;color:var(--mute);text-align:center;}
 </style></head><body><div class="shell">`;
   const fuss = `<div class="fuss">Clean Service Scaramuzzo AG · Industriestrasse 5 · 8307 Effretikon<br>T 0844 355 355</div></div></body></html>`;
 
-  if (art === 'fehler') return kopf + `<h1>${T.fehlerT}</h1><p>${T.fehler}</p>` + fuss;
+  if (art === 'fehler') return kopf + `<h1>${T.fehlerT}</h1><p class="lede">${T.fehler}</p>` + fuss;
+
+  const knoepfe = T.stufen.map(([k, label]) =>
+    `<button type="button" class="wahl${k === st ? ' on' : ''}" data-s="${k}" onclick="waehlen('${k}')">` +
+    `<span class="punkt"></span><span>${label}</span></button>`).join('');
 
   return kopf + `
 <h1>${T.titel}</h1>
-<p id="frage">${T.frage}</p>
-<button id="btn" onclick="senden()">${T.knopf}</button>
+<p class="lede">${T.frage}</p>
+<div id="wahlen">${knoepfe}</div>
+<div class="feld">
+  <label for="txt">${T.textLabel}</label>
+  <div class="hint">${T.textHint}</div>
+  <textarea id="txt" maxlength="2000" placeholder="${T.platzhalter}"></textarea>
+</div>
+<div class="mitte"><button id="btn" onclick="senden()">${T.knopf}</button></div>
 <script>
+var SIGS = ${JSON.stringify(sigs || {})};
+var AUSWAHL = ${JSON.stringify(st)};
+function waehlen(k){
+  AUSWAHL = k;
+  var alle = document.querySelectorAll('.wahl');
+  for(var i=0;i<alle.length;i++){ alle[i].classList.toggle('on', alle[i].dataset.s === k); }
+}
 async function senden(){
   var b=document.getElementById('btn');
   b.disabled=true; b.textContent=${JSON.stringify(T.warten)};
   try{
     var r=await fetch('/api/qualitaet',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({id:${JSON.stringify(id)},s:${JSON.stringify(st)},sig:${JSON.stringify(sig)}})});
+      body:JSON.stringify({id:${JSON.stringify(id)}, s:AUSWAHL,
+        sig: SIGS[AUSWAHL] || ${JSON.stringify(sig)},
+        text: document.getElementById('txt').value})});
     var d=await r.json().catch(function(){return {};});
     if(!r.ok) throw new Error('Server '+r.status+' '+(d.error||''));
     document.querySelector('h1').textContent=${JSON.stringify(T.dankeT)};
-    document.getElementById('frage').textContent=${JSON.stringify(T.danke)};
+    document.querySelector('p.lede').textContent=${JSON.stringify(T.danke)};
+    document.getElementById('wahlen').remove();
+    document.querySelector('.feld').remove();
     b.remove();
     var h=document.createElement('div'); h.className='haken'; h.textContent='\\u2713';
     document.querySelector('h1').before(h);
   }catch(e){
-    document.getElementById('frage').textContent=${JSON.stringify(T.pech)};
+    document.querySelector('p.lede').textContent=${JSON.stringify(T.pech)};
     var hin=document.createElement('div');
-    hin.style.cssText='margin-top:14px;font-size:11.5px;color:#B4232C;word-break:break-all;';
+    hin.style.cssText='margin-top:14px;font-size:11.5px;color:#B4232C;word-break:break-all;text-align:center;';
     hin.textContent=String(e&&e.message?e.message:e);
-    document.getElementById('frage').after(hin);
+    document.querySelector('p.lede').after(hin);
     b.remove();
   }
 }

@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { bewertungBitten } from './qualitaet.js';
 // api/followup.js
 // Läuft einmal täglich automatisch (siehe vercel.json) und sendet
 // Erinnerungen an Kundinnen und Kunden, von denen noch keine
@@ -52,6 +53,13 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Keine gültige E-Mail-Adresse hinterlegt.' });
       }
 
+      if (art === 'bewertung') {
+        /* Bitte um die Google-Bewertung. Geht im Regelfall automatisch nach
+           einer guten Rueckmeldung hinaus; hier nur zum Ansehen. */
+        await bewertungBitten(auf, probeAn || undefined);
+        return res.status(200).json({ ok: true, probe: !!probeAn, empfaenger: mail });
+      }
+
       if (art === 'qualitaet') {
         await sendeQualitaetsmail(key, auf, mail);
         if (probeAn) {
@@ -60,6 +68,26 @@ export default async function handler(req, res) {
         const neuQ = { ...auf };
         delete neuQ._id;
         neuQ.qualitaetMail = new Date().toISOString();
+
+        /* Zweite Nachfrage nach einer Reklamation: die bisherige Antwort
+           wandert in den Verlauf, damit die neue sauber erfasst wird und
+           der Fall so lange nicht mehr als unzufrieden gilt. */
+        if (req.body && req.body.erneut) {
+          const verlauf = Array.isArray(auf.qualitaetVerlauf) ? auf.qualitaetVerlauf.slice() : [];
+          if (auf.qualitaetAntwort) {
+            verlauf.push({
+              antwort: auf.qualitaetAntwort,
+              text: auf.qualitaetText || '',
+              am: auf.qualitaetAntwortAm || ''
+            });
+          }
+          neuQ.qualitaetVerlauf = verlauf;
+          neuQ.qualitaetAntwort = '';
+          neuQ.qualitaetText = '';
+          neuQ.qualitaetAntwortAm = '';
+          neuQ.qualitaetRunde = verlauf.length + 1;
+        }
+
         await speichern(AUFTRAG_SAMMLUNG, id, neuQ);
         return res.status(200).json({ ok: true, empfaenger: mail, gesendetAm: neuQ.qualitaetMail });
       }
@@ -375,7 +403,7 @@ async function sendeErinnerung(apiKey, a, stufe) {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
+      from: 'Cristian Gambale · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
       to: [a.email],
       bcc: ['putzfrauenservice@clean-service.ch'],
       reply_to: 'putzfrauenservice@clean-service.ch',
@@ -451,17 +479,17 @@ async function sendeQualitaetsmail(apiKey, auf, mail) {
   const klartext = anrede + '\n\n' + L.a1 + '\n\n' + L.a2 + '\n\n' +
     L.stufen.map(([st, tx]) => tx + ':\n' + basis + '&s=' + st + '&spr=' + spr +
                  '&sig=' + signQualitaet(schluessel, st)).join('\n\n') +
-    '\n\n' + L.a3 + csSignaturText(spr);
+    '\n\n' + L.a3 + csSignaturText(spr, 'team');
 
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: 'Cristian Gambale · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
+      from: CS_ABSENDER_TEAM,
       to: [mail], bcc: ['putzfrauenservice@clean-service.ch'],
       reply_to: 'putzfrauenservice@clean-service.ch',
       subject: L.betreff,
-      html: csRahmen(L.titel, inhalt, '', spr),
+      html: csRahmen(L.titel, inhalt, '', spr, 'team'),
       text: klartext,
       attachments: [{ filename:'logo.png', content: CS_LOGO, content_id:'cslogo', disposition:'inline' }]
     })
@@ -557,19 +585,19 @@ async function sendeVorlaufmail(apiKey, auf, mail) {
     </table>
     <p style="margin:0;">${L.a4}</p>`;
 
-  const html = csRahmen(L.titel, inhalt, '', spr);
+  const html = csRahmen(L.titel, inhalt, '', spr, 'team');
 
   const klartext = anrede + '\n\n' + L.a1 + '\n\n' + L.a2 + '\n\n' +
                    L.a3 + '\n\n' +
                    L.knopfJa + ':\n' + linkJa + '\n\n' +
                    L.knopfNein + ':\n' + linkNein + '\n\n' +
-                   L.a4 + csSignaturText(spr);
+                   L.a4 + csSignaturText(spr, 'team');
 
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: 'Cristian Gambale · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
+      from: CS_ABSENDER_TEAM,
       to: [mail],
       bcc: ['putzfrauenservice@clean-service.ch'],
       reply_to: 'putzfrauenservice@clean-service.ch',
@@ -748,17 +776,24 @@ const CS_LOGO = 'iVBORw0KGgoAAAANSUhEUgAAAbgAAACVCAIAAACl7Xi4AABsOElEQVR42u29d5w
 const CS_FARBE = '#2BB6B7', CS_DUNKEL = '#12797A', CS_TEXT = '#333333', CS_GRAU = '#767676';
 
 const CS_ROLLE = { de:'Bereichsleiter Putzfrauenservice', en:'Head of Putzfrauenservice' };
+/* Bis und mit Angebot zeichnet Cristian Gambale, ab der Auftragserteilung
+   das Admin-Team des Putzfrauenservice. */
+const CS_TEAM_NAME = 'Putzfrauenservice · Admin-Team';
+const CS_TEAM_ROLLE = { de:'Clean Service Scaramuzzo AG', en:'Clean Service Scaramuzzo AG' };
+const CS_TEAM_TEL = '0844 355 355';
+const CS_ABSENDER_TEAM = 'Putzfrauenservice Admin-Team · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>';
 const CS_CLAIM = { de:'Putzfrauenservice<br>seit 1984', en:'Putzfrauenservice<br>since 1984' };
 
-function csSignatur(spr){
+function csSignatur(spr, wer){
   const s = spr === 'en' ? 'en' : 'de';
+  const team = wer === 'team';
   return `
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin-top:26px;">
     <tr><td style="padding-top:18px;border-top:2px solid ${CS_FARBE};">
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.55;color:${CS_TEXT};">
-        <strong>Cristian Gambale</strong><br>
-        ${CS_ROLLE[s]}<br>
-        Direkt 052 557 02 08 / 076 822 00 16
+        <strong>${team ? CS_TEAM_NAME : 'Cristian Gambale'}</strong><br>
+        ${team ? CS_TEAM_ROLLE[s] : CS_ROLLE[s]}<br>
+        ${team ? CS_TEAM_TEL : 'Direkt 052 557 02 08 / 076 822 00 16'}
       </div>
       <div style="border-top:1px solid #D8D8D8;margin:12px 0;width:220px;"></div>
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:12px;line-height:1.55;color:${CS_GRAU};">
@@ -772,7 +807,7 @@ function csSignatur(spr){
   </table>`;
 }
 
-function csRahmen(titel, inhalt, hinweis, spr){
+function csRahmen(titel, inhalt, hinweis, spr, wer){
   const s = spr === 'en' ? 'en' : 'de';
   return `
 <div style="background:#F2F4F4;padding:24px 12px;font-family:Verdana,Geneva,sans-serif;">
@@ -797,7 +832,7 @@ function csRahmen(titel, inhalt, hinweis, spr){
     </td></tr>
     <tr><td style="padding:12px 36px 30px;font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.7;color:${CS_TEXT};">
       ${inhalt}
-      ${csSignatur(s)}
+      ${csSignatur(s, wer)}
     </td></tr>
     ${hinweis ? `<tr><td style="padding:16px 36px;background:#F7F9F9;border-top:1px solid #E5E9E8;font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};line-height:1.6;">${hinweis}</td></tr>` : ''}
   </table>
@@ -822,12 +857,13 @@ function csKnopf(text, link){
   </table>`;
 }
 
-function csSignaturText(spr){
+function csSignaturText(spr, wer){
   const s = spr === 'en' ? 'en' : 'de';
+  const team = wer === 'team';
   return '\n\n' + (s === 'en' ? 'Kind regards' : 'Freundliche Grüsse') + '\n\n' +
-    'Cristian Gambale\n' +
-    CS_ROLLE[s] + '\n' +
-    'Direkt 052 557 02 08 / 076 822 00 16\n' +
+    (team ? CS_TEAM_NAME : 'Cristian Gambale') + '\n' +
+    (team ? CS_TEAM_ROLLE[s] : CS_ROLLE[s]) + '\n' +
+    (team ? CS_TEAM_TEL : 'Direkt 052 557 02 08 / 076 822 00 16') + '\n' +
     '---------------------------------\n' +
     'Clean Service Scaramuzzo AG\n' +
     'Industriestrasse 5\n' +
