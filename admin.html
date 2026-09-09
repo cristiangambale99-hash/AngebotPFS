@@ -722,7 +722,7 @@ textarea{ min-height:96px; resize:vertical; }
   <aside class="sidebar" id="sb">
     <div class="brand">
       <div class="mark" role="img" aria-label="Clean Service Scaramuzzo AG"></div>
-      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 7</span></div>
+      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 8</span></div>
     </div>
 
     <nav class="nav">
@@ -1092,28 +1092,15 @@ function zeichnen(){
    Einführung muss einen Tag vor dem Termin erledigt sein; die vier Punkte
    danach betreffen die Zeit nach der ersten Reinigung. */
 const CHECK_VOR = [
-  ['outlook',    'Termin im Outlook eingetragen / Reporting im Teams nachgetragen'],
-  ['checkliste', 'Checkliste in dieser Aufgabe hinzugefügt'],
-  ['infochat',   'Neukunden im Allgemeinen Info Chat geschrieben'],
-  ['pf',         'Passende PF gefunden'],
-  ['aduna',      'Kunde im Aduna erfasst'],
   ['objekt',     'Objekt eröffnet'],
-  ['ablage',     'Ablegen Checkliste PFS'],
-  ['merkmale',   'Merkmale: Putzfrauenservice / Rechnung PFS PDF hinzugefügt'],
-  ['kostenst',   'Kostenstelle 2002, Putz (ZH), Putzfrauenservice Zürich, Zahlungsbedingung'],
-  ['zustaendig', 'Zuständig: PF hinzugefügt'],
-  ['tarif',      'Tarif hinzugefügt'],
+  ['infos',      'Alle Informationen gemäss Anleitung erfasst'],
   ['planung',    'Mitarbeiterplanung erfasst'],
-  ['dispo',      'Kunde in der Dispo eingeholt'],
-  ['unterlagen', 'Einführungsunterlagen vorbereitet, CL übersetzt an RK gesendet'],
-  ['ferien',     'FERIENMELDUNG gesendet, falls RK demnächst geht']
+  ['ablage',     'Checkliste und Vertrag abgelegt'],
+  ['chat',       'Chat eröffnet'],
+  ['dispo',      'Einführung disponiert und im Kalender eingetragen'],
+  ['schluessel', 'Schlüsselanhänger vorbereitet']
 ];
-const CHECK_NACH = [
-  ['q_verschoben', 'Aufgabe verschoben: Qualitätsnachfrage'],
-  ['q_erledigt',   'Qualitätsnachfrage erledigt und Tagesjournal Aduna'],
-  ['kontrolle',    'Aufgabe verschoben: Kontrolle Cristian'],
-  ['ofr',          'Aufgabe verschoben: OFR Fensterreinigung']
-];
+const CHECK_NACH = [];
 
 const checkStand = e => (e && e.adminCheck) || {};
 const checkErledigt = (e, k) => !!(checkStand(e)[k] && checkStand(e)[k].am);
@@ -1175,12 +1162,12 @@ function kartenCheckliste(e){
               dat(e.einfuehrungAm) + '. ' + esc(st.text)
             : 'Vollständig erledigt vor der Einführung am ' + dat(e.einfuehrungAm) + '.') + '</div>'
         : '<div class="hinweis">Sobald ein Einführungstermin steht, müssen diese Punkte einen Tag vorher erledigt sein.</div>') +
-      '<div class="cl-section"><div class="cl-head"><h4>Vor der Einführung</h4>' +
-        '<span class="cl-anz">' + (CHECK_VOR.length - st.offen) + '/' + CHECK_VOR.length + '</span></div>' +
-        CHECK_VOR.map(zeile).join('') + '</div>' +
-      '<div class="cl-section"><div class="cl-head"><h4>Nach der ersten Reinigung</h4>' +
-        '<span class="cl-anz">' + (CHECK_NACH.length - nachOffen) + '/' + CHECK_NACH.length + '</span></div>' +
-        CHECK_NACH.map(zeile).join('') + '</div>' +
+      '<div class="cl-section">' + CHECK_VOR.map(zeile).join('') + '</div>' +
+      (CHECK_NACH.length
+        ? '<div class="cl-section"><div class="cl-head"><h4>Nach der ersten Reinigung</h4>' +
+          '<span class="cl-anz">' + (CHECK_NACH.length - nachOffen) + '/' + CHECK_NACH.length + '</span></div>' +
+          CHECK_NACH.map(zeile).join('') + '</div>'
+        : '') +
     '</div></div>';
 }
 
@@ -1343,8 +1330,8 @@ function seiteChecklisten(){
       '</summary>' +
       '<div class="cl-inhalt">' +
         (offenVor.length
-          ? '<div class="cl-teil"><h4>Vor der Einführung</h4>' + offenVor.map(([k,t]) => punkt(e,k,t)).join('') + '</div>'
-          : '<p class="cs-hint">Vor der Einführung ist alles erledigt.</p>') +
+          ? '<div class="cl-teil">' + offenVor.map(([k,t]) => punkt(e,k,t)).join('') + '</div>'
+          : '<p class="cs-hint">Alles erledigt.</p>') +
         (offenNach.length
           ? '<div class="cl-teil"><h4>Nach der ersten Reinigung</h4>' + offenNach.map(([k,t]) => punkt(e,k,t)).join('') + '</div>'
           : '') +
