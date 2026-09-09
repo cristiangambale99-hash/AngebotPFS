@@ -1751,6 +1751,46 @@ jspdf/dist/jspdf.es.min.js:
         '</strong> an die Kundschaft.'
       : 'Bitte ein gültiges Datum wählen.';
   }
+  /* Terminvorschlag für die Einführung an die Kundschaft senden */
+  async function einfuehrungSenden(id, ev){
+    if(ev) ev.stopPropagation();
+    const e = CS_LISTE.find(x => String(x.id) === String(id));
+    const mld = document.getElementById('fix-mld');
+    if(!e || !mld) return;
+    const pflegerin = (document.getElementById('fix-pflegerin').value || '').trim();
+    const datum = document.getElementById('fix-eindat').value;
+    const zeit  = document.getElementById('fix-einzeit').value;
+    const erst  = document.getElementById('fix-datum').value;
+    if(!pflegerin || !datum || !zeit){
+      mld.style.color = '#B4232C';
+      mld.textContent = 'Bitte Raumpflegerin, Einführungsdatum und Uhrzeit erfassen.';
+      return;
+    }
+    const btn = ev && ev.target;
+    if(btn){ btn.disabled = true; btn.textContent = 'Wird gesendet …'; }
+    mld.style.color = 'var(--mute)'; mld.textContent = '';
+    try{
+      const r = await fetch('/api/einfuehrung', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ id: id, raumpflegerin: pflegerin, datum: datum, zeit: zeit, erstReinigung: erst })
+      });
+      const d = await r.json().catch(() => ({}));
+      if(!r.ok) throw new Error(d.error || ('Server ' + r.status));
+      e.raumpflegerin = pflegerin; e.einfuehrungAm = datum;
+      e.einfuehrungZeit = zeit; e.erstReinigung = erst; e.einfuehrungBestaetigt = '';
+      const auf = (CS_AUFTRAEGE || []).find(x => String(x.id) === String(id));
+      if(auf) Object.assign(auf, { raumpflegerin: pflegerin, einfuehrungAm: datum,
+                                   einfuehrungZeit: zeit, erstReinigung: erst });
+      mld.style.color = 'var(--teal-deep)';
+      mld.textContent = 'Terminvorschlag gesendet an ' + (d.empfaenger || '') + '.';
+      renderKunde(e); renderToDo();
+    }catch(err){
+      mld.style.color = '#B4232C';
+      mld.textContent = 'Nicht gesendet: ' + err.message;
+      if(btn){ btn.disabled = false; btn.textContent = 'Terminvorschlag an Kundschaft senden'; }
+    }
+  }
+
   async function fixStartSpeichern(id, ev){
     if(ev) ev.stopPropagation();
     const e = CS_LISTE.find(x => String(x.id) === String(id));
@@ -1864,7 +1904,8 @@ jspdf/dist/jspdf.es.min.js:
         antwort = '<span class="td-start td-warten">Springerteam abgelehnt</span>';
       if(springer)
         antwort += '<span class="td-start td-springer">Springerteam gestartet' +
-                   (e.startDatum ? ' · ab ' + new Date(e.startDatum).toLocaleDateString('de-CH') : '') +
+                   (e.startDatum ? ' · ab ' + new Date(e.startDatum).toLocaleDateString('de-CH') +
+                                   (e.startZeit ? ' ' + e.startZeit : '') : '') +
                    '</span>';
 
       // Vorlaufmail: laeuft erst ab dem Wechsel auf «in Bearbeitung»
@@ -1974,14 +2015,27 @@ jspdf/dist/jspdf.es.min.js:
     if(e.quelle === 'auftrag' && ['auftrag','bearbeitung','springer_gewuenscht'].includes(e.stufe)){
       const heute = new Date().toISOString().slice(0,10);
       fixStart =
-        '<div id="fix-start" class="hidden" style="margin:12px 0 4px;padding:12px 14px;' +
+        '<div id="fix-start" class="hidden" style="margin:12px 0 4px;padding:14px 16px;' +
         'background:var(--wash);border:1px solid var(--border);border-radius:10px;">' +
-          '<label class="fl" for="fix-datum" style="font-size:12.5px;">Datum der ersten Reinigung</label>' +
-          '<input type="date" id="fix-datum" value="' + heute + '" ' +
-            'style="font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;">' +
-          '<div id="fix-vorschau" style="font-size:12.5px;color:var(--mute);margin-top:8px;"></div>' +
-          '<div style="margin-top:10px;display:flex;gap:8px;">' +
-            '<button class="btn btn-sm" onclick=\'fixStartSpeichern("' + e.id + '",event)\'>Start bestätigen</button>' +
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">' +
+            '<div><label class="fl" for="fix-pflegerin" style="font-size:12.5px;">Raumpflegerin</label>' +
+              '<input type="text" id="fix-pflegerin" value="' + (e.raumpflegerin || '') + '" placeholder="Vorname" ' +
+              'style="width:100%;font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;"></div>' +
+            '<div><label class="fl" for="fix-eindat" style="font-size:12.5px;">Einführung am</label>' +
+              '<input type="date" id="fix-eindat" value="' + (e.einfuehrungAm || heute) + '" ' +
+              'style="width:100%;font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;"></div>' +
+            '<div><label class="fl" for="fix-einzeit" style="font-size:12.5px;">Uhrzeit</label>' +
+              '<input type="time" id="fix-einzeit" step="900" value="' + (e.einfuehrungZeit || '09:00') + '" ' +
+              'style="width:100%;font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;"></div>' +
+            '<div><label class="fl" for="fix-datum" style="font-size:12.5px;">Erste Reinigung</label>' +
+              '<input type="date" id="fix-datum" value="' + (e.erstReinigung || heute) + '" ' +
+              'style="width:100%;font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;"></div>' +
+          '</div>' +
+          '<div id="fix-vorschau" style="font-size:12.5px;color:var(--mute);margin-top:10px;"></div>' +
+          '<div id="fix-mld" style="font-size:12.5px;margin-top:8px;"></div>' +
+          '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">' +
+            '<button class="btn btn-sm" onclick=\'einfuehrungSenden("' + e.id + '",event)\'>Terminvorschlag an Kundschaft senden</button>' +
+            '<button class="btn btn-sm" style="' + hell + '" onclick=\'fixStartSpeichern("' + e.id + '",event)\'>Nur Start festhalten</button>' +
             '<button class="btn btn-sm" style="' + hell + '" onclick=\'fixStartAbbrechen(event)\'>Abbrechen</button>' +
           '</div>' +
         '</div>';
@@ -2011,14 +2065,23 @@ jspdf/dist/jspdf.es.min.js:
         zeilen.push('Start: <strong>' + (String(e.springerSofort).toLowerCase() === 'ja'
           ? 'sofort mit Springerteam' : 'auf feste Raumpflegerin warten') + '</strong>');
       if(e.startDatum)
-        zeilen.push('Gewünschtes Startdatum: <strong>' +
-          new Date(e.startDatum).toLocaleDateString('de-CH') + '</strong>');
+        zeilen.push('Gewünschter Start: <strong>' +
+          new Date(e.startDatum).toLocaleDateString('de-CH') +
+          (e.startZeit ? ', ' + e.startZeit + ' Uhr' : '') + '</strong>');
       if(e.bearbeitungAb)
         zeilen.push('In Bearbeitung seit ' + new Date(e.bearbeitungAb).toLocaleDateString('de-CH'));
       if(e.vorlaufMail)
         zeilen.push('Vorlaufmail gesendet am ' + new Date(e.vorlaufMail).toLocaleDateString('de-CH'));
       else if(e.vorlaufAus)
         zeilen.push('Vorlaufmail unterdrückt');
+      if(e.raumpflegerin)
+        zeilen.push('Raumpflegerin: <strong>' + e.raumpflegerin + '</strong>');
+      if(e.einfuehrungAm)
+        zeilen.push('Einführung: <strong>' + new Date(e.einfuehrungAm).toLocaleDateString('de-CH') +
+          (e.einfuehrungZeit ? ', ' + e.einfuehrungZeit + ' Uhr' : '') + '</strong>' +
+          (e.einfuehrungBestaetigt
+            ? ' — von der Kundschaft bestätigt am ' + new Date(e.einfuehrungBestaetigt).toLocaleDateString('de-CH')
+            : ' — Bestätigung ausstehend'));
       if(e.erstReinigung)
         zeilen.push('Erste Reinigung: <strong>' +
           new Date(e.erstReinigung).toLocaleDateString('de-CH') + '</strong>');
@@ -2098,7 +2161,7 @@ jspdf/dist/jspdf.es.min.js:
         statusInfo +
         (e.quelle === 'auftrag' && ['auftrag','bearbeitung','springer_gewuenscht'].includes(e.stufe)
           ? '<div class="kd-aktionen" style="margin-bottom:4px;">' +
-            '<button class="btn" onclick=\'fixStartOeffnen("' + e.id + '",event)\'>Start mit fixer Raumpflegerin</button></div>' +
+            '<button class="btn" onclick=\'fixStartOeffnen("' + e.id + '",event)\'>Einführung und Start planen</button></div>' +
             fixStart
           : '') +
         '<div class="kd-aktionen">' +
