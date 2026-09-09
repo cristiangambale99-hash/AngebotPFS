@@ -996,6 +996,22 @@ function offenerAuftrag(e){
 function mitSpringer(){ return LISTE.filter(e => offenerAuftrag(e) && istSpringerStart(e)); }
 function ohneSpringer(){ return LISTE.filter(e => offenerAuftrag(e) && !istSpringerStart(e)); }
 
+/* Zufriedenheit: Merkmal und Erkennung offener Reklamationen */
+const QUALITAET_LABEL = {
+  sehr_zufrieden:'Sehr zufrieden', zufrieden:'Zufrieden',
+  teilweise:'Teilweise zufrieden', nicht:'Nicht zufrieden'
+};
+function unzufrieden(e){
+  return ['teilweise','nicht'].includes(e.qualitaetAntwort);
+}
+function qualitaetMerkmal(e){
+  if(!e.qualitaetAntwort) return '';
+  const l = QUALITAET_LABEL[e.qualitaetAntwort] || e.qualitaetAntwort;
+  return unzufrieden(e)
+    ? '<span class="tag neg">Kundschaft ' + l.toLowerCase() + '</span>'
+    : '<span class="tag pos">Kundschaft ' + l.toLowerCase() + '</span>';
+}
+
 /* Merkmal zum Springerteam, je nach Stand */
 function springerMerkmal(e){
   if(e.stufe === 'aktiv' && istSpringerStart(e)) return '<span class="tag pos">Springerteam gestartet</span>';
@@ -1415,6 +1431,7 @@ function linkKopieren(link){
 
 /* ---------- Aufträge: CRM-Stufen für den Tagesdienst ---------- */
 const AKTIV_STUFEN = [
+  {f:'unzufrieden', t:'Unzufrieden', h:'Reklamation offen — zuerst anschauen.'},
   {f:'aktiv',    t:'Aktiv',    h:'Reinigung läuft.'},
   {f:'archiv',   t:'Archiv',   h:'Abgeschlossen.'},
   {f:'abgesagt', t:'Abgesagt', h:'Kundschaft abgesprungen.'}
@@ -1422,8 +1439,9 @@ const AKTIV_STUFEN = [
 function gefiltertAktive(){
   const F = FILTERS.aktive;
   return LISTE.filter(e => e.quelle === 'auftrag' && ['aktiv','archiv','abgesagt'].includes(e.stufe))
-    .filter(e => F === 'alle' ? true : e.stufe === F)
+    .filter(e => F === 'alle' ? true : F === 'unzufrieden' ? unzufrieden(e) : e.stufe === F)
     .filter(e => passt(e, 'aktive'))
+    .sort((a,b) => (unzufrieden(b) ? 1 : 0) - (unzufrieden(a) ? 1 : 0))
     .sort((a,b) => String(b.erstReinigung || b.datum || '').localeCompare(String(a.erstReinigung || a.datum || '')));
 }
 function aktiveListe(){
@@ -1432,12 +1450,16 @@ function aktiveListe(){
   return '<div style="padding:14px;">' + l.map(e => {
     const d = stufeDef(e.stufe);
     const wartet = wartetAuf(e);
-    return '<div class="zeile" onclick="oeffneFall(\'' + e.id + '\')">' +
+    return '<div class="zeile' + (unzufrieden(e) ? ' dringend' : '') + '" onclick="oeffneFall(\'' + e.id + '\')">' +
       '<div class="wer"><strong>' + esc(name(e)) + '</strong>' +
         '<span>' + esc(ort(e)) + (e.frequenz ? ' · ' + esc(e.frequenz) : '') + '</span></div>' +
-      '<div class="warum"><span class="tag ' + d.art + '">' + d.label + '</span> ' + springerMerkmal(e) + '<br>' +
+      '<div class="warum"><span class="tag ' + d.art + '">' + d.label + '</span> ' +
+        qualitaetMerkmal(e) + ' ' + springerMerkmal(e) + '<br>' +
+        (unzufrieden(e) && e.qualitaetText ? '«' + esc(e.qualitaetText).slice(0, 140) + '»<br>' : '') +
         esc(e.raumpflegerin ? 'Raumpflegerin ' + e.raumpflegerin + '. ' : '') +
-        esc(e.stufe === 'aktiv'
+        esc(unzufrieden(e)
+            ? 'Reklamation offen: bitte Kontakt aufnehmen, Ursache klären und danach die zweite Nachfrage senden.'
+            : e.stufe === 'aktiv'
             ? (wartet ? 'Wartet auf ' + wartet.grund + '.'
                : e.qualitaetAm ? 'Qualitätsnachfrage am ' + dat(e.qualitaetAm) + '.'
                : 'Läuft.')
@@ -1449,17 +1471,22 @@ function aktiveListe(){
 function seiteAktive(){
   const alle = LISTE.filter(e => e.quelle === 'auftrag' && ['aktiv','archiv','abgesagt'].includes(e.stufe));
   const F = FILTERS.aktive;
+  const reklamationen = alle.filter(unzufrieden).length;
   const springer = alle.filter(e => e.stufe === 'aktiv' && istSpringerStart(e)).length;
 
   const kpi = '<div class="kpi-row">' + AKTIV_STUFEN.map(x =>
     '<div class="kpi klick' + (F === x.f ? ' on' : '') + '" onclick="setFilter(\'aktive\',\'' + x.f + '\')">' +
       '<div class="label">' + x.t + '</div>' +
-      '<div class="wert">' + alle.filter(e => e.stufe === x.f).length + '</div>' +
+      '<div class="wert">' + (x.f === 'unzufrieden' ? alle.filter(unzufrieden).length
+        : alle.filter(e => e.stufe === x.f).length) + '</div>' +
       '<div class="delta">' + x.h + '</div></div>').join('') +
     '<div class="kpi"><div class="label">Mit Springerteam gestartet</div><div class="wert">' + springer +
     '</div><div class="delta">von den aktiven Aufträgen</div></div></div>';
 
-  return kpi +
+  return (reklamationen && F !== 'unzufrieden'
+      ? '<div class="hinweis neg">' + (reklamationen === 1 ? 'Eine Kundschaft ist' : reklamationen + ' Kundschaften sind') +
+        ' nicht zufrieden. <a href="#" onclick="setFilter(\'aktive\',\'unzufrieden\');return false;">Jetzt anschauen</a></div>'
+      : '') + kpi +
     '<div class="card"><div class="card-head">' +
       '<div><h2>' + (F === 'alle' ? 'Alle' : (AKTIV_STUFEN.find(x => x.f === F) || {}).t) + '</h2>' +
       '<p><span id="liste-zahl">' + gefiltertAktive().length + '</span> von ' + alle.length + ' Aufträgen' +
@@ -1509,11 +1536,17 @@ function fallSeite(e){
         (e.datum ? 'Erfasst am ' + dat(e.datum) : '') + '</p></div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
         '<span class="tag ' + d.art + '">' + d.label + '</span>' +
-        springerMerkmal(e) +
+        qualitaetMerkmal(e) + springerMerkmal(e) +
         (istSpringerStart(e) && e.startDatum
           ? '<span class="tag neutral">Start ' + dat(e.startDatum) + (e.startZeit ? ', ' + esc(e.startZeit) + ' Uhr' : '') + '</span>' : '') +
       '</div>' +
     '</div>' +
+    (unzufrieden(e)
+      ? '<div class="hinweis neg"><strong>Reklamation offen.</strong> Die Kundschaft hat mit «' +
+        esc(QUALITAET_LABEL[e.qualitaetAntwort] || e.qualitaetAntwort) + '» geantwortet' +
+        (e.qualitaetAntwortAm ? ' am ' + dat(e.qualitaetAntwortAm) : '') + '.' +
+        (e.qualitaetText ? '<br>«' + esc(e.qualitaetText).replace(/\n/g,' ') + '»' : '') + '</div>'
+      : '') +
     (dr.stufe <= 1 ? '<div class="hinweis ' + (dr.stufe === 0 ? 'neg' : 'warn') + '">' + esc(dr.text) + '</div>' : '') +
     '<div class="fall-grid">' +
       '<div>' + kartenFall(e) + kartenLeistungen(e) + kartenVerlauf(e) + '</div>' +
@@ -1536,7 +1569,8 @@ function kartenFall(e){
         (e.einfuehrungBestaetigt ? ' · bestätigt' : ' · noch nicht bestätigt') : '—'],
     ['Erste Reinigung', dat(e.erstReinigung) || '—'],
     ['Vertrag', e.vertragSigniertAm ? 'unterschrieben am ' + dat(e.vertragSigniertAm) : 'noch nicht unterschrieben'],
-    ['Qualitätsnachfrage', e.qualitaetAm ? dat(e.qualitaetAm) + (e.qualitaetAntwort ? ' · beantwortet: ' + esc(e.qualitaetAntwort) : '') : '—']
+    ['Qualitätsnachfrage', e.qualitaetAm ? dat(e.qualitaetAm) + (e.qualitaetAntwort ? ' · beantwortet: ' + esc(QUALITAET_LABEL[e.qualitaetAntwort] || e.qualitaetAntwort) : '') : '—'],
+    ['Rückmeldung im Wortlaut', e.qualitaetText ? esc(e.qualitaetText).replace(/\n/g,'<br>') : '—']
   ];
   return '<div class="card"><div class="card-head"><h2>Der Fall</h2></div><div class="card-body">' +
     '<dl class="dl">' + zeilen.map(z => '<dt>' + z[0] + '</dt><dd>' + z[1] + '</dd>').join('') + '</dl></div></div>';
@@ -1556,7 +1590,11 @@ function kartenVerlauf(e){
   add(e.einfuehrungBestaetigt, 'Einführungstermin von der Kundschaft bestätigt', true);
   add(e.vertragSigniertAm, 'Vertrag unterschrieben', true);
   add(e.qualitaetMail, 'Qualitätsnachfrage gesendet', true);
-  add(e.qualitaetAntwortAm, 'Rückmeldung zur Qualität: ' + (e.qualitaetAntwort || ''), true);
+  (Array.isArray(e.qualitaetVerlauf) ? e.qualitaetVerlauf : []).forEach(v =>
+    add(v.am, 'Frühere Rückmeldung: ' + (QUALITAET_LABEL[v.antwort] || v.antwort || '') +
+        (v.text ? '</strong><br><span style="color:var(--cs-ink)">' + esc(v.text) + '</span><strong>' : ''), true));
+  add(e.qualitaetAntwortAm, 'Rückmeldung zur Qualität: ' + (QUALITAET_LABEL[e.qualitaetAntwort] || e.qualitaetAntwort || '') +
+      (e.qualitaetText ? '</strong><br><span style="color:var(--cs-ink)">' + esc(e.qualitaetText).replace(/\n/g,'<br>') + '</span><strong>' : ''), true);
 
   const notizen = Array.isArray(e.notizen) ? e.notizen.slice()
     : (e.notiz ? [{text:e.notiz, von:e.zuletztVon || '', am:e.zuletztAm || ''}] : []);
@@ -1634,15 +1672,24 @@ function kartenSchritte(e){
 
   if(auftrag && (e.stufe === 'aktiv' || e.qualitaetAm)){
     const stand = e.qualitaetAntwort
-      ? 'Die Kundschaft hat mit «' + esc(e.qualitaetAntwort) + '» geantwortet.'
+      ? 'Die Kundschaft hat mit «' + esc(QUALITAET_LABEL[e.qualitaetAntwort] || e.qualitaetAntwort) + '» geantwortet.'
       : e.qualitaetMail
         ? 'Am ' + dat(e.qualitaetMail) + ' gesendet, Antwort steht aus.'
         : e.qualitaetAm
           ? 'Geht automatisch am ' + dat(e.qualitaetAm) + ' hinaus.'
           : 'Noch kein Termin berechnet — dafür fehlt das Datum der ersten Reinigung.';
+    if(unzufrieden(e)){
+      s.push(schritt('Reklamation bearbeiten',
+        'Zuerst Kontakt aufnehmen und die Ursache klären. Danach fragst du mit der zweiten Nachfrage nach, ' +
+        'ob es jetzt passt. Die bisherige Antwort wandert in den Verlauf, der Fall verlässt damit die Liste ' +
+        'der unzufriedenen Kundschaft, bis die neue Antwort eintrifft.',
+        '<button class="btn primary-action" onclick="qualitaetErneut(\'' + e.id + '\', this)">Zweite Nachfrage senden</button>'));
+    }
+
     s.push(schritt('Qualitätsnachfrage', stand +
-      ' Mit der Probe siehst du die Nachricht so, wie die Kundschaft sie erhält; sie geht an das Postfach des Putzfrauenservice und ändert nichts am Auftrag.',
+      ' Beide Proben gehen an das Postfach des Putzfrauenservice und ändern nichts am Auftrag: die Nachfrage selbst und die Bitte um eine Google-Bewertung, die sonst automatisch nach einer guten Rückmeldung folgt.',
       '<button class="btn secondary" onclick="qualitaetSenden(\'' + e.id + '\', true, this)">Probe an uns senden</button>' +
+      '<button class="btn secondary" onclick="bewertungProbe(\'' + e.id + '\', this)">Probe Bewertungsmail</button>' +
       '<button class="btn" onclick="qualitaetSenden(\'' + e.id + '\', false, this)">Jetzt an die Kundschaft senden</button>'));
   }
 
@@ -1801,6 +1848,58 @@ async function qualitaetSenden(id, probe, btn){
       meldung('Qualitätsnachfrage gesendet an ' + (d.empfaenger || ziel) + '.');
       return;
     }
+  }catch(err){
+    meldung('Nicht gesendet: ' + err.message, 'neg');
+  }
+  btn.disabled = false; btn.textContent = text;
+}
+
+/* Die Bitte um eine Google-Bewertung geht sonst automatisch nach einer guten
+   Rückmeldung hinaus. Hier nur als Probe an das Postfach des Putzfrauenservice. */
+async function qualitaetErneut(id, btn){
+  const e = LISTE.find(x => String(x.id) === String(id));
+  if(!e) return;
+  const ziel = mailVon(e);
+  if(!ziel){ meldung('Keine E-Mail-Adresse hinterlegt.', 'neg'); return; }
+  if(!confirm('Zweite Qualitätsnachfrage an ' + name(e) + ' (' + ziel + ') senden?\n\n' +
+              'Die bisherige Rückmeldung wandert in den Verlauf.')) return;
+  const text = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Wird gesendet …';
+  try{
+    const r = await fetch('/api/followup', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({id, art:'qualitaet', erneut:true})
+    });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(d.error ? JSON.stringify(d.error) : 'Server ' + r.status);
+    const verlauf = Array.isArray(e.qualitaetVerlauf) ? e.qualitaetVerlauf.slice() : [];
+    if(e.qualitaetAntwort) verlauf.push({antwort:e.qualitaetAntwort, text:e.qualitaetText || '', am:e.qualitaetAntwortAm || ''});
+    Object.assign(e, {qualitaetVerlauf: verlauf, qualitaetAntwort:'', qualitaetText:'',
+                      qualitaetAntwortAm:'', qualitaetMail: d.gesendetAm || new Date().toISOString()});
+    const auf = AUFTRAEGE.find(x => String(x.id) === String(id));
+    if(auf) Object.assign(auf, {qualitaetVerlauf: verlauf, qualitaetAntwort:'', qualitaetText:'',
+                                qualitaetAntwortAm:'', qualitaetMail: e.qualitaetMail});
+    zeichnen();
+    meldung('Zweite Nachfrage gesendet an ' + (d.empfaenger || ziel) + '.');
+    return;
+  }catch(err){
+    meldung('Nicht gesendet: ' + err.message, 'neg');
+  }
+  btn.disabled = false; btn.textContent = text;
+}
+
+async function bewertungProbe(id, btn){
+  const ziel = 'putzfrauenservice@clean-service.ch';
+  const text = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Wird gesendet …';
+  try{
+    const r = await fetch('/api/followup', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({id, art:'bewertung', an: ziel})
+    });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(d.error ? JSON.stringify(d.error) : 'Server ' + r.status);
+    meldung('Bewertungsmail als Probe gesendet an ' + (d.empfaenger || ziel) + '.');
   }catch(err){
     meldung('Nicht gesendet: ' + err.message, 'neg');
   }
