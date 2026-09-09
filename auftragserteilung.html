@@ -340,10 +340,17 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
       <h2 data-i18n="a59"><span class="n">6</span> Start und Weiteres</h2>
 
       <label data-i18n="a60" class="fl">Start mit unserem Springerteam?</label>
-      <div data-i18n="a61" class="opts" style="margin-bottom:18px;">
-        <label class="opt"><input type="radio" name="f-springer" value="Nein" checked>Auf feste Raumpflegerin warten <span class="sub">10–14 Werktage</span></label>
-        <label class="opt"><input type="radio" name="f-springer" value="Ja">Sofort mit Springerteam starten</label>
+      <div data-i18n="a61" class="opts">
+        <label class="opt"><input type="radio" name="f-springer" value="Nein" checked onchange="toggleStart()">Auf feste Raumpflegerin warten <span class="sub">10–14 Werktage</span></label>
+        <label class="opt"><input type="radio" name="f-springer" value="Ja" onchange="toggleStart()">Sofort mit Springerteam starten</label>
       </div>
+
+      <div class="folds hidden" id="start-feld">
+        <label data-i18n="a74" class="fl" for="f-startdatum">Gewünschtes Startdatum</label>
+        <input type="date" id="f-startdatum">
+        <div data-i18n="a75" class="note">Damit wir Ihr Team einplanen und alle Unterlagen vorbereiten können, liegt der früheste Termin sieben Tage in der Zukunft. Wir bestätigen Ihnen dieses Datum schriftlich.</div>
+      </div>
+      <div style="height:18px;"></div>
 
       <label data-i18n="a62" class="fl">Unverbindliche Fensterreinigungsofferte gewünscht?</label>
       <div data-i18n="a63" class="opts">
@@ -479,7 +486,9 @@ const I18N_EN = {
 "s6": "5th floor",
 "s7": "6th floor",
 "s8": "Penthouse flat",
-"s9": "Several floors"
+"s9": "Several floors",
+"a74": "Preferred start date",
+"a75": "So that we can schedule your team and prepare all the documents, the earliest possible date is seven days from today. We will confirm this date in writing."
 };
 const I18N_ATTR_EN = [["#f-boden", "placeholder", "e.g. parquet, tiles"], ["#f-boden-text", "placeholder", "e.g. cork, vinyl"], ["#f-alarmcode", "placeholder", "Treated confidentially"], ["#f-tier-text", "placeholder", "e.g. rabbit, bird"], ["#f-vereinbarungen", "placeholder", "e.g. delicate surfaces, access via neighbours"]];
 
@@ -562,6 +571,24 @@ function updateAufwand(){
 document.getElementById('f-zimmer').addEventListener('input', updateAufwand);
 document.getElementById('f-frequenz').addEventListener('change', updateAufwand);
 
+/* ---- Startdatum bei Sofortstart ---- */
+function toggleStart(){
+  const ja = (document.querySelector('input[name="f-springer"]:checked') || {}).value === 'Ja';
+  const box = document.getElementById('start-feld');
+  const feld = document.getElementById('f-startdatum');
+  if(box) box.classList.toggle('hidden', !ja);
+  if(feld){
+    feld.required = ja;
+    if(!feld.min){
+      // Fruehester Termin: sieben Tage in der Zukunft
+      const d = new Date(); d.setDate(d.getDate() + 7);
+      feld.min = d.toISOString().slice(0, 10);
+      feld.value = feld.min;
+    }
+  }
+  updateSteps();
+}
+
 /* ---- Ein- und ausklappen ---- */
 function toggleAlarm(){
   const an = document.getElementById('f-alarm').value === 'Ja';
@@ -638,6 +665,18 @@ function submitOrder(e){
   const frequenz = document.getElementById('f-frequenz').value;
   const aufwand = calcAufwand(zimmer, frequenz);
   const tage = [...document.querySelectorAll('.f-tag:checked')].map(c => c.value);
+  const springerJa = document.querySelector('input[name="f-springer"]:checked').value === 'Ja';
+  const startFeld = document.getElementById('f-startdatum');
+  if(springerJa){
+    const frueh = new Date(); frueh.setDate(frueh.getDate() + 7);
+    const grenze = frueh.toISOString().slice(0, 10);
+    if(!startFeld.value || startFeld.value < grenze){
+      alert(EN() ? 'Please choose a start date at least seven days from today.'
+                 : 'Bitte wählen Sie ein Startdatum, das mindestens sieben Tage in der Zukunft liegt.');
+      startFeld.focus();
+      return false;
+    }
+  }
   if(!tage.length){
     alert(EN() ? 'Please select at least one possible cleaning day.'
                : 'Bitte wählen Sie mindestens einen möglichen Reinigungstag.');
@@ -690,6 +729,7 @@ function submitOrder(e){
     alarmCode: document.getElementById('f-alarmcode').value,
     fensterOfferte: document.querySelector('input[name="f-fenster"]:checked').value,
     springerSofort: document.querySelector('input[name="f-springer"]:checked').value,
+    startDatum: springerJa ? startFeld.value : '',
     vereinbarungen: document.getElementById('f-vereinbarungen').value
   };
   entry.zusatzBuchen = (entry.zusatzBettbezuege || entry.zusatzWaesche ||

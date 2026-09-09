@@ -1706,6 +1706,74 @@ jspdf/dist/jspdf.es.min.js:
 
   const VORLAUF_WERKTAGE = 7;   // muss mit api/followup.js übereinstimmen
 
+  /* Abstand bis zur Qualitätsnachfrage, gerechnet ab der ersten Reinigung.
+     Entspricht zwei Reinigungszyklen: wöchentlich 14 Tage, 14-täglich 4 Wochen,
+     monatlich 2 Monate. Werte hier ändern, wenn der Rhythmus anders sein soll. */
+  const QUALITAET_ABSTAND = {
+    woechentlich:  { tage: 14 },
+    '14-taeglich': { tage: 28 },
+    monatlich:     { monate: 2 }
+  };
+
+  function qualitaetsDatum(erstDatum, frequenz){
+    const d = new Date(erstDatum);
+    if(isNaN(d.getTime())) return null;
+    const a = QUALITAET_ABSTAND[frequenz] || QUALITAET_ABSTAND.woechentlich;
+    if(a.monate) d.setMonth(d.getMonth() + a.monate);
+    else d.setDate(d.getDate() + a.tage);
+    return d;
+  }
+
+  function fixStartOeffnen(id, ev){
+    if(ev) ev.stopPropagation();
+    const box = document.getElementById('fix-start');
+    if(box) box.classList.remove('hidden');
+    const feld = document.getElementById('fix-datum');
+    if(feld){
+      feld.onchange = () => fixVorschau(id);
+      fixVorschau(id);
+      feld.focus();
+    }
+  }
+  function fixStartAbbrechen(ev){
+    if(ev) ev.stopPropagation();
+    const box = document.getElementById('fix-start');
+    if(box) box.classList.add('hidden');
+  }
+  function fixVorschau(id){
+    const e = CS_LISTE.find(x => String(x.id) === String(id));
+    const feld = document.getElementById('fix-datum');
+    const out  = document.getElementById('fix-vorschau');
+    if(!e || !feld || !out) return;
+    const q = qualitaetsDatum(feld.value, e.frequenz);
+    out.innerHTML = q
+      ? 'Qualitätsnachfrage geht automatisch am <strong>' + q.toLocaleDateString('de-CH') +
+        '</strong> an die Kundschaft.'
+      : 'Bitte ein gültiges Datum wählen.';
+  }
+  async function fixStartSpeichern(id, ev){
+    if(ev) ev.stopPropagation();
+    const e = CS_LISTE.find(x => String(x.id) === String(id));
+    const feld = document.getElementById('fix-datum');
+    if(!e || !feld || !feld.value) return;
+    const q = qualitaetsDatum(feld.value, e.frequenz);
+    if(!q) return;
+    e.erstReinigung = feld.value;
+    e.qualitaetAm = q.toISOString().slice(0,10);
+    e.stufe = 'aktiv';
+    const auf = (CS_AUFTRAEGE || []).find(x => String(x.id) === String(id));
+    if(auf){ auf.erstReinigung = e.erstReinigung; auf.qualitaetAm = e.qualitaetAm; auf.stufe = 'aktiv'; }
+    renderKunde(e); renderToDo();
+    try{
+      const r = await fetch('/api/orders?aktion=update', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ id: id, stufe: 'aktiv', bearbeiter: CS_WER,
+                               erstReinigung: e.erstReinigung, qualitaetAm: e.qualitaetAm })
+      });
+      if(!r.ok) throw new Error('Server ' + r.status);
+    }catch(err){ alert('Nicht gespeichert: ' + err.message); }
+  }
+
   /* Vorlaufmail sofort senden, unabhängig von der Frist */
   async function vorlaufJetzt(id, ev){
     if(ev) ev.stopPropagation();
@@ -1794,6 +1862,10 @@ jspdf/dist/jspdf.es.min.js:
       let antwort = '';
       if(e.springerAntwort === 'nein')
         antwort = '<span class="td-start td-warten">Springerteam abgelehnt</span>';
+      if(springer)
+        antwort += '<span class="td-start td-springer">Springerteam gestartet' +
+                   (e.startDatum ? ' · ab ' + new Date(e.startDatum).toLocaleDateString('de-CH') : '') +
+                   '</span>';
 
       // Vorlaufmail: laeuft erst ab dem Wechsel auf «in Bearbeitung»
       let vorlauf = '';
@@ -1896,6 +1968,25 @@ jspdf/dist/jspdf.es.min.js:
     else if(e.stufe === 'bearbeitung' || e.stufe === 'springer_gewuenscht')
       weiter = '<button class="btn" onclick=\'setStufe("' + e.id + '","aktiv",event)\'>Auf aktiv setzen</button>';
 
+    /* Start mit fixer Raumpflegerin: Datum des ersten Einsatzes erfassen.
+       Daraus berechnet das System den Termin der Qualitätsnachfrage. */
+    let fixStart = '';
+    if(e.quelle === 'auftrag' && ['auftrag','bearbeitung','springer_gewuenscht'].includes(e.stufe)){
+      const heute = new Date().toISOString().slice(0,10);
+      fixStart =
+        '<div id="fix-start" class="hidden" style="margin:12px 0 4px;padding:12px 14px;' +
+        'background:var(--wash);border:1px solid var(--border);border-radius:10px;">' +
+          '<label class="fl" for="fix-datum" style="font-size:12.5px;">Datum der ersten Reinigung</label>' +
+          '<input type="date" id="fix-datum" value="' + heute + '" ' +
+            'style="font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;">' +
+          '<div id="fix-vorschau" style="font-size:12.5px;color:var(--mute);margin-top:8px;"></div>' +
+          '<div style="margin-top:10px;display:flex;gap:8px;">' +
+            '<button class="btn btn-sm" onclick=\'fixStartSpeichern("' + e.id + '",event)\'>Start bestätigen</button>' +
+            '<button class="btn btn-sm" style="' + hell + '" onclick=\'fixStartAbbrechen(event)\'>Abbrechen</button>' +
+          '</div>' +
+        '</div>';
+    }
+
     /* Nachfrage «Start mit Springerteam» von Hand auslösen.
        Steht immer zur Verfügung, solange der Auftrag in Bearbeitung ist —
        auch wenn die automatische Mail schon draussen ist. */
@@ -1919,12 +2010,21 @@ jspdf/dist/jspdf.es.min.js:
       if(e.springerSofort)
         zeilen.push('Start: <strong>' + (String(e.springerSofort).toLowerCase() === 'ja'
           ? 'sofort mit Springerteam' : 'auf feste Raumpflegerin warten') + '</strong>');
+      if(e.startDatum)
+        zeilen.push('Gewünschtes Startdatum: <strong>' +
+          new Date(e.startDatum).toLocaleDateString('de-CH') + '</strong>');
       if(e.bearbeitungAb)
         zeilen.push('In Bearbeitung seit ' + new Date(e.bearbeitungAb).toLocaleDateString('de-CH'));
       if(e.vorlaufMail)
         zeilen.push('Vorlaufmail gesendet am ' + new Date(e.vorlaufMail).toLocaleDateString('de-CH'));
       else if(e.vorlaufAus)
         zeilen.push('Vorlaufmail unterdrückt');
+      if(e.erstReinigung)
+        zeilen.push('Erste Reinigung: <strong>' +
+          new Date(e.erstReinigung).toLocaleDateString('de-CH') + '</strong>');
+      if(e.qualitaetAm)
+        zeilen.push('Qualitätsnachfrage geplant auf <strong>' +
+          new Date(e.qualitaetAm).toLocaleDateString('de-CH') + '</strong>');
       if(e.springerAntwort)
         zeilen.push('Antwort der Kundschaft: <strong>' + (e.springerAntwort === 'ja'
           ? 'Start mit Springerteam gewünscht' : 'Springerteam abgelehnt') + '</strong>' +
@@ -1996,6 +2096,11 @@ jspdf/dist/jspdf.es.min.js:
       '<div class="kd-karte">' +
         '<h3>Status</h3>' +
         statusInfo +
+        (e.quelle === 'auftrag' && ['auftrag','bearbeitung','springer_gewuenscht'].includes(e.stufe)
+          ? '<div class="kd-aktionen" style="margin-bottom:4px;">' +
+            '<button class="btn" onclick=\'fixStartOeffnen("' + e.id + '",event)\'>Start mit fixer Raumpflegerin</button></div>' +
+            fixStart
+          : '') +
         '<div class="kd-aktionen">' +
           weiter + nachfrage +
           (e.stufe !== 'abgesagt'
