@@ -1728,11 +1728,14 @@ jspdf/dist/jspdf.es.min.js:
     if(ev) ev.stopPropagation();
     const box = document.getElementById('fix-start');
     if(box) box.classList.remove('hidden');
+    const ein = document.getElementById('fix-eindat');
     const feld = document.getElementById('fix-datum');
-    if(feld){
-      feld.onchange = () => fixVorschau(id);
+    if(ein && feld){
+      // Die erste Reinigung folgt immer dem Einführungstermin
+      ein.onchange = () => { feld.value = ein.value; fixVorschau(id); };
+      feld.value = ein.value;
       fixVorschau(id);
-      feld.focus();
+      ein.focus();
     }
   }
   function fixStartAbbrechen(ev){
@@ -1760,7 +1763,8 @@ jspdf/dist/jspdf.es.min.js:
     const pflegerin = (document.getElementById('fix-pflegerin').value || '').trim();
     const datum = document.getElementById('fix-eindat').value;
     const zeit  = document.getElementById('fix-einzeit').value;
-    const erst  = document.getElementById('fix-datum').value;
+    const erst  = datum;   // Einführung und erste Reinigung fallen zusammen
+    document.getElementById('fix-datum').value = datum;
     if(!pflegerin || !datum || !zeit){
       mld.style.color = '#B4232C';
       mld.textContent = 'Bitte Raumpflegerin, Einführungsdatum und Uhrzeit erfassen.';
@@ -1935,8 +1939,12 @@ jspdf/dist/jspdf.es.min.js:
                     '<button onclick=\'vorlaufSchalten("' + e.id + '",true,event)\'>unterdrücken</button></span>';
         }
       }
+      const sdef = STUFEN.find(x => x.id === e.stufe);
+      const statusTag = sdef
+        ? '<span class="crm-status ' + sdef.klasse + '" style="margin-left:8px;font-size:10.5px;">' +
+          sdef.label + '</span>' : '';
       return '<div class="td-row" onclick=\'zuKunde("' + e.id + '","todo")\'>' +
-        '<div class="td-l"><strong>' + (e.vorname||'') + ' ' + (e.nachname||'') + '</strong>' +
+        '<div class="td-l"><strong>' + (e.vorname||'') + ' ' + (e.nachname||'') + '</strong>' + statusTag +
           '<span>' + (e.adresse||'') + (e.plzOrt||e.ort ? ', ' + (e.plzOrt||e.ort) : '') + '</span>' +
           startTag + antwort + vorlauf + '</div>' +
         '<div class="td-m">' + (e.alter !== null && e.alter !== undefined ? 'vor ' + e.alter + ' Tagen' : '') +
@@ -2021,16 +2029,14 @@ jspdf/dist/jspdf.es.min.js:
             '<div><label class="fl" for="fix-pflegerin" style="font-size:12.5px;">Raumpflegerin</label>' +
               '<input type="text" id="fix-pflegerin" value="' + (e.raumpflegerin || '') + '" placeholder="Vorname" ' +
               'style="width:100%;font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;"></div>' +
-            '<div><label class="fl" for="fix-eindat" style="font-size:12.5px;">Einführung am</label>' +
+            '<div><label class="fl" for="fix-eindat" style="font-size:12.5px;">Einführung und erste Reinigung am</label>' +
               '<input type="date" id="fix-eindat" value="' + (e.einfuehrungAm || heute) + '" ' +
               'style="width:100%;font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;"></div>' +
             '<div><label class="fl" for="fix-einzeit" style="font-size:12.5px;">Uhrzeit</label>' +
               '<input type="time" id="fix-einzeit" step="900" value="' + (e.einfuehrungZeit || '09:00') + '" ' +
               'style="width:100%;font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;"></div>' +
-            '<div><label class="fl" for="fix-datum" style="font-size:12.5px;">Erste Reinigung</label>' +
-              '<input type="date" id="fix-datum" value="' + (e.erstReinigung || heute) + '" ' +
-              'style="width:100%;font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;"></div>' +
           '</div>' +
+          '<input type="hidden" id="fix-datum" value="' + (e.erstReinigung || heute) + '">' +
           '<div id="fix-vorschau" style="font-size:12.5px;color:var(--mute);margin-top:10px;"></div>' +
           '<div id="fix-mld" style="font-size:12.5px;margin-top:8px;"></div>' +
           '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">' +
