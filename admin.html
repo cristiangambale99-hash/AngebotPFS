@@ -1876,17 +1876,62 @@ jspdf/dist/jspdf.es.min.js:
     const alle = CS_LISTE || [];
     const jetzt = Date.now();
 
-    const neuEing = alle.filter(e => e.stufe === 'auftrag');
-    const inArbeit = alle.filter(e => e.stufe === 'bearbeitung');
-    const springerJa = alle.filter(e => e.stufe === 'springer_gewuenscht');
-    // Sofortstarts zuerst: dort drueckt die Zeit am meisten
-    neuEing.sort((a, b) => {
-      const sa = String(a.springerSofort || '').toLowerCase() === 'ja' ? 0 : 1;
-      const sb = String(b.springerSofort || '').toLowerCase() === 'ja' ? 0 : 1;
-      return sa - sb;
-    });
+    /* Gruppiert wird nach Dringlichkeit, nicht nach Status — morgens um acht
+       zählt die Frage «was ist überfällig», nicht «welchen Status hat es».
+       Die Aufgaben gehören dem Team, nicht einer Person. */
+    const offen = alle.filter(e =>
+      ['auftrag','bearbeitung','springer_gewuenscht'].includes(e.stufe));
 
-    const zahl = neuEing.length + inArbeit.length + springerJa.length;
+    const heute = new Date(); heute.setHours(0,0,0,0);
+    const tageBis = iso => {
+      const d = new Date(iso); if(isNaN(d.getTime())) return null;
+      d.setHours(0,0,0,0);
+      return Math.round((d - heute) / 86400000);
+    };
+
+    /* Worauf warten wir bei diesem Auftrag? Gibt Grund und Alter zurück. */
+    function wartet(e){
+      if(e.einfuehrungAm && !e.einfuehrungBestaetigt)
+        return { grund:'Bestätigung des Einführungstermins', seit: e.einfuehrungVorschlagAm };
+      if(e.vorlaufMail && !e.springerAntwort)
+        return { grund:'Antwort auf die Springerteam-Nachfrage', seit: e.vorlaufMail };
+      if(e.qualitaetMail && !e.qualitaetAntwort)
+        return { grund:'Antwort auf die Qualitätsnachfrage', seit: e.qualitaetMail };
+      if(e.einfuehrungBestaetigt && !e.vertragSigniertAm)
+        return { grund:'unterschriebenen Vertrag', seit: e.einfuehrungBestaetigt };
+      return null;
+    }
+
+    /* Wie dringend ist der Auftrag? 0 überfällig, 1 heute, 2 wartend, 3 offen */
+    function dringlichkeit(e){
+      const w = wartet(e);
+      if(w){
+        const tage = w.seit ? -tageBis(w.seit) : 0;
+        if(tage > 7) return { stufe:0, text:'Seit ' + tage + ' Tagen keine Antwort: ' + w.grund };
+        return { stufe:2, text:'Wartet auf ' + w.grund +
+                 (w.seit ? ' · seit ' + new Date(w.seit).toLocaleDateString('de-CH') : '') };
+      }
+      if(e.stufe === 'bearbeitung' && !e.vorlaufAus && e.bearbeitungAb && !e.vorlaufMail){
+        const rest = VORLAUF_WERKTAGE - werktageSeit(e.bearbeitungAb);
+        if(rest <= 0) return { stufe:0, text:'Nachfrage überfällig — geht beim nächsten Lauf hinaus' };
+        if(rest <= 2) return { stufe:1, text:'Nachfrage geht in ' + rest + ' Werktag' + (rest===1?'':'en') + ' hinaus' };
+      }
+      if(e.stufe === 'auftrag'){
+        const tage = e.eingegangenAm ? -tageBis(e.eingegangenAm) : 0;
+        if(tage >= 3) return { stufe:0, text:'Seit ' + tage + ' Tagen unbearbeitet' };
+        return { stufe:3, text:'Neu eingegangen' };
+      }
+      if(e.stufe === 'springer_gewuenscht' && !e.einfuehrungAm)
+        return { stufe:3, text:'Einführung mit fixer Raumpflegerin noch offen' };
+      return { stufe:3, text:'In Arbeit' };
+    }
+
+    offen.forEach(e => { e._dr = dringlichkeit(e); });
+    const gruppe = n => offen.filter(e => e._dr.stufe === n);
+    const ueberfaellig = gruppe(0), heuteFaellig = gruppe(1),
+          wartend = gruppe(2), laufend = gruppe(3);
+
+    const zahl = offen.length;
     const badge = document.getElementById('todo-zahl');
     if(badge){ badge.textContent = zahl || ''; badge.style.display = zahl ? 'inline-flex' : 'none'; }
 
@@ -1946,7 +1991,11 @@ jspdf/dist/jspdf.es.min.js:
       return '<div class="td-row" onclick=\'zuKunde("' + e.id + '","todo")\'>' +
         '<div class="td-l"><strong>' + (e.vorname||'') + ' ' + (e.nachname||'') + '</strong>' + statusTag +
           '<span>' + (e.adresse||'') + (e.plzOrt||e.ort ? ', ' + (e.plzOrt||e.ort) : '') + '</span>' +
-          startTag + antwort + vorlauf + '</div>' +
+          startTag + antwort +
+          (e._dr ? '<span class="td-vorlauf ' + (e._dr.stufe === 0 ? 'vl-bald' : 'vl-offen') +
+                   '" style="font-weight:' + (e._dr.stufe === 0 ? '600' : '400') + ';">' +
+                   e._dr.text + '</span>' : '') +
+          vorlauf + '</div>' +
         '<div class="td-m">' + (e.alter !== null && e.alter !== undefined ? 'vor ' + e.alter + ' Tagen' : '') +
           (wann ? '<span class="td-spur">zuletzt ' + wann + '</span>' : '<span class="td-spur td-neu">noch nicht bearbeitet</span>') +
         '</div>' +
@@ -1957,6 +2006,8 @@ jspdf/dist/jspdf.es.min.js:
 
     function block(titel, hinweis, liste, farbe){
       if(!liste.length) return '';
+      liste = liste.slice().sort((a, b) =>
+        String(a.datum || a.eingegangenAm || '').localeCompare(String(b.datum || b.eingegangenAm || '')));
       return '<div class="td-block">' +
         '<div class="td-head"><span class="td-dot" style="background:' + farbe + '"></span>' +
           '<h3>' + titel + '</h3><span class="td-anz">' + liste.length + '</span></div>' +
@@ -1965,15 +2016,18 @@ jspdf/dist/jspdf.es.min.js:
     }
 
     const inhalt =
-      block('Neu eingegangen',
-        'Prüfen, dann auf «In Bearbeitung» setzen.',
-        neuEing, '#2BB6B7') +
-      block('In Bearbeitung',
-        'Raumpflegerin koordinieren. Nach sieben Werktagen geht die Nachfrage automatisch an die Kundschaft.',
-        inArbeit, '#E0B454') +
-      block('Springerteam gewünscht',
-        'Ersten Einsatz über das Springerteam einplanen.',
-        springerJa, '#60BEB3');
+      block('Überfällig',
+        'Hier liegt etwas zu lange. Zuerst anschauen.',
+        ueberfaellig, '#B4232C') +
+      block('Heute fällig',
+        'In den nächsten zwei Werktagen geht eine automatische Nachricht hinaus.',
+        heuteFaellig, '#E0B454') +
+      block('Neu und in Arbeit',
+        'Laufende Aufträge ohne besondere Dringlichkeit.',
+        laufend, '#2BB6B7') +
+      block('Wartet auf die Kundschaft',
+        'Nichts zu tun — wir warten auf eine Rückmeldung. Erscheint hier nach sieben Tagen als überfällig.',
+        wartend, '#98C2D1');
 
     box.innerHTML = inhalt || '<div class="td-leer">' +
       '<div class="td-leer-ico">&#10003;</div><h3>Alles erledigt</h3>' +
