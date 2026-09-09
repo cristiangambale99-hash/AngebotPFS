@@ -65,6 +65,10 @@ body::before,body::after{display:none!important;}
 .td-m{font-size:12.5px;color:var(--body-c);}
 .td-spur{display:block;font-size:11.5px;color:var(--mute);margin-top:2px;}
 .td-spur.td-neu{color:#B4232C;}
+.td-start{display:inline-flex;align-items:center;gap:5px;margin-top:5px;padding:2px 9px;
+  border-radius:100px;font-size:11px;font-weight:bold;letter-spacing:.02em;}
+.td-start.td-springer{background:#E4F5F5;color:#12797A;border:1px solid #9FD8D8;}
+.td-start.td-warten{background:var(--wash);color:var(--mute);border:1px solid var(--border-soft);}
 .td-r{display:flex;gap:7px;}
 .td-r a{font-size:12px;color:var(--teal-deep);text-decoration:none;padding:6px 12px;
   border:1px solid var(--border);border-radius:100px;background:var(--surface);white-space:nowrap;}
@@ -1553,6 +1557,12 @@ jspdf/dist/jspdf.es.min.js:
     const jetzt = Date.now();
 
     const neuEing = alle.filter(e => e.stufe === 'auftrag');
+    // Sofortstarts zuerst: dort drueckt die Zeit am meisten
+    neuEing.sort((a, b) => {
+      const sa = String(a.springerSofort || '').toLowerCase() === 'ja' ? 0 : 1;
+      const sb = String(b.springerSofort || '').toLowerCase() === 'ja' ? 0 : 1;
+      return sa - sb;
+    });
 
     const zahl = neuEing.length;
     const badge = document.getElementById('todo-zahl');
@@ -1563,9 +1573,16 @@ jspdf/dist/jspdf.es.min.js:
       const wann = e.zuletztAm
         ? new Date(e.zuletztAm).toLocaleDateString('de-CH') + (e.zuletztVon ? ' · ' + e.zuletztVon : '')
         : '';
+      // Startart auf einen Blick: entscheidet, ob sofort disponiert werden muss
+      const springer = String(e.springerSofort || '').toLowerCase() === 'ja';
+      const startTag = e.springerSofort
+        ? '<span class="td-start ' + (springer ? 'td-springer' : 'td-warten') + '">' +
+            (springer ? 'Start mit Springerteam' : 'Wartet auf feste Raumpflegerin') + '</span>'
+        : '';
       return '<div class="td-row" onclick=\'zuKunde("' + e.id + '","todo")\'>' +
         '<div class="td-l"><strong>' + (e.vorname||'') + ' ' + (e.nachname||'') + '</strong>' +
-          '<span>' + (e.adresse||'') + (e.plzOrt||e.ort ? ', ' + (e.plzOrt||e.ort) : '') + '</span></div>' +
+          '<span>' + (e.adresse||'') + (e.plzOrt||e.ort ? ', ' + (e.plzOrt||e.ort) : '') + '</span>' +
+          startTag + '</div>' +
         '<div class="td-m">' + (e.alter !== null && e.alter !== undefined ? 'vor ' + e.alter + ' Tagen' : '') +
           (wann ? '<span class="td-spur">zuletzt ' + wann + '</span>' : '<span class="td-spur td-neu">noch nicht bearbeitet</span>') +
         '</div>' +
