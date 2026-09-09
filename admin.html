@@ -218,6 +218,26 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal)!important;
   box-shadow:0 0 0 3px rgba(43,182,183,.13)!important;outline:none!important;}
 .btn{background:linear-gradient(135deg,var(--cd-haupt),var(--teal-deep))!important;color:#fff!important;
   border:none!important;border-radius:10px!important;}
+.crm-wahl-lead{font-size:14px;color:var(--mute);margin:0 0 18px;}
+.crm-wahl{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+@media (max-width:720px){.crm-wahl{grid-template-columns:1fr;}}
+.crm-karte{position:relative;text-align:left;cursor:pointer;font-family:inherit;
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  padding:26px 26px 22px;display:flex;flex-direction:column;gap:7px;
+  transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;}
+.crm-karte:hover{transform:translateY(-3px);border-color:var(--teal,#2BB6B7);
+  box-shadow:0 10px 28px -18px rgba(14,30,29,.45);}
+.cw-ico{width:40px;height:40px;border-radius:50%;background:var(--wash);
+  display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--teal-deep,#1C7878);margin-bottom:4px;}
+.cw-titel{font-size:17px;font-weight:700;color:var(--ink);}
+.cw-text{font-size:13px;color:var(--mute);line-height:1.6;}
+.cw-zahl{font-size:12.5px;font-weight:700;color:var(--teal-deep,#1C7878);margin-top:6px;}
+.cw-badge{position:absolute;top:18px;right:18px;min-width:30px;height:30px;padding:0 9px;
+  border-radius:100px;background:#B4232C;color:#fff;font-size:13px;font-weight:700;
+  display:none;align-items:center;justify-content:center;}
+.crm-zurueck{background:none;border:none;cursor:pointer;font-family:inherit;
+  font-size:13px;color:var(--mute);padding:0;margin-bottom:16px;}
+.crm-zurueck:hover{color:var(--teal-deep,#1C7878);}
 .crm-filter{background:var(--wash);border:1px solid var(--border);}
 .crm-filter button{color:var(--mute);}
 .crm-filter button.on{background:var(--surface);color:var(--ink);
@@ -286,8 +306,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal)!important;
 
       <div class="adm-tabs">
         <button class="on" data-tab="todo" onclick="zeigeTab('todo')">Zu erledigen <span class="tab-zahl" id="todo-zahl"></span></button>
-        <button data-tab="angebote" onclick="zeigeTab('angebote')">Angebote</button>
-        <button data-tab="auftraege" onclick="zeigeTab('auftraege')">Aufträge</button>
+        <button data-tab="crm" onclick="zeigeTab('crm')">CRM</button>
         <button data-tab="neu" onclick="zeigeTab('neu')">Neues Angebot</button>
         <button data-tab="auswertung" onclick="zeigeTab('auswertung')">Auswertung</button>
       </div>
@@ -306,6 +325,29 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal)!important;
       </div>
 
       <div class="adm-panel" id="tab-crm">
+
+      <!-- Auswahl zwischen den beiden Prozessen -->
+      <div id="crm-auswahl">
+        <p class="crm-wahl-lead">Wählen Sie den Bereich, in dem Sie arbeiten möchten.</p>
+        <div class="crm-wahl">
+          <button class="crm-karte" onclick="setBereich('angebote')">
+            <span class="cw-ico">✉</span>
+            <span class="cw-titel">Angebotsübersicht</span>
+            <span class="cw-text">Alles rund um den Versand von Offerten: gesendet, nachgefasst nach 5 und 30 Tagen, abgesagt.</span>
+            <span class="cw-zahl" id="wahl-angebote">0 Angebote</span>
+          </button>
+          <button class="crm-karte" onclick="setBereich('auftraege')">
+            <span class="cw-ico">✓</span>
+            <span class="cw-titel">Aufträge</span>
+            <span class="cw-text">Alles ab der Auftragserteilung: eingegangen, in Bearbeitung, Springerteam gewünscht, aktiv.</span>
+            <span class="cw-zahl" id="wahl-auftraege">0 Aufträge</span>
+            <span class="cw-badge" id="wahl-pendenzen">0</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="crm-liste" style="display:none;">
+      <button class="crm-zurueck" onclick="crmAuswahl()">← Zurück zur Auswahl</button>
       <div class="crm-stats">
         <div class="crm-stat"><span class="crm-stat-num" id="stat-total">0</span><span class="crm-stat-lbl">Kunden total</span></div>
         <div class="crm-stat"><span class="crm-stat-num" id="stat-month">0</span><span class="crm-stat-lbl">Diesen Monat</span></div>
@@ -376,6 +418,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal)!important;
 
       </div><!-- /tab-crm -->
 
+      </div><!-- /crm-liste -->
       <div class="adm-panel" id="tab-neu">
       <div class="crm-linkgen">
         <h3>Anfrage einlesen</h3>
@@ -1253,11 +1296,10 @@ jspdf/dist/jspdf.es.min.js:
   function zeigeTab(name){
     document.querySelectorAll('.adm-tabs button').forEach(b =>
       b.classList.toggle('on', b.dataset.tab === name));
-    // Angebote und Aufträge teilen sich dieselbe Tabelle, nur mit anderem Bereich
-    const panel = (name === 'angebote' || name === 'auftraege') ? 'crm' : name;
     document.querySelectorAll('.adm-panel').forEach(p =>
-      p.classList.toggle('on', p.id === 'tab-' + panel));
-    if(name === 'angebote' || name === 'auftraege') setBereich(name);
+      p.classList.toggle('on', p.id === 'tab-' + name));
+    // Das CRM beginnt immer mit der Auswahl zwischen den beiden Prozessen
+    if(name === 'crm') crmAuswahl();
   }
 
   /* ---------- Anmeldung ---------- */
@@ -1408,7 +1450,33 @@ jspdf/dist/jspdf.es.min.js:
     CRM_FILTER = 'alle';
     baueFilterleiste();
     const su = document.getElementById('crm-search'); if(su) su.value = '';
+    const wahl = document.getElementById('crm-auswahl');
+    const list = document.getElementById('crm-liste');
+    if(wahl) wahl.style.display = 'none';
+    if(list) list.style.display = 'block';
     renderAdminList();
+  }
+
+  /* Zurück auf die Auswahl zwischen Angeboten und Aufträgen */
+  function crmAuswahl(){
+    const wahl = document.getElementById('crm-auswahl');
+    const list = document.getElementById('crm-liste');
+    if(wahl) wahl.style.display = 'block';
+    if(list) list.style.display = 'none';
+    zahlenAufAuswahl();
+  }
+
+  /* Zahlen auf den beiden Auswahlkarten */
+  function zahlenAufAuswahl(){
+    const alle = CS_LISTE || [];
+    const ang = alle.filter(e => e.quelle === 'angebot').length;
+    const auf = alle.filter(e => e.quelle === 'auftrag').length;
+    const pend = alle.filter(e => ['auftrag','bearbeitung','springer_gewuenscht'].includes(e.stufe)).length;
+    const setz = (id, t) => { const el = document.getElementById(id); if(el) el.textContent = t; };
+    setz('wahl-angebote', ang + (ang === 1 ? ' Angebot' : ' Angebote'));
+    setz('wahl-auftraege', auf + (auf === 1 ? ' Auftrag' : ' Aufträge'));
+    const b = document.getElementById('wahl-pendenzen');
+    if(b){ b.textContent = pend; b.style.display = pend ? 'flex' : 'none'; }
   }
   let CS_LISTE = [];          // zusammengeführte Ansicht
   let CRM_OFFEN = null;       // geöffneter Kunde
@@ -1975,6 +2043,7 @@ jspdf/dist/jspdf.es.min.js:
     }
     renderReport();
     renderToDo();
+    zahlenAufAuswahl();
 
     /* ---- Filtern und suchen ---- */
     const suche = ((document.getElementById('crm-search') || {}).value || '').trim().toLowerCase();
