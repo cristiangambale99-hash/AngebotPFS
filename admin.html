@@ -602,8 +602,10 @@ textarea{ min-height:96px; resize:vertical; }
     </div>
     <div class="feld">
       <label for="lg-code">Code</label>
-      <input type="password" id="lg-code" autocomplete="off" spellcheck="false"
-             data-lpignore="true" onkeydown="if(event.key==='Enter')anmelden()">
+      <input type="password" id="lg-code" name="cs-zugang-2f7"
+             autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false"
+             data-lpignore="true" data-form-type="other"
+             onkeydown="if(event.key==='Enter')anmelden()">
     </div>
     <button class="btn primary-action" id="lg-btn" style="width:100%;" onclick="anmelden()">Entsperren</button>
     <p id="lg-fehler" class="cs-neg" style="display:none;margin-top:12px;font-size:12.5px;"></p>
@@ -623,13 +625,9 @@ textarea{ min-height:96px; resize:vertical; }
     </div>
 
     <nav class="nav">
-      <div class="nav-title">Tagesdienst</div>
-      <a href="#" data-ansicht="eingang">Auftragserteilungen <span class="zahl" id="n-eingang">0</span></a>
-      <a href="#" class="on" data-ansicht="todo">Zu erledigen <span class="zahl" id="n-todo">0</span></a>
-      <div class="nav-title">Verkauf</div>
+      <a href="#" class="on" data-ansicht="eingang">Auftragserteilungen <span class="zahl" id="n-eingang">0</span></a>
+      <a href="#" data-ansicht="aktive">Aktive Aufträge <span class="zahl" id="n-aktive">0</span></a>
       <a href="#" data-ansicht="verkauf">Neues Angebot</a>
-      <div class="nav-title">Betrieb</div>
-      <a href="#" data-ansicht="auftraege">Aufträge <span class="zahl" id="n-auftraege">0</span></a>
       <a href="#" data-ansicht="auswertung">Auswertung</a>
     </nav>
 
@@ -692,9 +690,9 @@ textarea{ min-height:96px; resize:vertical; }
 let CS_TOKEN = sessionStorage.getItem('cs_token') || '';
 let CS_WER   = sessionStorage.getItem('cs_wer') || '';
 let AUFTRAEGE = [], ANGEBOTE = null, LISTE = [];
-let ANSICHT = 'todo', FALL = null, ZULETZT = [];
-let FILTERS = {todo:'alle', verkauf:'alle', auftraege:'alle'};
-let SUCHE   = {verkauf:'', auftraege:''};
+let ANSICHT = 'eingang', FALL = null, ZULETZT = [];
+let FILTERS = {verkauf:'alle', aktive:'alle'};
+let SUCHE   = {verkauf:'', aktive:''};
 
 const VORLAUF_WERKTAGE = 7;
 const QUALITAET_ABSTAND = {
@@ -952,10 +950,9 @@ function zeichnen(){
   const titel = document.getElementById('seiten-titel');
   const text = document.getElementById('seiten-text');
 
-  document.getElementById('n-todo').textContent = offeneFaelle().length;
   document.getElementById('n-eingang').textContent = LISTE.filter(offenerAuftrag).length;
-  document.getElementById('n-auftraege').textContent =
-    LISTE.filter(e => e.quelle === 'auftrag' && !['archiv','abgesagt'].includes(e.stufe)).length;
+  document.getElementById('n-aktive').textContent =
+    LISTE.filter(e => e.quelle === 'auftrag' && e.stufe === 'aktiv').length;
   document.getElementById('zuletzt').innerHTML = ZULETZT.map(z =>
     '<button class="k-item" onclick="oeffneFall(\'' + z.id + '\')">' + esc(z.txt) +
     '<small>' + esc(z.sub) + '</small></button>').join('') ||
@@ -970,13 +967,12 @@ function zeichnen(){
     return;
   }
   const seiten = {
-    eingang:    ['Auftragserteilungen', 'Zwei Wege: sofortiger Start mit Springerteam oder Warten auf eine feste Raumpflegerin.', seiteEingang],
-    todo:       ['Zu erledigen', 'Was heute Aufmerksamkeit braucht.', seiteToDo],
+    eingang:    ['Auftragserteilungen', 'Alles, was noch nicht aktiv läuft — nach Dringlichkeit sortiert.', seiteEingang],
+    aktive:     ['Aktive Aufträge', 'Laufende Kundschaft, Archiv und Absagen.', seiteAktive],
     verkauf:    ['Neues Angebot', 'Angebot erstellen und alle laufenden Angebote verfolgen.', seiteVerkauf],
-    auftraege:  ['Aufträge', 'Alle Aufträge nach Stufe, für die Arbeit im Tagesdienst.', seiteAuftraege],
     auswertung: ['Auswertung', 'Zahlen zum laufenden Bestand.', seiteAuswertung]
   };
-  const s = seiten[ANSICHT] || seiten.todo;
+  const s = seiten[ANSICHT] || seiten.eingang;
   titel.textContent = s[0]; text.textContent = s[1];
   box.innerHTML = s[2]();
 }
@@ -989,7 +985,10 @@ function zeichnen(){
    Werktagen, nach der das Springerteam automatisch noch einmal angeboten wird.
    Beide bleiben hier stehen, bis der Auftrag aktiv gesetzt ist. */
 function istSpringerStart(e){
-  return String(e.springerSofort || '').toLowerCase() === 'ja' || e.springerGestartet === true;
+  return String(e.springerSofort || '').toLowerCase() === 'ja'
+      || e.springerGestartet === true
+      || e.springerAntwort === 'ja'
+      || e.stufe === 'springer_gewuenscht';
 }
 function offenerAuftrag(e){
   return e.quelle === 'auftrag' && !['aktiv','archiv','abgesagt'].includes(e.stufe);
@@ -997,44 +996,63 @@ function offenerAuftrag(e){
 function mitSpringer(){ return LISTE.filter(e => offenerAuftrag(e) && istSpringerStart(e)); }
 function ohneSpringer(){ return LISTE.filter(e => offenerAuftrag(e) && !istSpringerStart(e)); }
 
+/* Merkmal zum Springerteam, je nach Stand */
+function springerMerkmal(e){
+  if(e.stufe === 'aktiv' && istSpringerStart(e)) return '<span class="tag pos">Springerteam gestartet</span>';
+  if(e.springerAntwort === 'ja') return '<span class="tag pos">Springerteam angenommen</span>';
+  if(String(e.springerSofort || '').toLowerCase() === 'ja') return '<span class="tag">Springerteam gewünscht</span>';
+  if(e.springerAntwort === 'nein') return '<span class="tag neutral">Springerteam abgelehnt</span>';
+  if(e.vorlaufMail) return '<span class="tag warn">Springerteam angeboten</span>';
+  return '';
+}
+
 function seiteEingang(){
-  const a = mitSpringer().sort((x,y) => String(x.startDatum || x.eingegangenAm || '').localeCompare(String(y.startDatum || y.eingegangenAm || '')));
-  const b = ohneSpringer().sort((x,y) => String(x.eingegangenAm || '').localeCompare(String(y.eingegangenAm || '')));
+  const nachDringlichkeit = (x,y) => {
+    const dx = dringlichkeit(x).stufe, dy = dringlichkeit(y).stufe;
+    return dx - dy || String(x.eingegangenAm || '').localeCompare(String(y.eingegangenAm || ''));
+  };
+  const a = mitSpringer().sort(nachDringlichkeit);
+  const b = ohneSpringer().sort(nachDringlichkeit);
+  const ueberfaellig = [...a, ...b].filter(e => dringlichkeit(e).stufe === 0).length;
 
   if(!a.length && !b.length)
     return leer('Keine offene Auftragserteilung',
       'Sobald eine Auftragserteilung eingeht, steht sie hier — bis der Auftrag aktiv gesetzt ist.');
 
   const zeileSpringer = e => {
+    const dr = dringlichkeit(e);
     const bereit = !!e.raumpflegerin;
-    return '<div class="zeile" onclick="oeffneFall(\'' + e.id + '\')">' +
+    const warum = e.springerAntwort === 'ja' && !e.startDatum
+      ? 'Die Kundschaft hat das Springerteam nachträglich angenommen. Raumpflegerin einteilen und Starttermin setzen.'
+      : (bereit ? 'Disponiert auf ' + esc(e.raumpflegerin) + '. Aktivieren, sobald die erste Reinigung steht.'
+                : 'Noch nicht disponiert. Raumpflegerin einteilen, dann aktivieren.');
+    return '<div class="zeile' + (dr.stufe === 0 ? ' dringend' : '') + '" onclick="oeffneFall(\'' + e.id + '\')">' +
       '<div class="wer"><strong>' + esc(name(e)) + '</strong><span>' + esc(ort(e)) +
         (e.frequenz ? ' · ' + esc(e.frequenz) : '') + '</span></div>' +
-      '<div class="warum">Start ' +
-        (e.startDatum ? dat(e.startDatum) + (e.startZeit ? ', ' + esc(e.startZeit) + ' Uhr' : '') : 'noch ohne Datum') +
-        '<br>' + (bereit
-          ? 'Disponiert auf ' + esc(e.raumpflegerin) + '. Aktivieren, sobald die erste Reinigung steht.'
-          : 'Noch nicht disponiert. Raumpflegerin einteilen, dann aktivieren.') + '</div>' +
+      '<div class="warum">' + springerMerkmal(e) + ' Start ' +
+        (e.startDatum ? dat(e.startDatum) + (e.startZeit ? ', ' + esc(e.startZeit) + ' Uhr' : '')
+          : e.einfuehrungAm ? dat(e.einfuehrungAm) + (e.einfuehrungZeit ? ', ' + esc(e.einfuehrungZeit) + ' Uhr' : '')
+          : 'noch offen') +
+        '<br>' + warum + '</div>' +
       '<button class="btn primary-action" onclick="event.stopPropagation();springerAktivieren(\'' + e.id + '\')">Aktivieren</button>' +
     '</div>';
   };
 
   const zeileFix = e => {
-    const angeboten = !!e.vorlaufMail;
+    const dr = dringlichkeit(e);
     const rest = e.bearbeitungAb ? VORLAUF_WERKTAGE - werktageSeit(e.bearbeitungAb) : null;
-    const text = angeboten
-      ? 'Springerteam am ' + dat(e.vorlaufMail) + ' angeboten' +
-        (e.springerAntwort === 'nein' ? ', von der Kundschaft abgelehnt.'
-          : e.springerAntwort === 'ja' ? ', von der Kundschaft angenommen.' : ', Antwort steht aus.')
-      : rest === null ? 'Datum des Statuswechsels fehlt, deshalb läuft keine Frist.'
-      : rest > 0 ? 'Springerteam wird in ' + rest + ' Werktag' + (rest === 1 ? '' : 'en') + ' automatisch angeboten.'
-      : 'Angebot des Springerteams geht beim nächsten Lauf hinaus.';
-    return '<div class="zeile' + (angeboten && !e.springerAntwort ? ' bald' : '') +
+    const text = e.springerAntwort === 'nein'
+      ? 'Springerteam am ' + dat(e.vorlaufMail) + ' angeboten und abgelehnt. Wir bleiben bei der festen Raumpflegerin.'
+      : e.vorlaufMail
+        ? 'Springerteam am ' + dat(e.vorlaufMail) + ' angeboten, Antwort steht aus.'
+        : rest === null ? 'Datum des Statuswechsels fehlt, deshalb läuft keine Frist.'
+        : rest > 0 ? 'Springerteam wird in ' + rest + ' Werktag' + (rest === 1 ? '' : 'en') + ' automatisch angeboten.'
+        : 'Angebot des Springerteams geht beim nächsten Lauf hinaus.';
+    return '<div class="zeile' + (dr.stufe === 0 ? ' dringend' : dr.stufe === 1 ? ' bald' : '') +
       '" onclick="oeffneFall(\'' + e.id + '\')">' +
       '<div class="wer"><strong>' + esc(name(e)) + '</strong><span>' + esc(ort(e)) +
         (e.frequenz ? ' · ' + esc(e.frequenz) : '') + '</span></div>' +
-      '<div class="warum">' + (angeboten ? '<span class="tag warn">Springerteam angeboten</span> ' : '') +
-        esc(text) + '</div>' +
+      '<div class="warum">' + springerMerkmal(e) + ' ' + esc(text) + '</div>' +
       '<button class="btn secondary" onclick="event.stopPropagation();oeffneFall(\'' + e.id + '\')">Fall öffnen</button>' +
     '</div>';
   };
@@ -1046,23 +1064,16 @@ function seiteEingang(){
       (liste.length ? liste.map(zeile).join('') : '<p class="cs-hint">Zurzeit nichts.</p>') +
     '</div></div>';
 
-  return block('Start mit Springerteam',
-      'Die Kundschaft hat den sofortigen Start gewählt und das Startdatum selbst gesetzt. Nach der Disposition aktivieren.',
+  return (ueberfaellig
+      ? '<div class="hinweis neg">' + (ueberfaellig === 1 ? 'Ein Fall liegt' : ueberfaellig + ' Fälle liegen') +
+        ' zu lange — sie stehen in ihrem Block zuoberst und sind rot markiert.</div>'
+      : '') +
+    block('Start mit Springerteam',
+      'Sofortiger Start gewünscht oder nachträglich angenommen. Nach der Disposition aktivieren.',
       a, zeileSpringer) +
     block('Wartet auf feste Raumpflegerin',
       'Bleibt in Bearbeitung. Nach sieben Werktagen bieten wir das Springerteam automatisch noch einmal an.',
       b, zeileFix);
-}
-
-/* Merkmal zum Springerteam, je nach Stand */
-function springerMerkmal(e){
-  if(istSpringerStart(e))
-    return e.stufe === 'aktiv'
-      ? '<span class="tag pos">Springerteam gestartet</span>'
-      : '<span class="tag">Springerteam gewünscht</span>';
-  if(e.vorlaufMail && e.stufe !== 'aktiv')
-    return '<span class="tag warn">Springerteam angeboten</span>';
-  return '';
 }
 
 /* Springerteam-Start aktivieren: der Auftrag wird aktiv, das Merkmal bleibt,
@@ -1085,46 +1096,6 @@ async function springerAktivieren(id){
 }
 
 /* ---------- Zu erledigen ---------- */
-function seiteToDo(){
-  const offen = offeneFaelle();
-  offen.forEach(e => e._dr = dringlichkeit(e));
-  const g = n => offen.filter(e => e._dr.stufe === n);
-  const F = FILTERS.todo;
-  const kacheln = [
-    {f:'0', t:'Überfällig',            l:g(0), hinweis:'Hier liegt etwas zu lange.'},
-    {f:'1', t:'Heute fällig',          l:g(1), hinweis:'In zwei Werktagen geht eine Nachricht hinaus.'},
-    {f:'2', t:'Wartet auf Kundschaft', l:g(2), hinweis:'Nichts zu tun, wir warten auf Antwort.'},
-    {f:'3', t:'Neu und in Arbeit',     l:g(3), hinweis:'Laufende Fälle ohne Dringlichkeit.'}
-  ];
-  if(!offen.length) return leer('Alles erledigt', 'Derzeit ist keine Auftragserteilung offen.');
-
-  const kpi = '<div class="kpi-row">' + kacheln.map(k =>
-    '<div class="kpi klick' + (F === k.f ? ' on' : '') + '" onclick="setFilter(\'todo\',\'' + k.f + '\')">' +
-      '<div class="label">' + k.t + '</div>' +
-      '<div class="wert">' + k.l.length + '</div>' +
-      '<div class="delta">' + k.hinweis + '</div></div>').join('') + '</div>';
-
-  const sicht = F === 'alle' ? offen : offen.filter(e => String(e._dr.stufe) === F);
-  const sortiert = sicht.slice().sort((a,b) => a._dr.stufe - b._dr.stufe ||
-    String(a.datum || '').localeCompare(String(b.datum || '')));
-
-  const zeilen = sortiert.map(e =>
-    '<div class="zeile' + (e._dr.stufe === 0 ? ' dringend' : e._dr.stufe === 1 ? ' bald' : '') +
-      '" onclick="oeffneFall(\'' + e.id + '\')">' +
-      '<div class="wer"><strong>' + esc(name(e)) + '</strong><span>' + esc(ort(e)) + '</span></div>' +
-      '<div class="warum">' + esc(e._dr.text) + '</div>' +
-      '<button class="btn secondary" onclick="event.stopPropagation();oeffneFall(\'' + e.id + '\')">Fall öffnen</button>' +
-    '</div>').join('');
-
-  return kpi +
-    '<div class="card"><div class="card-head"><div><h2>' +
-      (F === 'alle' ? 'Alle offenen Fälle' : kacheln.find(k => k.f === F).t) +
-      '</h2><p>' + sortiert.length + ' von ' + offen.length + ' Fällen' +
-      (F === 'alle' ? '' : ' · <a href="#" onclick="setFilter(\'todo\',\'' + F + '\');return false;">Filter aufheben</a>') +
-      '</p></div></div><div class="card-body">' +
-      (zeilen || '<p class="cs-hint">Für diese Auswahl ist nichts offen.</p>') +
-    '</div></div>';
-}
 function setFilter(ansicht, f){
   FILTERS[ansicht] = (FILTERS[ansicht] === f) ? 'alle' : f;
   zeichnen();
@@ -1132,9 +1103,9 @@ function setFilter(ansicht, f){
 function sucheAendern(ansicht, wert){
   SUCHE[ansicht] = wert;
   const box = document.getElementById('liste-box');
-  if(box) box.innerHTML = (ansicht === 'verkauf' ? verkaufListe() : auftragListe());
+  if(box) box.innerHTML = (ansicht === 'verkauf' ? verkaufListe() : aktiveListe());
   const z = document.getElementById('liste-zahl');
-  if(z) z.textContent = (ansicht === 'verkauf' ? gefiltertVerkauf() : gefiltertAuftrag()).length;
+  if(z) z.textContent = (ansicht === 'verkauf' ? gefiltertVerkauf() : gefiltertAktive()).length;
 }
 function passt(e, ansicht){
   const q = (SUCHE[ansicht] || '').trim().toLowerCase();
@@ -1443,66 +1414,58 @@ function linkKopieren(link){
 }
 
 /* ---------- Aufträge: CRM-Stufen für den Tagesdienst ---------- */
-const AUFTRAG_STUFEN = [
-  {f:'springer',            t:'Springerteam-Start', h:'Wartet auf Aktivierung.'},
-  {f:'bearbeitung',         t:'In Bearbeitung',   h:'Frist zur Springerteam-Nachfrage läuft.'},
-  {f:'springer_gewuenscht', t:'Springerteam',     h:'Einführung planen.'},
-  {f:'aktiv',               t:'Aktiv',            h:'Reinigung läuft.'},
-  {f:'archiv',              t:'Archiv',           h:'Abgeschlossen oder abgesagt.'}
+const AKTIV_STUFEN = [
+  {f:'aktiv',    t:'Aktiv',    h:'Reinigung läuft.'},
+  {f:'archiv',   t:'Archiv',   h:'Abgeschlossen.'},
+  {f:'abgesagt', t:'Abgesagt', h:'Kundschaft abgesprungen.'}
 ];
-function gefiltertAuftrag(){
-  const F = FILTERS.auftraege;
-  return LISTE.filter(e => e.quelle === 'auftrag')
-    .filter(e => F === 'alle' ? true
-      : F === 'springer' ? (offenerAuftrag(e) && istSpringerStart(e))
-      : F === 'archiv' ? ['archiv','abgesagt'].includes(e.stufe)
-      : e.stufe === F)
-    .filter(e => passt(e, 'auftraege'))
-    .sort((a,b) => String(b.datum || '').localeCompare(String(a.datum || '')));
+function gefiltertAktive(){
+  const F = FILTERS.aktive;
+  return LISTE.filter(e => e.quelle === 'auftrag' && ['aktiv','archiv','abgesagt'].includes(e.stufe))
+    .filter(e => F === 'alle' ? true : e.stufe === F)
+    .filter(e => passt(e, 'aktive'))
+    .sort((a,b) => String(b.erstReinigung || b.datum || '').localeCompare(String(a.erstReinigung || a.datum || '')));
 }
-function auftragListe(){
-  const l = gefiltertAuftrag();
+function aktiveListe(){
+  const l = gefiltertAktive();
   if(!l.length) return '<p class="cs-hint" style="padding:18px;">Für diese Auswahl gibt es keinen Auftrag.</p>';
   return '<div style="padding:14px;">' + l.map(e => {
     const d = stufeDef(e.stufe);
-    const dr = dringlichkeit(e);
-    const offen = ['auftrag','bearbeitung','springer_gewuenscht'].includes(e.stufe);
-    const schnell = e.stufe === 'auftrag'
-      ? '<button class="btn klein primary-action" onclick="event.stopPropagation();inBearbeitung(\'' + e.id + '\')">In Bearbeitung</button>'
-      : '';
-    return '<div class="zeile' + (offen && dr.stufe === 0 ? ' dringend' : offen && dr.stufe === 1 ? ' bald' : '') +
-      '" onclick="oeffneFall(\'' + e.id + '\')">' +
+    const wartet = wartetAuf(e);
+    return '<div class="zeile" onclick="oeffneFall(\'' + e.id + '\')">' +
       '<div class="wer"><strong>' + esc(name(e)) + '</strong>' +
         '<span>' + esc(ort(e)) + (e.frequenz ? ' · ' + esc(e.frequenz) : '') + '</span></div>' +
-      '<div class="warum"><span class="tag ' + d.art + '">' + d.label + '</span>' +
-        ' ' + springerMerkmal(e) +
-        '<br>' + esc(offen ? dr.text : (e.raumpflegerin ? 'Raumpflegerin ' + e.raumpflegerin : 'Kein offener Schritt')) + '</div>' +
-      '<div class="btn-row" style="justify-content:flex-end;">' + schnell +
-        '<button class="btn klein secondary" onclick="event.stopPropagation();oeffneFall(\'' + e.id + '\')">Öffnen</button>' +
-      '</div></div>';
+      '<div class="warum"><span class="tag ' + d.art + '">' + d.label + '</span> ' + springerMerkmal(e) + '<br>' +
+        esc(e.raumpflegerin ? 'Raumpflegerin ' + e.raumpflegerin + '. ' : '') +
+        esc(e.stufe === 'aktiv'
+            ? (wartet ? 'Wartet auf ' + wartet.grund + '.'
+               : e.qualitaetAm ? 'Qualitätsnachfrage am ' + dat(e.qualitaetAm) + '.'
+               : 'Läuft.')
+            : e.stufe === 'archiv' ? 'Abgeschlossen.' : 'Abgesagt.') + '</div>' +
+      '<button class="btn klein secondary" onclick="event.stopPropagation();oeffneFall(\'' + e.id + '\')">Öffnen</button>' +
+    '</div>';
   }).join('') + '</div>';
 }
-function seiteAuftraege(){
-  const alle = LISTE.filter(e => e.quelle === 'auftrag');
-  const F = FILTERS.auftraege;
-  const zahl = f => f === 'springer'
-    ? alle.filter(e => offenerAuftrag(e) && istSpringerStart(e)).length
-    : f === 'archiv'
-      ? alle.filter(e => ['archiv','abgesagt'].includes(e.stufe)).length
-      : alle.filter(e => e.stufe === f).length;
+function seiteAktive(){
+  const alle = LISTE.filter(e => e.quelle === 'auftrag' && ['aktiv','archiv','abgesagt'].includes(e.stufe));
+  const F = FILTERS.aktive;
+  const springer = alle.filter(e => e.stufe === 'aktiv' && istSpringerStart(e)).length;
 
-  const kpi = '<div class="kpi-row">' + AUFTRAG_STUFEN.map(x =>
-    '<div class="kpi klick' + (F === x.f ? ' on' : '') + '" onclick="setFilter(\'auftraege\',\'' + x.f + '\')">' +
-      '<div class="label">' + x.t + '</div><div class="wert">' + zahl(x.f) + '</div>' +
-      '<div class="delta">' + x.h + '</div></div>').join('') + '</div>';
+  const kpi = '<div class="kpi-row">' + AKTIV_STUFEN.map(x =>
+    '<div class="kpi klick' + (F === x.f ? ' on' : '') + '" onclick="setFilter(\'aktive\',\'' + x.f + '\')">' +
+      '<div class="label">' + x.t + '</div>' +
+      '<div class="wert">' + alle.filter(e => e.stufe === x.f).length + '</div>' +
+      '<div class="delta">' + x.h + '</div></div>').join('') +
+    '<div class="kpi"><div class="label">Mit Springerteam gestartet</div><div class="wert">' + springer +
+    '</div><div class="delta">von den aktiven Aufträgen</div></div></div>';
 
   return kpi +
     '<div class="card"><div class="card-head">' +
-      '<div><h2>' + (F === 'alle' ? 'Alle Aufträge' : (AUFTRAG_STUFEN.find(x => x.f === F) || {}).t) + '</h2>' +
-      '<p><span id="liste-zahl">' + gefiltertAuftrag().length + '</span> von ' + alle.length + ' Aufträgen' +
-      (F === 'alle' ? '' : ' · <a href="#" onclick="setFilter(\'auftraege\',\'' + F + '\');return false;">Filter aufheben</a>') +
-      '</p></div>' + suchfeld('auftraege', 'Name, Ort oder Angebotsnummer') + '</div>' +
-      '<div class="card-body eng" id="liste-box">' + auftragListe() + '</div></div>';
+      '<div><h2>' + (F === 'alle' ? 'Alle' : (AKTIV_STUFEN.find(x => x.f === F) || {}).t) + '</h2>' +
+      '<p><span id="liste-zahl">' + gefiltertAktive().length + '</span> von ' + alle.length + ' Aufträgen' +
+      (F === 'alle' ? '' : ' · <a href="#" onclick="setFilter(\'aktive\',\'' + F + '\');return false;">Filter aufheben</a>') +
+      '</p></div>' + suchfeld('aktive', 'Name, Ort oder Angebotsnummer') + '</div>' +
+      '<div class="card-body eng" id="liste-box">' + aktiveListe() + '</div></div>';
 }
 
 /* ---------- Auswertung ---------- */
@@ -1669,6 +1632,20 @@ function kartenSchritte(e){
         (istSpringerStart(e) ? 'Aktivieren' : 'Auf aktiv setzen') + '</button>'));
   }
 
+  if(auftrag && (e.stufe === 'aktiv' || e.qualitaetAm)){
+    const stand = e.qualitaetAntwort
+      ? 'Die Kundschaft hat mit «' + esc(e.qualitaetAntwort) + '» geantwortet.'
+      : e.qualitaetMail
+        ? 'Am ' + dat(e.qualitaetMail) + ' gesendet, Antwort steht aus.'
+        : e.qualitaetAm
+          ? 'Geht automatisch am ' + dat(e.qualitaetAm) + ' hinaus.'
+          : 'Noch kein Termin berechnet — dafür fehlt das Datum der ersten Reinigung.';
+    s.push(schritt('Qualitätsnachfrage', stand +
+      ' Mit der Probe siehst du die Nachricht so, wie die Kundschaft sie erhält; sie geht an das Postfach des Putzfrauenservice und ändert nichts am Auftrag.',
+      '<button class="btn secondary" onclick="qualitaetSenden(\'' + e.id + '\', true, this)">Probe an uns senden</button>' +
+      '<button class="btn" onclick="qualitaetSenden(\'' + e.id + '\', false, this)">Jetzt an die Kundschaft senden</button>'));
+  }
+
   if(auftrag && e.stufe === 'aktiv'){
     s.push(schritt('Läuft',
       'Die Qualitätsnachfrage geht automatisch hinaus' + (e.qualitaetAm ? ' am ' + dat(e.qualitaetAm) : '') +
@@ -1799,6 +1776,37 @@ async function vorlaufJetzt(id){
   }catch(err){ meldung('Nicht gesendet: ' + err.message, 'neg'); }
 }
 
+async function qualitaetSenden(id, probe, btn){
+  const e = LISTE.find(x => String(x.id) === String(id));
+  if(!e) return;
+  const ziel = probe ? 'putzfrauenservice@clean-service.ch' : mailVon(e);
+  if(!ziel){ meldung('Keine E-Mail-Adresse hinterlegt.', 'neg'); return; }
+  if(!probe && !confirm('Qualitätsnachfrage jetzt an ' + name(e) + ' (' + ziel + ') senden?')) return;
+  const text = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Wird gesendet …';
+  try{
+    const r = await fetch('/api/followup', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(probe ? {id, art:'qualitaet', an: ziel} : {id, art:'qualitaet'})
+    });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(d.error ? JSON.stringify(d.error) : 'Server ' + r.status);
+    if(probe){
+      meldung('Probe gesendet an ' + (d.empfaenger || ziel) + '. Am Auftrag ändert sich nichts.');
+    }else{
+      e.qualitaetMail = d.gesendetAm || new Date().toISOString();
+      const auf = AUFTRAEGE.find(x => String(x.id) === String(id));
+      if(auf) auf.qualitaetMail = e.qualitaetMail;
+      zeichnen();
+      meldung('Qualitätsnachfrage gesendet an ' + (d.empfaenger || ziel) + '.');
+      return;
+    }
+  }catch(err){
+    meldung('Nicht gesendet: ' + err.message, 'neg');
+  }
+  btn.disabled = false; btn.textContent = text;
+}
+
 async function einfuehrungSenden(id, btn){
   const e = LISTE.find(x => String(x.id) === String(id));
   if(!e) return;
@@ -1871,6 +1879,20 @@ sb.addEventListener('click', ev => {
     sb.classList.remove('offen'); schleier.classList.remove('on');
   }
 });
+
+/* ---------- Zugangsfeld freihalten ----------
+   Browser und Passwortverwalter füllen Codefelder gerne selbst aus. Der Code
+   muss aber bei jeder Anmeldung von Hand eingegeben werden. */
+(function codeFeldFreihalten(){
+  const feld = document.getElementById('lg-code');
+  if(!feld) return;
+  let getippt = false;
+  feld.addEventListener('input', () => { getippt = true; });
+  const leeren = () => { if(!getippt && feld.value) feld.value = ''; };
+  leeren();
+  [50, 250, 600, 1200].forEach(ms => setTimeout(leeren, ms));
+  window.addEventListener('pageshow', leeren);
+})();
 
 /* ---------- Start ---------- */
 if(CS_TOKEN && CS_WER) starten();
