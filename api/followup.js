@@ -36,7 +36,8 @@ export default async function handler(req, res) {
     if (!key) return res.status(500).json({ error: 'RESEND_API_KEY fehlt.' });
     try {
       const auf = await lesen(AUFTRAG_SAMMLUNG, id);
-      if (!auf) return res.status(404).json({ error: 'Auftrag nicht gefunden.' });
+      if (!auf) return res.status(404).json({ error: 'Auftrag ' + id + ' nicht gefunden.' });
+      if (!auf.id) auf.id = id;   // Dokumentname als Nummer übernehmen
       const mail = auf.mail || auf.email || '';
       if (!mail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
         return res.status(400).json({ error: 'Keine gültige E-Mail-Adresse hinterlegt.' });
@@ -171,6 +172,7 @@ export default async function handler(req, res) {
         else if (auf.vorlaufAus) grund = 'Vorlaufmail unterdrückt';
         else if (auf.springerAntwort) grund = 'Kundschaft hat bereits geantwortet';
         else if (!mail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) grund = 'keine gültige Adresse';
+        else if (!auftragSchluessel(auf)) grund = 'Auftrag ohne Nummer';
         else if (!ab) grund = 'kein Datum des Statuswechsels';
         else if (werktageSeit(ab) < VORLAUF_WERKTAGE) grund = 'Frist noch nicht erreicht';
 
@@ -198,7 +200,7 @@ export default async function handler(req, res) {
           const neu = { ...auf };
           delete neu._id;
           neu.vorlaufMail = new Date().toISOString();
-          await speichern(AUFTRAG_SAMMLUNG, auf.id, neu);
+          await speichern(AUFTRAG_SAMMLUNG, auftragSchluessel(auf), neu);
           bericht.vorlauf.gesendet++;
         } catch (e) {
           bericht.fehler.push({
@@ -341,6 +343,13 @@ function werktageSeit(iso) {
   return tage;
 }
 
+/* Auftragsnummer fuer Links und zum Speichern.
+   Je nach Herkunft steht sie im Feld id oder ist der Dokumentname _id.
+   Fehlt beides, laesst sich kein gueltiger Antwortlink bauen. */
+function auftragSchluessel(auf) {
+  return String((auf && (auf.id || auf._id)) || '');
+}
+
 /* Signatur der Antwortlinks — muss mit api/antwort.js uebereinstimmen */
 function signieren(id, antwort) {
   const geheim = process.env.ANTWORT_SECRET || process.env.CRON_SECRET || 'cs-pfs';
@@ -384,9 +393,11 @@ async function sendeVorlaufmail(apiKey, auf, mail) {
     gruss: 'Freundliche Grüsse'
   };
 
-  const basis = 'https://angebot-pfs.vercel.app/api/antwort?id=' + encodeURIComponent(auf.id);
-  const linkJa   = basis + '&a=ja&spr='   + spr + '&sig=' + signieren(auf.id, 'ja');
-  const linkNein = basis + '&a=nein&spr=' + spr + '&sig=' + signieren(auf.id, 'nein');
+  const schluessel = auftragSchluessel(auf);
+  if (!schluessel) throw new Error('Auftrag ohne Nummer — Antwortlinks nicht möglich.');
+  const basis = 'https://angebot-pfs.vercel.app/api/antwort?id=' + encodeURIComponent(schluessel);
+  const linkJa   = basis + '&a=ja&spr='   + spr + '&sig=' + signieren(schluessel, 'ja');
+  const linkNein = basis + '&a=nein&spr=' + spr + '&sig=' + signieren(schluessel, 'nein');
 
   const knopf = (text, link, gefuellt) => gefuellt
     ? `<td style="background:${CS_FARBE};"><a href="${link}" style="display:inline-block;padding:13px 26px;font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:bold;color:#FFFFFF;text-decoration:none;">${text}</a></td>`
