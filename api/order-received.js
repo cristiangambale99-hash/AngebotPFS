@@ -91,6 +91,14 @@ export default async function handler(req, res) {
     const apiKey = process.env.RESEND_API_KEY;
     if (apiKey) {
       const name = [b.anrede, b.vorname, b.nachname].filter(Boolean).join(' ') || 'Unbekannt';
+
+      /* Startart: entscheidet ueber die Disposition und muss auf den ersten
+         Blick erkennbar sein — im Betreff, im Kasten und in der Tabelle. */
+      const mitSpringerStart = String(b.springerSofort || '').toLowerCase() === 'ja';
+      const startText = mitSpringerStart
+        ? 'Sofort mit Springerteam'
+        : 'Auf feste Raumpflegerin warten (10–14 Werktage)';
+
       const zeilen = [
         ['Kunde', name],
         ['Adresse', [b.adresse, b.plzOrt || b.ort].filter(Boolean).join(', ')],
@@ -99,15 +107,25 @@ export default async function handler(req, res) {
         ['Angebot Nr.', b.angebotsnr || ''],
         ['Zimmer', b.zimmer || ''],
         ['Bodenbeläge', b.bodenbelaege || ''],
-        ['Bodenbeläge', b.bodenbelaege || ''],
         ['Frequenz', b.frequenzText || b.frequenz || ''],
         ['Reinigungstag', Array.isArray(b.tage) ? b.tage.join(', ') : (b.tage || '')],
         ['Uhrzeit', b.uhrzeit || ''],
-        ['Aufwand', b.aufwandText || '']
+        ['Aufwand', b.aufwandText || ''],
+        ['Start', startText]
       ].filter(([, v]) => v);
 
       const inhaltT = `
         <p style="margin:0 0 16px;">Über das Angebotssystem ist eine neue Auftragserteilung eingegangen.</p>
+        ${mitSpringerStart ? `
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:0 0 18px;border-collapse:collapse;">
+          <tr><td style="border:1px solid #D5E2E1;border-left:4px solid ${CS_FARBE};padding:14px 18px;background:#F2F9F9;">
+            <div style="font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};letter-spacing:.08em;margin-bottom:5px;">START</div>
+            <div style="font-family:Verdana,Geneva,sans-serif;font-size:14px;font-weight:bold;color:${CS_DUNKEL};">Sofort mit Springerteam</div>
+            <div style="font-family:Verdana,Geneva,sans-serif;font-size:12px;color:${CS_TEXT};margin-top:5px;line-height:1.5;">
+              Die Kundschaft möchte nicht auf die feste Raumpflegerin warten. Bitte den ersten Einsatz über das Springerteam einplanen.
+            </div>
+          </td></tr>
+        </table>` : ''}
         ${csTabelle(zeilen)}
         ${b.vereinbarungen ? `
         <div style="background:#FDF8EE;border-left:3px solid #E0B454;padding:12px 16px;margin:0 0 18px;">
@@ -125,9 +143,11 @@ export default async function handler(req, res) {
           from: 'Angebotssystem <putzfrauenservice@clean-service.ch>',
           to: [EMPFAENGER],
           reply_to: b.mail || b.email || EMPFAENGER,
-          subject: `Neue Auftragserteilung — ${name}${b.angebotsnr ? ' (Nr. ' + b.angebotsnr + ')' : ''}`,
+          subject: `Neue Auftragserteilung — ${name}${b.angebotsnr ? ' (Nr. ' + b.angebotsnr + ')' : ''}`
+                   + (mitSpringerStart ? ' · START MIT SPRINGERTEAM' : ''),
           html,
           text: `Neue Auftragserteilung eingegangen\n\n` +
+                (mitSpringerStart ? 'START: Sofort mit Springerteam — nicht auf die feste Raumpflegerin warten.\n\n' : '') +
                 zeilen.map(([k, v]) => `${k}: ${v}`).join('\n') +
                 (b.vereinbarungen ? `\n\nSpezielle Vereinbarungen:\n${b.vereinbarungen}` : ''),
           attachments: [{ filename:'logo.png', content: CS_LOGO, content_id:'cslogo', disposition:'inline' }]
