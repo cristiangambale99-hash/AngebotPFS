@@ -214,6 +214,45 @@ export default async function handler(req, res) {
       bericht.fehler.push({ code: 'Vorlaufdurchgang', meldung: (e && e.message) || String(e) });
     }
 
+    /* ============ Dritter Durchgang: Qualitätsnachfrage ============
+       Beim Start mit fixer Raumpflegerin wird qualitaetAm berechnet.
+       Ist der Tag erreicht, geht die Nachfrage einmalig hinaus. */
+    bericht.qualitaet = { geprueft: 0, gesendet: 0, uebersprungen: 0 };
+    try {
+      const auftraege2 = await alleLesen(AUFTRAG_SAMMLUNG, 500);
+      const heute = new Date().toISOString().slice(0, 10);
+      bericht.qualitaet.geprueft = auftraege2.length;
+
+      for (const auf of auftraege2) {
+        const mail = auf.mail || auf.email || '';
+        let grund = null;
+        if (!auf.qualitaetAm) grund = 'kein Termin für die Qualitätsnachfrage';
+        else if (auf.qualitaetMail) grund = 'bereits gesendet';
+        else if (auf.qualitaetAntwort) grund = 'Kundschaft hat bereits geantwortet';
+        else if (String(auf.stufe || '') === 'abgesagt') grund = 'Auftrag abgesagt';
+        else if (!mail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) grund = 'keine gültige Adresse';
+        else if (!auftragSchluessel(auf)) grund = 'Auftrag ohne Nummer';
+        else if (String(auf.qualitaetAm).slice(0, 10) > heute) grund = 'Termin noch nicht erreicht';
+
+        if (grund) { bericht.qualitaet.uebersprungen++; continue; }
+        if (nurPruefen) { bericht.qualitaet.gesendet++; continue; }
+
+        try {
+          await sendeQualitaetsmail(apiKey, auf, mail);
+          const neu = { ...auf };
+          delete neu._id;
+          neu.qualitaetMail = new Date().toISOString();
+          await speichern(AUFTRAG_SAMMLUNG, auftragSchluessel(auf), neu);
+          bericht.qualitaet.gesendet++;
+        } catch (e) {
+          bericht.fehler.push({ code: 'Qualität ' + auftragSchluessel(auf), empfaenger: mail,
+                                meldung: String(e && e.message || e).slice(0, 300) });
+        }
+      }
+    } catch (e) {
+      bericht.fehler.push({ code: 'Qualitätsdurchgang', meldung: (e && e.message) || String(e) });
+    }
+
     return res.status(200).json({ ok: true, probelauf: !!nurPruefen, ...bericht });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -326,6 +365,86 @@ async function sendeErinnerung(apiKey, a, stufe) {
   return daten;
 }
 
+
+/* Signatur der Qualitaetslinks — muss mit api/qualitaet.js uebereinstimmen */
+function signQualitaet(id, stufe) {
+  const geheim = process.env.QUALITAET_SECRET || process.env.ANTWORT_SECRET
+              || process.env.CRON_SECRET || 'cs-pfs';
+  return crypto.createHmac('sha256', geheim)
+               .update(String(id) + '.q.' + String(stufe))
+               .digest('hex').slice(0, 20);
+}
+
+async function sendeQualitaetsmail(apiKey, auf, mail) {
+  const EN = String(auf.sprache || 'de').toLowerCase() === 'en';
+  const spr = EN ? 'en' : 'de';
+  const nn = auf.nachname || '';
+  const schluessel = auftragSchluessel(auf);
+
+  const anrede = EN
+    ? (auf.anrede === 'Herr' ? 'Dear Mr ' + nn : auf.anrede === 'Frau' ? 'Dear Mrs ' + nn
+      : 'Dear ' + [auf.vorname, nn].filter(Boolean).join(' '))
+    : (auf.anrede === 'Herr' ? 'Sehr geehrter Herr ' + nn : auf.anrede === 'Frau' ? 'Sehr geehrte Frau ' + nn
+      : 'Guten Tag ' + [auf.vorname, nn].filter(Boolean).join(' '));
+
+  const L = EN ? {
+    betreff:'How are we doing? Your feedback in one click',
+    titel:'How satisfied are you so far?',
+    a1:'Your cleaner has now been with you a few times. We would like to know early on whether everything is to your satisfaction — while there is still time to adjust.',
+    a2:'One click is enough:',
+    a3:'Whatever you choose, your answer goes straight to me and my team. If something is not right, we will get in touch.',
+    stufen:[['sehr_zufrieden','Very satisfied'],['zufrieden','Satisfied'],
+            ['teilweise','Partly satisfied'],['nicht','Not satisfied']]
+  } : {
+    betreff:'Sind Sie zufrieden? Ihre Rückmeldung in einem Klick',
+    titel:'Wie zufrieden sind Sie bisher?',
+    a1:'Ihre Raumpflegerin war nun einige Male bei Ihnen. Wir möchten früh wissen, ob alles zu Ihrer Zufriedenheit läuft — solange sich noch etwas anpassen lässt.',
+    a2:'Ein Klick genügt:',
+    a3:'Was immer Sie wählen: Ihre Antwort geht direkt an mich und mein Team. Stimmt etwas nicht, melden wir uns bei Ihnen.',
+    stufen:[['sehr_zufrieden','Sehr zufrieden'],['zufrieden','Zufrieden'],
+            ['teilweise','Teilweise zufrieden'],['nicht','Nicht zufrieden']]
+  };
+
+  const basis = 'https://angebot-pfs.vercel.app/api/qualitaet?id=' + encodeURIComponent(schluessel);
+  const knopf = (text, st, i) => {
+    const link = basis + '&s=' + st + '&spr=' + spr + '&sig=' + signQualitaet(schluessel, st);
+    const gefuellt = i === 0;
+    return gefuellt
+      ? `<tr><td style="background:${CS_FARBE};padding:0;"><a href="${link}" style="display:block;padding:12px 22px;font-family:Verdana,sans-serif;font-size:13px;font-weight:bold;color:#FFFFFF;text-decoration:none;">${text}</a></td></tr><tr><td style="height:8px;font-size:0;">&nbsp;</td></tr>`
+      : `<tr><td style="border:1px solid #D5E2E1;background:#FBFDFD;padding:0;"><a href="${link}" style="display:block;padding:11px 21px;font-family:Verdana,sans-serif;font-size:13px;font-weight:bold;color:${CS_DUNKEL};text-decoration:none;">${text}</a></td></tr><tr><td style="height:8px;font-size:0;">&nbsp;</td></tr>`;
+  };
+
+  const inhalt = `
+    <p style="margin:0 0 16px;">${anrede}</p>
+    <p style="margin:0 0 16px;">${L.a1}</p>
+    <p style="margin:0 0 14px;">${L.a2}</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px;">
+      ${L.stufen.map(([st, tx], i) => knopf(tx, st, i)).join('')}
+    </table>
+    <p style="margin:0;">${L.a3}</p>`;
+
+  const klartext = anrede + '\n\n' + L.a1 + '\n\n' + L.a2 + '\n\n' +
+    L.stufen.map(([st, tx]) => tx + ':\n' + basis + '&s=' + st + '&spr=' + spr +
+                 '&sig=' + signQualitaet(schluessel, st)).join('\n\n') +
+    '\n\n' + L.a3 + csSignaturText(spr);
+
+  const r = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: 'Cristian Gambale · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
+      to: [mail], bcc: ['putzfrauenservice@clean-service.ch'],
+      reply_to: 'putzfrauenservice@clean-service.ch',
+      subject: L.betreff,
+      html: csRahmen(L.titel, inhalt, '', spr),
+      text: klartext,
+      attachments: [{ filename:'logo.png', content: CS_LOGO, content_id:'cslogo', disposition:'inline' }]
+    })
+  });
+  const daten = await r.json();
+  if (!r.ok) throw new Error(JSON.stringify(daten));
+  return daten;
+}
 
 /* Werktage seit einem Datum, Samstag und Sonntag zaehlen nicht mit */
 function werktageSeit(iso) {

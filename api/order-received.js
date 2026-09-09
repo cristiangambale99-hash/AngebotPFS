@@ -46,6 +46,8 @@ export default async function handler(req, res) {
     /* ---- 1b) Die vollständige Auftragserteilung dauerhaft ablegen ---- */
     // Ohne diesen Schritt sähe das Team die Angaben nur im Browser des Kunden.
     const auftragId = (b.code || '') || ('A' + Date.now());
+    const springerStart = String(b.springerSofort || '').toLowerCase() === 'ja';
+
     const auftrag = {
       code: b.code || '',
       angebotsnr: b.angebotsnr || '',
@@ -54,8 +56,8 @@ export default async function handler(req, res) {
       adresse: b.adresse || '', plzOrt: b.plzOrt || b.ort || '',
       mobile: b.mobile || '', mail: b.mail || b.email || '',
       zimmer: String(b.zimmer || ''), qm: String(b.qm || ''),
-      bodenbelaege: b.bodenbelaege || '',
       bodenbelaege: b.bodenbelaege || '', badezimmer: String(b.badezimmer || ''),
+      stockwerk: b.stockwerk || '', lift: b.lift || '',
       frequenz: b.frequenz || '', frequenzText: b.frequenzText || '',
       tage: Array.isArray(b.tage) ? b.tage.join(', ') : String(b.tage || ''),
       uhrzeit: b.uhrzeit || '', aufwandText: b.aufwandText || '',
@@ -66,7 +68,14 @@ export default async function handler(req, res) {
       buegelservice: b.buegelservice || '', zusatzGeschirrspueler: !!b.zusatzGeschirrspueler,
       zusatzBackofen: !!b.zusatzBackofen,
       vereinbarungen: b.vereinbarungen || '',
-      stufe: 'neu',
+      startDatum: b.startDatum || '',
+      /* Status automatisch setzen:
+         Mit Springerteam startet der Auftrag direkt in der eigenen Phase, das
+         Startdatum hat die Kundschaft bereits gewaehlt. Ohne Springerteam geht
+         er in Bearbeitung — ab hier laeuft die Sieben-Tage-Frist der Nachfrage. */
+      stufe: springerStart ? 'springer_gewuenscht' : 'bearbeitung',
+      bearbeitungAb: springerStart ? '' : new Date().toISOString(),
+      springerGestartet: springerStart,
       bearbeitet: false
     };
     try{
@@ -112,7 +121,8 @@ export default async function handler(req, res) {
         ['Reinigungstag', Array.isArray(b.tage) ? b.tage.join(', ') : (b.tage || '')],
         ['Uhrzeit', b.uhrzeit || ''],
         ['Aufwand', b.aufwandText || ''],
-        ['Start', startText]
+        ['Start', startText],
+        ['Startdatum', b.startDatum ? new Date(b.startDatum).toLocaleDateString('de-CH') : '']
       ].filter(([, v]) => v);
 
       const inhaltT = `
