@@ -32,7 +32,9 @@ export default async function handler(req, res) {
       return res.status(200).json({
         ueberfaellig: g.ueberfaellig.length, heute: g.heute.length,
         wartend: g.wartend.length, neu: g.neu.length,
-        angeboteOffen: g.angeboteOffen
+        angeboteOffen: g.angeboteOffen,
+        einfuehrungenMorgen: g.morgen.length,
+        davonUnbestaetigt: g.morgen.filter(m => !m.bestaetigt).length
       });
     }
 
@@ -77,13 +79,35 @@ function wartet(a) {
   return null;
 }
 
+/* Punkte der Admin-Checkliste, die vor der Einführung erledigt sein müssen.
+   Muss mit der Liste CHECK_VOR im Admin-Bereich übereinstimmen. */
+const CHECK_VOR_KEYS = ['outlook','checkliste','infochat','pf','aduna','objekt','ablage','merkmale',
+  'kostenst','zustaendig','tarif','planung','dispo','unterlagen','ferien'];
+
 function gruppieren(auftraege, angebote) {
-  const g = { ueberfaellig: [], heute: [], wartend: [], neu: [], angeboteOffen: 0 };
+  const g = { ueberfaellig: [], heute: [], wartend: [], neu: [], angeboteOffen: 0, morgen: [] };
   const heuteStr = new Date().toISOString().slice(0, 10);
+  const morgenStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+
+  /* Einführungen von morgen — unabhängig von der Stufe, denn nach der Zusage
+     steht der Auftrag bereits auf «aktiv». */
+  for (const a of auftraege) {
+    if (String(a.stufe || '') === 'abgesagt') continue;
+    if (!a.einfuehrungAm || String(a.einfuehrungAm).slice(0, 10) !== morgenStr) continue;
+    const stand = a.adminCheck || {};
+    const offen = CHECK_VOR_KEYS.filter(k => !(stand[k] && stand[k].am)).length;
+    g.morgen.push({
+      a,
+      bestaetigt: !!a.einfuehrungBestaetigt,
+      zeit: a.einfuehrungZeit || '',
+      offen
+    });
+  }
+  g.morgen.sort((x, y) => String(x.zeit).localeCompare(String(y.zeit)));
 
   for (const a of auftraege) {
     const st = String(a.stufe || '');
-    if (st === 'aktiv' || st === 'abgesagt') continue;
+    if (st === 'aktiv' || st === 'abgesagt' || st === 'archiv') continue;
 
     const w = wartet(a);
     if (w) {
@@ -141,11 +165,39 @@ async function senden(key, g) {
       `</table>`;
   };
 
+  /* Einführungen von morgen: die Zahl, die im Tagesdienst zuerst zählt. */
+  const morgenDatum = new Date(Date.now() + 86400000)
+    .toLocaleDateString('de-CH', { weekday:'long', day:'2-digit', month:'long' });
+  const unbestaetigt = g.morgen.filter(m => !m.bestaetigt).length;
+  const morgenFarbe = unbestaetigt ? '#B4892C' : '#1C7878';
+  const morgenBlock = `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+           style="margin:0 0 18px;border:1px solid #E1EAE9;border-left:4px solid ${morgenFarbe};background:#FBFDFD;">
+      <tr><td style="padding:14px 16px;font-family:Verdana,Geneva,sans-serif;">
+        <div style="font-size:12px;font-weight:bold;color:${morgenFarbe};letter-spacing:.06em;">EINFÜHRUNGEN MORGEN</div>
+        <div style="font-size:13px;color:#0E1E1D;margin-top:6px;">
+          ${g.morgen.length === 0
+            ? 'Für ' + morgenDatum + ' ist keine Einführung eingeplant.'
+            : '<strong>' + g.morgen.length + '</strong> Einführung' + (g.morgen.length === 1 ? '' : 'en') +
+              ' am ' + morgenDatum + ', davon <strong>' + unbestaetigt + '</strong> ohne Bestätigung der Kundschaft.'}
+        </div>
+        ${g.morgen.map(m => `<div style="font-size:12px;color:#485655;margin-top:8px;">
+            ${m.zeit ? m.zeit + ' Uhr · ' : ''}<strong>${kname(m.a)}</strong>, ${kort(m.a)}
+            ${m.a.raumpflegerin ? ' · ' + m.a.raumpflegerin : ''}<br>
+            <span style="color:${m.bestaetigt ? '#1C7878' : '#B4892C'};">
+              ${m.bestaetigt ? 'Bestätigt' : 'Zusage steht aus'}</span>
+            ${m.offen ? ' · <span style="color:#B4232C;">' + m.offen + ' Punkt' + (m.offen === 1 ? '' : 'e') +
+                        ' der Checkliste offen</span>' : ' · Checkliste vollständig'}
+          </div>`).join('')}
+      </td></tr>
+    </table>`;
+
   const inhalt = `
     <p style="margin:0 0 6px;">Stand ${heute}.</p>
     <p style="margin:0 0 18px;">${gesamt === 0
       ? 'Es sind derzeit keine Pendenzen offen.'
       : 'Offen sind aktuell <strong>' + gesamt + '</strong> Pendenzen. Die dringendsten zuerst.'}</p>
+    ${morgenBlock}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 6px;"><tr>
       ${kachel(g.ueberfaellig.length, 'Überfällig', '#B4232C')}
       ${kachel(g.heute.length, 'Heute fällig', '#B4232C'.replace('#B4232C', '#B4892C'))}
@@ -160,6 +212,11 @@ async function senden(key, g) {
     <p style="margin:14px 0 0;font-size:12px;color:#767676;">Offene Angebote in der Nachfassstrecke: ${g.angeboteOffen}.</p>`;
 
   const text = 'Pendenzen ' + heute + '\n\n' +
+    'Einführungen morgen: ' + g.morgen.length + ', davon ohne Bestätigung: ' + unbestaetigt + '\n' +
+    g.morgen.map(m => '  ' + (m.zeit ? m.zeit + ' ' : '') + kname(m.a) + ' — ' +
+      (m.bestaetigt ? 'bestätigt' : 'Zusage steht aus') +
+      (m.offen ? ', ' + m.offen + ' Checklistenpunkte offen' : '')).join('\n') +
+    (g.morgen.length ? '\n' : '') + '\n' +
     'Überfällig: ' + g.ueberfaellig.length + '\nHeute fällig: ' + g.heute.length +
     '\nWartet auf Kundschaft: ' + g.wartend.length + '\nNeu und in Arbeit: ' + g.neu.length +
     '\n\n' + BASIS + '/admin.html';
@@ -171,6 +228,8 @@ async function senden(key, g) {
       from: 'Angebotssystem PFS <putzfrauenservice@clean-service.ch>',
       to: [EMPFAENGER],
       subject: 'Pendenzen ' + new Date().toLocaleDateString('de-CH') +
+               (g.morgen.length ? ' · ' + g.morgen.length + ' Einführung' + (g.morgen.length === 1 ? '' : 'en') +
+                 ' morgen' + (unbestaetigt ? ', ' + unbestaetigt + ' offen' : '') : '') +
                (g.ueberfaellig.length ? ' · ' + g.ueberfaellig.length + ' überfällig' : ''),
       html: csRahmen('Pendenzen im Putzfrauenservice', inhalt, '', 'de'),
       text,
