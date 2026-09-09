@@ -656,6 +656,31 @@ textarea{ min-height:96px; resize:vertical; }
   .kal .kt.leer{ display:none; }
   .kal .kt .nr::after{ content:attr(data-lang); font-weight:normal; color:var(--cs-ink-mute); margin-left:6px; }
 }
+
+/* ---- Checklistenübersicht ---- */
+.cl-fall{ border:1px solid var(--cs-border); border-radius:var(--cs-radius-sm); margin-bottom:10px; background:#fff; overflow:hidden; }
+.cl-fall.dringend{ border-left:5px solid var(--cs-neg); background:#FDF6F4; }
+.cl-fall.bald{ border-left:5px solid var(--cs-warn); background:#FEFAF0; }
+.cl-fall > summary{
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  padding:12px 15px; cursor:pointer; list-style:none;
+}
+.cl-fall > summary::-webkit-details-marker{ display:none; }
+.cl-fall > summary::before{
+  content:'▸'; color:var(--cs-ink-mute); font-size:12px; flex:none; transition:transform .15s;
+}
+.cl-fall[open] > summary::before{ transform:rotate(90deg); }
+.cl-fall > summary:hover{ background:rgba(43,182,183,.06); }
+.cl-name{ flex:1 1 220px; font-size:var(--cs-fs-md); font-weight:bold; color:var(--cs-ink); }
+.cl-name small{ display:block; font-weight:normal; font-size:var(--cs-fs-xs); color:var(--cs-ink-mute); margin-top:2px; }
+.cl-frist{ flex:0 1 220px; font-size:var(--cs-fs-sm); color:var(--cs-ink-soft); }
+.cl-frist small{ display:block; font-size:var(--cs-fs-xs); color:var(--cs-ink-mute); }
+.cl-inhalt{ padding:4px 15px 14px; border-top:1px solid var(--cs-border-soft); background:#fff; }
+.cl-teil h4{ margin:12px 0 6px; font-size:var(--cs-fs-sm); color:var(--cs-teal-deep); }
+@media (max-width:760px){
+  .cl-fall > summary{ gap:6px; }
+  .cl-frist{ flex:1 1 100%; }
+}
 </style>
 </head>
 <body>
@@ -701,7 +726,7 @@ textarea{ min-height:96px; resize:vertical; }
     </div>
 
     <nav class="nav">
-      <a href="#" class="on" data-ansicht="aufgaben">Aufgaben <span class="zahl" id="n-aufgaben">0</span></a>
+      <a href="#" class="on" data-ansicht="checklisten">Checklisten <span class="zahl" id="n-check">0</span></a>
       <a href="#" data-ansicht="eingang">Auftragserteilungen <span class="zahl" id="n-eingang">0</span></a>
       <a href="#" data-ansicht="aktive">Aktive Aufträge <span class="zahl" id="n-aktive">0</span></a>
       <a href="#" data-ansicht="kalender">Kalender <span class="zahl" id="n-kalender">0</span></a>
@@ -768,8 +793,7 @@ textarea{ min-height:96px; resize:vertical; }
 let CS_TOKEN = sessionStorage.getItem('cs_token') || '';
 let CS_WER   = sessionStorage.getItem('cs_wer') || '';
 let AUFTRAEGE = [], ANGEBOTE = null, LISTE = [];
-let ANSICHT = 'aufgaben', FALL = null, ZULETZT = [];
-let TEAM_AUFGABEN = [], AUFGABEN_ALLE = false;
+let ANSICHT = 'checklisten', FALL = null, ZULETZT = [];
 let KAL_MONAT = null;   // erster Tag des angezeigten Monats
 let FILTERS = {verkauf:'alle', aktive:'alle'};
 let SUCHE   = {verkauf:'', aktive:''};
@@ -902,10 +926,6 @@ async function ladeDaten(){
     const r2 = await fetch('/api/offers', {cache:'no-store'});
     if(r2.ok) ANGEBOTE = await r2.json();
   }catch(e){ ANGEBOTE = null; }
-  try{
-    const r3 = await fetch('/api/aufgaben', {cache:'no-store'});
-    if(r3.ok){ const d3 = await r3.json(); TEAM_AUFGABEN = (d3.aufgaben || []).map(a => Object.assign({}, a, {id: a.id || a._id})); }
-  }catch(e){ /* Aufgaben sind eine Ergänzung, der Rest funktioniert auch ohne */ }
   baueListe();
   zeichnen();
 }
@@ -1034,8 +1054,8 @@ function zeichnen(){
   const titel = document.getElementById('seiten-titel');
   const text = document.getElementById('seiten-text');
 
-  document.getElementById('n-aufgaben').textContent =
-    abgeleiteteAufgaben().filter(x => x.stufe <= 1).length + TEAM_AUFGABEN.filter(a => !a.erledigt).length;
+  document.getElementById('n-check').textContent =
+    LISTE.filter(e => e.quelle === 'auftrag' && !['archiv','abgesagt'].includes(e.stufe) && checkOffenVor(e)).length;
   document.getElementById('n-eingang').textContent = LISTE.filter(offenerAuftrag).length;
   document.getElementById('n-kalender').textContent = termine()
     .filter(t => t.bestaetigt && t.datum >= new Date().toISOString().slice(0,10)).length;
@@ -1055,16 +1075,122 @@ function zeichnen(){
     return;
   }
   const seiten = {
-    aufgaben:   ['Aufgaben', 'Was heute zu tun ist — aus den Fällen abgeleitet und selbst erfasst.', seiteAufgaben],
+    checklisten:['Checklisten', 'Alle offenen Punkte des Admin-Teams, nach Stichtag geordnet.', seiteChecklisten],
     eingang:    ['Auftragserteilungen', 'Alles, was noch nicht aktiv läuft — nach Dringlichkeit sortiert.', seiteEingang],
     aktive:     ['Aktive Aufträge', 'Laufende Kundschaft, Archiv und Absagen.', seiteAktive],
     kalender:   ['Kalender', 'Alle Einführungstermine im Überblick.', seiteKalender],
     verkauf:    ['Neues Angebot', 'Angebot erstellen und alle laufenden Angebote verfolgen.', seiteVerkauf],
     auswertung: ['Auswertung', 'Zahlen zum laufenden Bestand.', seiteAuswertung]
   };
-  const s = seiten[ANSICHT] || seiten.aufgaben;
+  const s = seiten[ANSICHT] || seiten.checklisten;
   titel.textContent = s[0]; text.textContent = s[1];
   box.innerHTML = s[2]();
+}
+
+/* ---------- Admin-Checkliste je Kundschaft ----------
+   Die Punkte stammen aus der bisherigen Planner-Liste. Alles vor der
+   Einführung muss einen Tag vor dem Termin erledigt sein; die vier Punkte
+   danach betreffen die Zeit nach der ersten Reinigung. */
+const CHECK_VOR = [
+  ['outlook',    'Termin im Outlook eingetragen / Reporting im Teams nachgetragen'],
+  ['checkliste', 'Checkliste in dieser Aufgabe hinzugefügt'],
+  ['infochat',   'Neukunden im Allgemeinen Info Chat geschrieben'],
+  ['pf',         'Passende PF gefunden'],
+  ['aduna',      'Kunde im Aduna erfasst'],
+  ['objekt',     'Objekt eröffnet'],
+  ['ablage',     'Ablegen Checkliste PFS'],
+  ['merkmale',   'Merkmale: Putzfrauenservice / Rechnung PFS PDF hinzugefügt'],
+  ['kostenst',   'Kostenstelle 2002, Putz (ZH), Putzfrauenservice Zürich, Zahlungsbedingung'],
+  ['zustaendig', 'Zuständig: PF hinzugefügt'],
+  ['tarif',      'Tarif hinzugefügt'],
+  ['planung',    'Mitarbeiterplanung erfasst'],
+  ['dispo',      'Kunde in der Dispo eingeholt'],
+  ['unterlagen', 'Einführungsunterlagen vorbereitet, CL übersetzt an RK gesendet'],
+  ['ferien',     'FERIENMELDUNG gesendet, falls RK demnächst geht']
+];
+const CHECK_NACH = [
+  ['q_verschoben', 'Aufgabe verschoben: Qualitätsnachfrage'],
+  ['q_erledigt',   'Qualitätsnachfrage erledigt und Tagesjournal Aduna'],
+  ['kontrolle',    'Aufgabe verschoben: Kontrolle Cristian'],
+  ['ofr',          'Aufgabe verschoben: OFR Fensterreinigung']
+];
+
+const checkStand = e => (e && e.adminCheck) || {};
+const checkErledigt = (e, k) => !!(checkStand(e)[k] && checkStand(e)[k].am);
+const checkOffenVor = e => CHECK_VOR.filter(([k]) => !checkErledigt(e, k)).length;
+function checkMerkmal(e){
+  if(e.quelle !== 'auftrag') return '';
+  const offen = checkOffenVor(e);
+  if(!offen) return '<span class="tag pos">Checkliste vollständig</span>';
+  const st = checkStatus(e);
+  return '<span class="tag ' + (st.stufe === 0 ? 'neg' : st.stufe === 1 ? 'warn' : 'neutral') + '">Checkliste ' +
+         (CHECK_VOR.length - offen) + '/' + CHECK_VOR.length + '</span>';
+}
+
+/* Stichtag: ein Tag vor der Einführung */
+function checkFrist(e){
+  if(!e.einfuehrungAm) return null;
+  const d = new Date(e.einfuehrungAm);
+  if(isNaN(d)) return null;
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0,10);
+}
+function checkStatus(e){
+  const offen = checkOffenVor(e);
+  const frist = checkFrist(e);
+  if(!offen) return {offen:0, frist, stufe:3, text:'Checkliste vollständig.'};
+  if(!frist) return {offen, frist, stufe:3, text:offen + ' Punkt' + (offen === 1 ? '' : 'e') + ' offen, noch ohne Termin.'};
+  const heute = new Date().toISOString().slice(0,10);
+  const tage = Math.round((new Date(frist) - new Date(heute)) / 86400000);
+  if(tage < 0) return {offen, frist, stufe:0, text:offen + ' Punkt' + (offen === 1 ? '' : 'e') + ' offen, Stichtag war ' + dat(frist) + '.'};
+  if(tage <= 2) return {offen, frist, stufe:1, text:offen + ' Punkt' + (offen === 1 ? '' : 'e') + ' offen, fällig bis ' + dat(frist) + '.'};
+  return {offen, frist, stufe:3, text:offen + ' Punkt' + (offen === 1 ? '' : 'e') + ' offen bis ' + dat(frist) + '.'};
+}
+
+function kartenCheckliste(e){
+  if(e.quelle !== 'auftrag') return '';
+  const st = checkStatus(e);
+  const stand = checkStand(e);
+  const zeile = ([k, text]) => {
+    const ok = checkErledigt(e, k);
+    const wer = ok ? (stand[k].von || '') : '';
+    const wann = ok ? dat(stand[k].am) : '';
+    return '<label class="cl-item' + (ok ? '' : ' off') + '">' +
+      '<input type="checkbox"' + (ok ? ' checked' : '') +
+        ' onchange="checkPunkt(\'' + e.id + '\', \'' + k + '\', this.checked)">' +
+      '<span>' + esc(text) + (ok && wer ? '<br><span class="cs-mute">' + esc(wer) + ', ' + wann + '</span>' : '') + '</span>' +
+    '</label>';
+  };
+  const nachOffen = CHECK_NACH.filter(([k]) => !checkErledigt(e, k)).length;
+
+  return '<div class="card"><div class="card-head"><div><h2>Admin-Checkliste</h2>' +
+      '<p>Was das Admin-Team für diese Kundschaft erledigt hat.</p></div>' +
+      '<span class="tag ' + (st.stufe === 0 ? 'neg' : st.stufe === 1 ? 'warn' : st.offen ? '' : 'pos') + '">' +
+      (CHECK_VOR.length - st.offen) + ' von ' + CHECK_VOR.length + '</span></div>' +
+    '<div class="card-body">' +
+      (st.frist
+        ? '<div class="hinweis ' + (st.stufe === 0 ? 'neg' : st.stufe === 1 ? 'warn' : st.offen ? '' : 'pos') + '">' +
+          (st.offen
+            ? 'Alle Punkte müssen bis zum ' + dat(st.frist) + ' erledigt sein, einen Tag vor der Einführung am ' +
+              dat(e.einfuehrungAm) + '. ' + esc(st.text)
+            : 'Vollständig erledigt vor der Einführung am ' + dat(e.einfuehrungAm) + '.') + '</div>'
+        : '<div class="hinweis">Sobald ein Einführungstermin steht, müssen diese Punkte einen Tag vorher erledigt sein.</div>') +
+      '<div class="cl-section"><div class="cl-head"><h4>Vor der Einführung</h4>' +
+        '<span class="cl-anz">' + (CHECK_VOR.length - st.offen) + '/' + CHECK_VOR.length + '</span></div>' +
+        CHECK_VOR.map(zeile).join('') + '</div>' +
+      '<div class="cl-section"><div class="cl-head"><h4>Nach der ersten Reinigung</h4>' +
+        '<span class="cl-anz">' + (CHECK_NACH.length - nachOffen) + '/' + CHECK_NACH.length + '</span></div>' +
+        CHECK_NACH.map(zeile).join('') + '</div>' +
+    '</div></div>';
+}
+
+async function checkPunkt(id, schluessel, gesetzt){
+  const e = LISTE.find(x => String(x.id) === String(id));
+  if(!e) return;
+  const stand = Object.assign({}, checkStand(e));
+  if(gesetzt) stand[schluessel] = { von: CS_WER, am: new Date().toISOString() };
+  else delete stand[schluessel];
+  await speichern(id, { adminCheck: stand });
 }
 
 /* ---------- Kalender ----------
@@ -1162,174 +1288,80 @@ function seiteKalender(){
    (Fristen, ausstehende Antworten, Reklamationen) und was das Team selbst
    erfasst. Aufgaben gehören dem Team, nicht einer Person. */
 
-function abgeleiteteAufgaben(){
+/* ---------- Checklisten: alles Offene an einem Ort ----------
+   Ersetzt die Aufgabenliste aus dem Planner. Jede Kundschaft bringt ihre
+   Teilaufgaben mit; hier stehen sie gebündelt, nach Stichtag geordnet, und
+   lassen sich direkt abhaken, ohne den Fall zu öffnen. */
+function checkFaelle(){
   return LISTE
     .filter(e => e.quelle === 'auftrag' && !['archiv','abgesagt'].includes(e.stufe))
-    .map(e => {
-      if(unzufrieden(e))
-        return {e, stufe:0, was:'Reklamation bearbeiten', warum:'Die Kundschaft ist nicht zufrieden.'};
-      if(!offenerAuftrag(e)) {
-        const w = wartetAuf(e);
-        return w ? {e, stufe: (tageSeit(w.seit) > 7 ? 0 : 2), was:'Nachfassen', warum:'Wartet auf ' + w.grund + '.'} : null;
-      }
-      const dr = dringlichkeit(e);
-      const was = terminVorgeschlagen(e) ? 'Zusage einholen'
-        : istSpringerStart(e) ? 'Disponieren und aktivieren'
-        : e.stufe === 'auftrag' ? 'In Bearbeitung nehmen'
-        : 'Weiterbearbeiten';
-      return {e, stufe: dr.stufe, was, warum: dr.text};
-    })
-    .filter(Boolean);
+    .map(e => Object.assign({e}, checkStatus(e)))
+    .filter(x => x.offen > 0)
+    .sort((a,b) => a.stufe - b.stufe || String(a.frist || '9999').localeCompare(String(b.frist || '9999')));
 }
 
-function seiteAufgaben(){
-  const abgeleitet = abgeleiteteAufgaben();
-  const g = n => abgeleitet.filter(x => x.stufe === n);
-  const offeneEigene = TEAM_AUFGABEN.filter(a => !a.erledigt);
-  const erledigte = TEAM_AUFGABEN.filter(a => a.erledigt);
+function seiteChecklisten(){
+  const faelle = checkFaelle();
+  const punkteOffen = faelle.reduce((n,x) => n + x.offen, 0);
+  const ueberfaellig = faelle.filter(x => x.stufe === 0).length;
+  const bald = faelle.filter(x => x.stufe === 1).length;
+  const fertig = LISTE.filter(e => e.quelle === 'auftrag' && !['archiv','abgesagt'].includes(e.stufe) && !checkOffenVor(e)).length;
 
-  const kacheln = [
-    {t:'Überfällig',            n:g(0).length, h:'Hier liegt etwas zu lange.', f:'k-neg'},
-    {t:'Heute fällig',          n:g(1).length, h:'Frist läuft in den nächsten Tagen ab.', f:'k-warn'},
-    {t:'Wartet auf Kundschaft', n:g(2).length, h:'Nichts zu tun, wir warten.', f:''},
-    {t:'Eigene Aufgaben',       n:offeneEigene.length, h:'Vom Team selbst erfasst.', f:''}
-  ];
-  const kpi = '<div class="kpi-row">' + kacheln.map(k =>
-    '<div class="kpi ' + (k.f || '') + '"><div class="label">' + k.t + '</div><div class="wert">' + k.n + '</div>' +
-    '<div class="delta">' + k.h + '</div></div>').join('') + '</div>';
-
-  const zeileAbgeleitet = x =>
-    '<div class="zeile' + (x.stufe === 0 ? ' dringend' : x.stufe === 1 ? ' bald' : '') +
-      '" onclick="oeffneFall(\'' + x.e.id + '\')">' +
-      '<div class="wer"><strong>' + esc(x.was) + '</strong><span>' + esc(name(x.e)) + ' · ' + esc(ort(x.e)) + '</span></div>' +
-      '<div class="warum">' + esc(x.warum) + '</div>' +
-      '<button class="btn secondary" onclick="event.stopPropagation();oeffneFall(\'' + x.e.id + '\')">Fall öffnen</button>' +
+  const kpi = '<div class="kpi-row">' +
+    '<div class="kpi k-neg"><div class="label">Stichtag verpasst</div><div class="wert">' + ueberfaellig +
+      '</div><div class="delta">Einführung steht unmittelbar bevor oder war schon.</div></div>' +
+    '<div class="kpi k-warn"><div class="label">In den nächsten zwei Tagen</div><div class="wert">' + bald +
+      '</div><div class="delta">Stichtag ist der Tag vor der Einführung.</div></div>' +
+    '<div class="kpi"><div class="label">Offene Punkte</div><div class="wert">' + punkteOffen +
+      '</div><div class="delta">über ' + faelle.length + ' Kundschaften</div></div>' +
+    '<div class="kpi k-pos"><div class="label">Vollständig</div><div class="wert">' + fertig +
+      '</div><div class="delta">Nichts mehr zu tun.</div></div>' +
     '</div>';
 
-  const gruppe = (titel, hinweis, liste) =>
-    '<div class="card"><div class="card-head"><div><h2>' + titel + '</h2><p>' + hinweis + '</p></div>' +
-      '<span class="tag neutral">' + liste.length + '</span></div>' +
-    '<div class="card-body">' +
-      (liste.length ? liste.map(zeileAbgeleitet).join('') : '<p class="cs-hint">Zurzeit nichts.</p>') +
-    '</div></div>';
+  if(!faelle.length)
+    return kpi + leer('Alles abgehakt', 'Bei keiner laufenden Kundschaft ist ein Punkt offen.');
 
-  /* Eigene Aufgaben */
-  const zeileEigen = a => {
-    const spaet = a.faellig && a.faellig < new Date().toISOString().slice(0,10);
-    return '<div class="zeile' + (spaet ? ' dringend' : '') + '" style="cursor:default;">' +
-      '<div class="wer"><strong>' + esc(a.text) + '</strong><span>' +
-        (a.auftragName ? esc(a.auftragName) + ' · ' : '') +
-        (a.erstelltVon ? 'erfasst von ' + esc(a.erstelltVon) : '') + '</span></div>' +
-      '<div class="warum">' + (a.faellig ? (spaet ? 'Fällig war ' : 'Fällig ') + dat(a.faellig) : 'Ohne Frist') +
-        (a.erledigt ? ' · erledigt ' + dat(a.erledigtAm) + (a.erledigtVon ? ' von ' + esc(a.erledigtVon) : '') : '') + '</div>' +
-      '<div class="btn-row" style="justify-content:flex-end;">' +
-        (a.auftragId ? '<button class="btn klein secondary" onclick="oeffneFall(\'' + a.auftragId + '\')">Fall</button>' : '') +
-        (a.erledigt
-          ? '<button class="btn klein" onclick="aufgabeStatus(\'' + a.id + '\', false, this)">Wieder öffnen</button>'
-          : '<button class="btn klein primary-action" onclick="aufgabeStatus(\'' + a.id + '\', true, this)">Erledigt</button>') +
-        '<button class="btn klein danger" onclick="aufgabeLoeschen(\'' + a.id + '\')">Löschen</button>' +
-      '</div></div>';
+  const punkt = (e, k, text) =>
+    '<label class="cl-item off"><input type="checkbox" onchange="checkPunkt(\'' + e.id + '\', \'' + k + '\', this.checked)">' +
+    '<span>' + esc(text) + '</span></label>';
+
+  const block = x => {
+    const e = x.e;
+    const offenVor = CHECK_VOR.filter(([k]) => !checkErledigt(e, k));
+    const offenNach = CHECK_NACH.filter(([k]) => !checkErledigt(e, k));
+    const farbe = x.stufe === 0 ? 'neg' : x.stufe === 1 ? 'warn' : 'neutral';
+    return '<details class="cl-fall' + (x.stufe === 0 ? ' dringend' : x.stufe === 1 ? ' bald' : '') + '"' +
+        (x.stufe <= 1 ? ' open' : '') + '>' +
+      '<summary>' +
+        '<span class="cl-name">' + esc(name(e)) + '<small>' + esc(ort(e)) +
+          (e.raumpflegerin ? ' · ' + esc(e.raumpflegerin) : '') + '</small></span>' +
+        '<span class="cl-frist">' + (x.frist
+            ? 'Stichtag ' + dat(x.frist) + '<small>Einführung ' + dat(e.einfuehrungAm) +
+              (e.einfuehrungZeit ? ', ' + esc(e.einfuehrungZeit) + ' Uhr' : '') + '</small>'
+            : 'Ohne Termin<small>Stichtag entsteht mit der Einführung</small>') + '</span>' +
+        '<span class="tag ' + farbe + '">' + x.offen + ' offen</span>' +
+      '</summary>' +
+      '<div class="cl-inhalt">' +
+        (offenVor.length
+          ? '<div class="cl-teil"><h4>Vor der Einführung</h4>' + offenVor.map(([k,t]) => punkt(e,k,t)).join('') + '</div>'
+          : '<p class="cs-hint">Vor der Einführung ist alles erledigt.</p>') +
+        (offenNach.length
+          ? '<div class="cl-teil"><h4>Nach der ersten Reinigung</h4>' + offenNach.map(([k,t]) => punkt(e,k,t)).join('') + '</div>'
+          : '') +
+        '<div class="btn-row" style="margin-top:10px;">' +
+          '<button class="btn klein secondary" onclick="oeffneFall(\'' + e.id + '\')">Fall öffnen</button>' +
+        '</div>' +
+      '</div></details>';
   };
 
-  const faelleFuerAuswahl = LISTE
-    .filter(e => e.quelle === 'auftrag' && !['archiv','abgesagt'].includes(e.stufe))
-    .map(e => '<option value="' + esc(e.id) + '">' + esc(name(e)) + ' · ' + esc(ort(e)) + '</option>').join('');
-
-  const eigen =
-    '<div class="card"><div class="card-head"><div><h2>Eigene Aufgaben</h2>' +
-      '<p>Alles, was sonst auf einem Zettel landet. Sichtbar für das ganze Team.</p></div>' +
-      '<span class="tag neutral">' + offeneEigene.length + '</span></div>' +
-    '<div class="card-body">' +
-      '<div class="feld-reihe" style="margin-bottom:10px;">' +
-        '<div class="feld" style="grid-column:span 2;"><label for="au-text">Neue Aufgabe</label>' +
-          '<input id="au-text" type="text" placeholder="Was ist zu tun?" ' +
-          'onkeydown="if(event.key===\'Enter\')aufgabeAnlegen(this)"></div>' +
-        '<div class="feld"><label for="au-datum">Fällig bis</label><input id="au-datum" type="date"></div>' +
-        '<div class="feld"><label for="au-fall">Zu welchem Fall</label><select id="au-fall">' +
-          '<option value="">Ohne Fall</option>' + faelleFuerAuswahl + '</select></div>' +
-      '</div>' +
-      '<div class="btn-row" style="margin-bottom:16px;">' +
-        '<button class="btn primary-action" onclick="aufgabeAnlegen(this)">Aufgabe erfassen</button>' +
-      '</div>' +
-      (offeneEigene.length
-        ? offeneEigene.sort((a,b) => String(a.faellig || '9999').localeCompare(String(b.faellig || '9999'))).map(zeileEigen).join('')
-        : '<p class="cs-hint">Keine offenen eigenen Aufgaben.</p>') +
-      (erledigte.length
-        ? '<div style="margin-top:14px;">' +
-          '<a href="#" onclick="AUFGABEN_ALLE=!AUFGABEN_ALLE;zeichnen();return false;">' +
-          (AUFGABEN_ALLE ? 'Erledigte ausblenden' : 'Erledigte anzeigen (' + erledigte.length + ')') + '</a>' +
-          (AUFGABEN_ALLE ? '<div style="margin-top:10px;">' + erledigte.slice(0, 30).map(zeileEigen).join('') + '</div>' : '') +
-          '</div>'
-        : '') +
-    '</div></div>';
-
   return kpi +
-    gruppe('Überfällig', 'Das zuerst. Fristen sind abgelaufen oder eine Reklamation ist offen.', g(0)) +
-    gruppe('Heute fällig', 'In den nächsten Werktagen läuft eine Frist ab.', g(1)) +
-    eigen +
-    gruppe('Wartet auf Kundschaft', 'Nichts zu tun, ausser im Blick behalten.', g(2)) +
-    gruppe('Laufend', 'In Arbeit, ohne Dringlichkeit.', g(3));
+    '<div class="card"><div class="card-head"><div><h2>Offene Punkte</h2>' +
+      '<p>Nach Stichtag geordnet. Alles muss einen Tag vor der Einführung erledigt sein.</p></div>' +
+      '<span class="tag neutral">' + faelle.length + '</span></div>' +
+    '<div class="card-body">' + faelle.map(block).join('') + '</div></div>';
 }
 
-/* ---------- Eigene Aufgaben: anlegen, abhaken, löschen ---------- */
-async function aufgabeAnlegen(btn){
-  const feld = document.getElementById('au-text');
-  const text = (feld.value || '').trim();
-  if(!text){ meldung('Bitte zuerst beschreiben, was zu tun ist.', 'neg'); return; }
-  const faellig = (document.getElementById('au-datum') || {}).value || '';
-  const fallId = (document.getElementById('au-fall') || {}).value || '';
-  const fall = fallId ? LISTE.find(x => String(x.id) === String(fallId)) : null;
-  btn.disabled = true;
-  try{
-    const r = await fetch('/api/aufgaben', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({text, faellig, auftragId: fallId,
-                            auftragName: fall ? name(fall) : '', bearbeiter: CS_WER})
-    });
-    const d = await r.json().catch(() => ({}));
-    if(!r.ok) throw new Error(d.error || 'Server ' + r.status);
-    TEAM_AUFGABEN.unshift(d.aufgabe);
-    zeichnen();
-    meldung('Aufgabe erfasst.');
-  }catch(err){
-    meldung('Nicht gespeichert: ' + err.message, 'neg');
-  }
-  btn.disabled = false;
-}
-
-async function aufgabeStatus(id, erledigt, btn){
-  const a = TEAM_AUFGABEN.find(x => String(x.id) === String(id));
-  if(!a) return;
-  btn.disabled = true;
-  a.erledigt = erledigt;
-  a.erledigtAm = erledigt ? new Date().toISOString() : '';
-  a.erledigtVon = erledigt ? CS_WER : '';
-  zeichnen();
-  try{
-    const r = await fetch('/api/aufgaben?aktion=status', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({id, erledigt, bearbeiter: CS_WER})
-    });
-    if(!r.ok) throw new Error('Server ' + r.status);
-  }catch(err){ meldung('Nicht gespeichert: ' + err.message, 'neg'); }
-}
-
-async function aufgabeLoeschen(id){
-  const a = TEAM_AUFGABEN.find(x => String(x.id) === String(id));
-  if(!a) return;
-  if(!confirm('Aufgabe «' + a.text + '» löschen?')) return;
-  TEAM_AUFGABEN = TEAM_AUFGABEN.filter(x => String(x.id) !== String(id));
-  zeichnen();
-  try{
-    const r = await fetch('/api/aufgaben?aktion=delete', {
-      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id})
-    });
-    if(!r.ok) throw new Error('Server ' + r.status);
-    meldung('Aufgabe gelöscht.');
-  }catch(err){ meldung('Nicht gelöscht: ' + err.message, 'neg'); }
-}
-
-/* ---------- Auftragserteilungen ---------- */
+/* ---------- Auftragserteilungen ---------- *//* ---------- Auftragserteilungen ---------- */
 /* Eine Auftragserteilung nimmt einen von zwei Wegen. Wünscht die Kundschaft
    den sofortigen Start mit dem Springerteam, legt api/order-received.js sie
    direkt auf «springer_gewuenscht», mit dem selbst gewählten Startdatum.
@@ -1445,7 +1477,7 @@ function seiteEingang(){
       '" onclick="oeffneFall(\'' + e.id + '\')">' +
       '<div class="wer"><strong>' + esc(name(e)) + '</strong><span>' + esc(ort(e)) +
         (e.frequenz ? ' · ' + esc(e.frequenz) : '') + '</span></div>' +
-      '<div class="warum">' + einfuehrungMerkmal(e) + ' ' +
+      '<div class="warum">' + einfuehrungMerkmal(e) + ' ' + checkMerkmal(e) + ' ' +
         dat(e.einfuehrungAm) + (e.einfuehrungZeit ? ', ' + esc(e.einfuehrungZeit) + ' Uhr' : '') +
         (e.raumpflegerin ? ' mit ' + esc(e.raumpflegerin) : '') + '<br>' +
         esc(tage === null ? 'Wartet auf die Zusage der Kundschaft.'
@@ -1936,7 +1968,7 @@ function fallSeite(e){
       : '') +
     (dr.stufe <= 1 ? '<div class="hinweis ' + (dr.stufe === 0 ? 'neg' : 'warn') + '">' + esc(dr.text) + '</div>' : '') +
     '<div class="fall-grid">' +
-      '<div>' + kartenFall(e) + kartenLeistungen(e) + kartenVerlauf(e) + '</div>' +
+      '<div>' + kartenFall(e) + kartenCheckliste(e) + kartenLeistungen(e) + kartenVerlauf(e) + '</div>' +
       '<div>' + kartenSchritte(e) + '</div>' +
     '</div>';
 }
