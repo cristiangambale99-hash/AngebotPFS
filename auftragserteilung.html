@@ -116,6 +116,12 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
   padding:13px 15px;font-size:13px;color:var(--body-c);line-height:1.55;margin-top:12px;
 }
 .note strong{color:var(--ink);}
+.note p{margin:0 0 8px;}
+.note p:last-child{margin:0;}
+.note-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px;}
+.note-head strong{font-family:var(--head);font-size:14px;}
+.note-tag{font-size:11.5px;font-weight:700;color:var(--teal-deep);background:#fff;
+  border:1px solid #CFE6EA;border-radius:100px;padding:3px 10px;white-space:nowrap;}
 
 /* Zusammenfassung */
 .sum{background:var(--wash);border:1px solid #DCEAE9;border-radius:12px;padding:16px 18px;margin-top:4px;}
@@ -222,7 +228,6 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
       </div>
 
       <label data-i18n="a27" class="fl" style="margin-top:16px;">Bodenbeläge in Ihrer Wohnung</label>
-      <p data-i18n="a28" class="hint" style="margin:0 0 10px;">Mehrfachauswahl — es genügt anzugeben, welche Beläge im Objekt vorhanden sind. Nicht pro Zimmer nötig.</p>
       <div data-i18n="a29" class="opts">
         <label class="opt"><input type="checkbox" class="f-boden" value="Parkett versiegelt">Parkett versiegelt</label>
         <label class="opt"><input type="checkbox" class="f-boden" value="Parkett geölt">Parkett geölt</label>
@@ -244,6 +249,12 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
         <div data-i18n="a31" class="l">Voraussichtlicher Aufwand</div>
         <div class="v" id="aufwand-wert">—</div>
         <div class="s" id="aufwand-sub"></div>
+      </div>
+
+      <div class="note" id="monat-hinweis" style="display:none;">
+        <div class="note-head" data-i18n="a70"><strong>Monatliche Reinigung</strong><span class="note-tag">CHF 48.65 pro Stunde</span></div>
+        <p data-i18n="a71">Bei monatlichem Rhythmus beträgt der Stundenansatz CHF 48.65 inkl. MWST — ebenfalls inklusive Sozialleistungen und Anfahrtsweg. Die einmalige Pauschale von CHF 70.00 für das Reinigungsmaterial gilt unverändert.</p>
+        <p data-i18n="a72">Die Ausführung übernimmt unser <strong>Springerteam</strong>. Anders als bei wöchentlicher oder zweiwöchentlicher Reinigung erfolgt keine feste Zuteilung einer Raumpflegerin — dafür bleiben Sie zeitlich vollständig flexibel.</p>
       </div>
     </div>
 
@@ -410,7 +421,6 @@ const I18N_EN = {
 "a25": "Every two weeks",
 "a26": "Monthly",
 "a27": "Floor coverings in your home",
-"a28": "Multiple selection — it is enough to state which coverings exist in the property. Not needed room by room.",
 "a29": "\n        <label class=\"opt\"><input type=\"checkbox\" class=\"f-boden\" value=\"Parkett versiegelt\">Sealed parquet</label>\n        <label class=\"opt\"><input type=\"checkbox\" class=\"f-boden\" value=\"Parkett geölt\">Oiled parquet</label>\n        <label class=\"opt\"><input type=\"checkbox\" class=\"f-boden\" value=\"Laminat\">Laminate</label>\n        <label class=\"opt\"><input type=\"checkbox\" class=\"f-boden\" value=\"Plättli / Keramik\">Tiles / ceramic</label>\n        <label class=\"opt\"><input type=\"checkbox\" class=\"f-boden\" value=\"Naturstein\">Natural stone</label>\n        <label class=\"opt\"><input type=\"checkbox\" class=\"f-boden\" value=\"Teppich\">Carpet</label>\n        <label class=\"opt\"><input type=\"checkbox\" class=\"f-boden\" value=\"Linoleum\">Linoleum</label>\n        <label class=\"opt\"><input type=\"checkbox\" class=\"f-boden\" id=\"f-boden-andere\" value=\"Andere\" onchange=\"bodenAndere()\">Other</label>\n      ",
 "a30": "\n        <label class=\"fl\" for=\"f-boden-text\">Which covering?</label>\n        <input type=\"text\" id=\"f-boden-text\" placeholder=\"z. B. Kork, Vinyl\">\n      ",
 "a31": "Expected time required",
@@ -451,7 +461,10 @@ const I18N_EN = {
 "a66": "\n        <input type=\"checkbox\" id=\"f-agb\" required>\n        <span>I hereby place a binding order and accept the <a href=\"agb.html\" target=\"_blank\" rel=\"noopener\">general terms and conditions</a>.</span>\n      ",
 "a67": "Place binding order",
 "a68": "You will receive a confirmation by e-mail immediately.",
-"a69": "No parking space"
+"a69": "No parking space",
+"a70": "<strong>Monthly cleaning</strong><span class=\"note-tag\">CHF 48.65 per hour</span>",
+"a71": "With a monthly rhythm the hourly rate is CHF 48.65 incl. VAT — likewise including social security contributions and travel. The one-off flat fee of CHF 70.00 for cleaning materials remains unchanged.",
+"a72": "The work is carried out by our <strong>relief team</strong>. Unlike weekly or fortnightly cleaning, no fixed cleaner is assigned — in return you remain completely flexible on timing."
 };
 const I18N_ATTR_EN = [["#f-boden", "placeholder", "e.g. parquet, tiles"], ["#f-stockwerk", "placeholder", "e.g. 2nd floor"], ["#f-boden-text", "placeholder", "e.g. cork, vinyl"], ["#f-alarmcode", "placeholder", "Treated confidentially"], ["#f-tier-text", "placeholder", "e.g. rabbit, bird"], ["#f-vereinbarungen", "placeholder", "e.g. delicate surfaces, access via neighbours"]];
 
@@ -507,6 +520,11 @@ function updateAufwand(){
   const box = document.getElementById('aufwand-box');
   const wert = document.getElementById('aufwand-wert');
   const sub = document.getElementById('aufwand-sub');
+
+  // Hinweisbalken wie im Konzept, sobald der monatliche Rhythmus gewaehlt ist
+  const mh = document.getElementById('monat-hinweis');
+  if(mh) mh.style.display = (f === 'monatlich') ? 'block' : 'none';
+
   if(!z || isNaN(z)){ box.style.display = 'none'; return; }
   const a = calcAufwand(z, f);
   box.style.display = 'block';
@@ -517,10 +535,13 @@ function updateAufwand(){
       : 'Bei dieser Grösse ermitteln wir den Aufwand in einer kurzen virtuellen Besichtigung.';
   } else {
     wert.textContent = a.std.toFixed(1) + (EN() ? ' hours per visit' : ' Stunden pro Einsatz');
-    const proMonat = a.std * 39 * (f === 'woechentlich' ? 4.3 : f === '14-taeglich' ? 2.15 : 1);
+    // Monatlicher Rhythmus hat einen eigenen Ansatz: CHF 48.65 inkl. MWST = 45.00 exkl.
+    const ansatz = (f === 'monatlich') ? 45 : 39;
+    const proEinsatz = a.std * ansatz;
+    const proMonat = proEinsatz * (f === 'woechentlich' ? 4.3 : f === '14-taeglich' ? 2.15 : 1);
     sub.textContent = EN()
-      ? 'CHF ' + (a.std * 39).toFixed(2) + ' per visit · Ø CHF ' + proMonat.toFixed(2) + ' per month, excl. VAT'
-      : 'CHF ' + (a.std * 39).toFixed(2) + ' pro Einsatz · Ø CHF ' + proMonat.toFixed(2) + ' pro Monat, exkl. MWST';
+      ? 'CHF ' + proEinsatz.toFixed(2) + ' per visit · Ø CHF ' + proMonat.toFixed(2) + ' per month, excl. VAT'
+      : 'CHF ' + proEinsatz.toFixed(2) + ' pro Einsatz · Ø CHF ' + proMonat.toFixed(2) + ' pro Monat, exkl. MWST';
   }
 }
 document.getElementById('f-zimmer').addEventListener('input', updateAufwand);
@@ -583,7 +604,7 @@ document.getElementById('orderForm').addEventListener('change', updateSteps);
   setz('f-mail', p.get('mail'));
   if(p.get('frequenz')) setz('f-frequenz', p.get('frequenz'));
   if(p.get('zimmer')) setz('f-zimmer', p.get('zimmer'));
-  if(p.get('zimmer') || p.get('frequenz')) updateAufwand();
+  updateAufwand();
   updateSteps();
 })();
 
