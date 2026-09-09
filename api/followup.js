@@ -34,15 +34,40 @@ export default async function handler(req, res) {
     if (!id) return res.status(400).json({ error: 'Keine Auftragsnummer übergeben.' });
     const key = process.env.RESEND_API_KEY;
     if (!key) return res.status(500).json({ error: 'RESEND_API_KEY fehlt.' });
+
+    /* Welche Nachricht: ohne Angabe die Vorlaufmail zum Springerteam,
+       mit art:'qualitaet' die Qualitaetsnachfrage. Ist zusaetzlich eine
+       Adresse in 'an' angegeben, gilt der Versand als Probe: die Nachricht
+       geht an diese Adresse und der Zeitstempel am Auftrag bleibt
+       unveraendert, damit der automatische Lauf spaeter regulaer sendet. */
+    const art = String((req.body && req.body.art) || 'vorlauf');
+    const probeAn = String((req.body && req.body.an) || '').trim();
+
     try {
       const auf = await lesen(AUFTRAG_SAMMLUNG, id);
       if (!auf) return res.status(404).json({ error: 'Auftrag ' + id + ' nicht gefunden.' });
       if (!auf.id) auf.id = id;   // Dokumentname als Nummer übernehmen
-      const mail = auf.mail || auf.email || '';
+      const mail = probeAn || auf.mail || auf.email || '';
       if (!mail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
         return res.status(400).json({ error: 'Keine gültige E-Mail-Adresse hinterlegt.' });
       }
+
+      if (art === 'qualitaet') {
+        await sendeQualitaetsmail(key, auf, mail);
+        if (probeAn) {
+          return res.status(200).json({ ok: true, probe: true, empfaenger: mail });
+        }
+        const neuQ = { ...auf };
+        delete neuQ._id;
+        neuQ.qualitaetMail = new Date().toISOString();
+        await speichern(AUFTRAG_SAMMLUNG, id, neuQ);
+        return res.status(200).json({ ok: true, empfaenger: mail, gesendetAm: neuQ.qualitaetMail });
+      }
+
       await sendeVorlaufmail(key, auf, mail);
+      if (probeAn) {
+        return res.status(200).json({ ok: true, probe: true, empfaenger: mail });
+      }
       const neu = { ...auf };
       delete neu._id;
       neu.vorlaufMail = new Date().toISOString();
