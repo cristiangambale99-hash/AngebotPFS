@@ -627,6 +627,35 @@ textarea{ min-height:96px; resize:vertical; }
 
 .sidebar .nav a.on{ box-shadow:inset 3px 0 0 #fff; }
 .sidebar .brand{ background:rgba(255,255,255,.05); }
+
+/* ---- Kalender ---- */
+.kal-kopf{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+.kal-monat{ font-size:var(--cs-fs-lg); font-weight:bold; color:var(--cs-ink); }
+.kal{ display:grid; grid-template-columns:repeat(7,1fr); gap:1px; background:#C6DCDB;
+  border:1px solid #C6DCDB; border-radius:var(--cs-radius); overflow:hidden; }
+.kal .wt{ background:#D9EFEF; color:var(--cs-teal-deep); font-size:var(--cs-fs-xs); font-weight:bold;
+  text-align:center; padding:7px 2px; }
+.kal .kt{ background:#fff; min-height:104px; padding:6px 6px 8px; border-radius:0; }
+.kal .kt.leer{ background:#F4F8F8; }
+.kal .kt.heute{ background:#EAF6F6; box-shadow:inset 0 0 0 2px var(--cs-teal); }
+.kal .kt.wochenende{ background:#F7FAFA; }
+.kal .kt .nr{ font-size:var(--cs-fs-xs); color:var(--cs-ink-mute); font-weight:bold; display:block; margin-bottom:4px; }
+.kal .kt.heute .nr{ color:var(--cs-teal-deep); }
+.kal-eintrag{ display:block; width:100%; text-align:left; border:none; cursor:pointer;
+  background:var(--cs-pos-bg); color:#14603A; border-left:4px solid var(--cs-pos);
+  border-radius:5px; padding:4px 6px; margin-bottom:4px; font-family:var(--cs-font); font-size:var(--cs-fs-xs); line-height:1.35; }
+.kal-eintrag:hover{ filter:brightness(.96); }
+.kal-eintrag.offen{ background:var(--cs-warn-bg); color:#6E4C08; border-left-color:var(--cs-warn); }
+.kal-eintrag strong{ display:block; font-size:var(--cs-fs-xs); }
+.kal-legende{ display:flex; gap:16px; flex-wrap:wrap; font-size:var(--cs-fs-sm); color:var(--cs-ink-soft); margin-top:12px; }
+.kal-legende span.pk{ display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+@media (max-width:900px){
+  .kal{ grid-template-columns:1fr; }
+  .kal .wt{ display:none; }
+  .kal .kt{ min-height:0; }
+  .kal .kt.leer{ display:none; }
+  .kal .kt .nr::after{ content:attr(data-lang); font-weight:normal; color:var(--cs-ink-mute); margin-left:6px; }
+}
 </style>
 </head>
 <body>
@@ -675,6 +704,7 @@ textarea{ min-height:96px; resize:vertical; }
       <a href="#" class="on" data-ansicht="aufgaben">Aufgaben <span class="zahl" id="n-aufgaben">0</span></a>
       <a href="#" data-ansicht="eingang">Auftragserteilungen <span class="zahl" id="n-eingang">0</span></a>
       <a href="#" data-ansicht="aktive">Aktive Aufträge <span class="zahl" id="n-aktive">0</span></a>
+      <a href="#" data-ansicht="kalender">Kalender <span class="zahl" id="n-kalender">0</span></a>
       <a href="#" data-ansicht="verkauf">Neues Angebot</a>
       <a href="#" data-ansicht="auswertung">Auswertung</a>
     </nav>
@@ -740,6 +770,7 @@ let CS_WER   = sessionStorage.getItem('cs_wer') || '';
 let AUFTRAEGE = [], ANGEBOTE = null, LISTE = [];
 let ANSICHT = 'aufgaben', FALL = null, ZULETZT = [];
 let TEAM_AUFGABEN = [], AUFGABEN_ALLE = false;
+let KAL_MONAT = null;   // erster Tag des angezeigten Monats
 let FILTERS = {verkauf:'alle', aktive:'alle'};
 let SUCHE   = {verkauf:'', aktive:''};
 
@@ -1006,6 +1037,8 @@ function zeichnen(){
   document.getElementById('n-aufgaben').textContent =
     abgeleiteteAufgaben().filter(x => x.stufe <= 1).length + TEAM_AUFGABEN.filter(a => !a.erledigt).length;
   document.getElementById('n-eingang').textContent = LISTE.filter(offenerAuftrag).length;
+  document.getElementById('n-kalender').textContent = termine()
+    .filter(t => t.bestaetigt && t.datum >= new Date().toISOString().slice(0,10)).length;
   document.getElementById('n-aktive').textContent =
     LISTE.filter(e => e.quelle === 'auftrag' && e.stufe === 'aktiv').length;
   document.getElementById('zuletzt').innerHTML = ZULETZT.map(z =>
@@ -1025,12 +1058,103 @@ function zeichnen(){
     aufgaben:   ['Aufgaben', 'Was heute zu tun ist — aus den Fällen abgeleitet und selbst erfasst.', seiteAufgaben],
     eingang:    ['Auftragserteilungen', 'Alles, was noch nicht aktiv läuft — nach Dringlichkeit sortiert.', seiteEingang],
     aktive:     ['Aktive Aufträge', 'Laufende Kundschaft, Archiv und Absagen.', seiteAktive],
+    kalender:   ['Kalender', 'Alle Einführungstermine im Überblick.', seiteKalender],
     verkauf:    ['Neues Angebot', 'Angebot erstellen und alle laufenden Angebote verfolgen.', seiteVerkauf],
     auswertung: ['Auswertung', 'Zahlen zum laufenden Bestand.', seiteAuswertung]
   };
   const s = seiten[ANSICHT] || seiten.aufgaben;
   titel.textContent = s[0]; text.textContent = s[1];
   box.innerHTML = s[2]();
+}
+
+/* ---------- Kalender ----------
+   Zeigt die Einführungstermine. Bestätigte Termine stehen grün und sind
+   verbindlich, vorgeschlagene gelb, solange die Zusage der Kundschaft fehlt. */
+
+function termine(){
+  return LISTE
+    .filter(e => e.quelle === 'auftrag' && e.einfuehrungAm && !['abgesagt'].includes(e.stufe))
+    .map(e => ({
+      e,
+      datum: String(e.einfuehrungAm).slice(0,10),
+      zeit: e.einfuehrungZeit || '',
+      bestaetigt: !!e.einfuehrungBestaetigt,
+      pflegerin: e.raumpflegerin || ''
+    }))
+    .sort((a,b) => a.datum.localeCompare(b.datum) || String(a.zeit).localeCompare(String(b.zeit)));
+}
+
+function monatErsterTag(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
+function kalBlaettern(schritte){
+  const m = KAL_MONAT || monatErsterTag(new Date());
+  KAL_MONAT = new Date(m.getFullYear(), m.getMonth() + schritte, 1);
+  zeichnen();
+}
+function kalHeute(){ KAL_MONAT = monatErsterTag(new Date()); zeichnen(); }
+
+function seiteKalender(){
+  const alle = termine();
+  const monat = KAL_MONAT || monatErsterTag(new Date());
+  const jahr = monat.getFullYear(), mon = monat.getMonth();
+  const heuteIso = new Date().toISOString().slice(0,10);
+
+  const monatsName = monat.toLocaleDateString('de-CH', { month:'long', year:'numeric' });
+  const ersterWochentag = (new Date(jahr, mon, 1).getDay() + 6) % 7;   // Montag = 0
+  const tageImMonat = new Date(jahr, mon + 1, 0).getDate();
+
+  const iso = t => jahr + '-' + String(mon + 1).padStart(2,'0') + '-' + String(t).padStart(2,'0');
+  const proTag = {};
+  alle.forEach(t => { (proTag[t.datum] = proTag[t.datum] || []).push(t); });
+
+  const eintrag = t =>
+    '<button class="kal-eintrag' + (t.bestaetigt ? '' : ' offen') + '" onclick="oeffneFall(\'' + t.e.id + '\')">' +
+      '<strong>' + (t.zeit ? esc(t.zeit) + ' · ' : '') + esc(name(t.e)) + '</strong>' +
+      esc(t.pflegerin || (t.bestaetigt ? 'ohne Raumpflegerin' : 'Zusage steht aus')) +
+    '</button>';
+
+  const wt = ['Mo','Di','Mi','Do','Fr','Sa','So'].map(x => '<div class="wt">' + x + '</div>').join('');
+  const felder = [];
+  for(let i = 0; i < ersterWochentag; i++) felder.push('<div class="kt leer"></div>');
+  for(let t = 1; t <= tageImMonat; t++){
+    const d = iso(t);
+    const wochentag = (new Date(jahr, mon, t).getDay() + 6) % 7;
+    const eintraege = (proTag[d] || []).map(eintrag).join('');
+    felder.push('<div class="kt' + (d === heuteIso ? ' heute' : '') + (wochentag > 4 ? ' wochenende' : '') +
+      (!eintraege && window.innerWidth <= 900 ? ' leer' : '') + '">' +
+      '<span class="nr" data-lang="' + new Date(jahr, mon, t).toLocaleDateString('de-CH', {weekday:'long', day:'numeric', month:'long'}) + '">' + t + '</span>' +
+      eintraege + '</div>');
+  }
+
+  const kommend = alle.filter(t => t.datum >= heuteIso).slice(0, 8);
+  const liste = kommend.length
+    ? kommend.map(t =>
+        '<div class="zeile' + (t.bestaetigt ? '' : ' bald') + '" onclick="oeffneFall(\'' + t.e.id + '\')">' +
+          '<div class="wer"><strong>' + esc(name(t.e)) + '</strong><span>' + esc(ort(t.e)) + '</span></div>' +
+          '<div class="warum">' + dat(t.datum) + (t.zeit ? ', ' + esc(t.zeit) + ' Uhr' : '') +
+            (t.pflegerin ? ' · ' + esc(t.pflegerin) : '') + '<br>' +
+            (t.bestaetigt ? '<span class="tag pos">Bestätigt</span>' : '<span class="tag warn">Zusage steht aus</span>') + '</div>' +
+          '<button class="btn klein secondary" onclick="event.stopPropagation();oeffneFall(\'' + t.e.id + '\')">Fall öffnen</button>' +
+        '</div>').join('')
+    : '<p class="cs-hint">Zurzeit ist kein Einführungstermin geplant.</p>';
+
+  return '<div class="card"><div class="card-body">' +
+      '<div class="kal-kopf">' +
+        '<div class="kal-monat">' + esc(monatsName) + '</div>' +
+        '<div class="btn-row">' +
+          '<button class="btn secondary" onclick="kalBlaettern(-1)">← Vorheriger</button>' +
+          '<button class="btn" onclick="kalHeute()">Heute</button>' +
+          '<button class="btn secondary" onclick="kalBlaettern(1)">Nächster →</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="kal">' + wt + felder.join('') + '</div>' +
+      '<div class="kal-legende">' +
+        '<div><span class="pk" style="background:var(--cs-pos)"></span>Bestätigt durch die Kundschaft</div>' +
+        '<div><span class="pk" style="background:var(--cs-warn)"></span>Vorgeschlagen, Zusage steht aus</div>' +
+      '</div>' +
+    '</div></div>' +
+    '<div class="card"><div class="card-head"><div><h2>Die nächsten Termine</h2>' +
+      '<p>Einführung und erste Reinigung sind derselbe Termin.</p></div></div>' +
+      '<div class="card-body">' + liste + '</div></div>';
 }
 
 /* ---------- Aufgaben ----------
