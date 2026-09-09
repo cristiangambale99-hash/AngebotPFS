@@ -1363,7 +1363,8 @@ jspdf/dist/jspdf.es.min.js:
   /* ---------- Pipeline: Angebote und Aufträge zusammengeführt ---------- */
   const STUFEN = [
     { id:'gesendet',    label:'Angebot gesendet',      klasse:'st-angebot' },
-    { id:'nachgefasst', label:'Nachgefasst',           klasse:'st-nachgefasst' },
+    { id:'nachgefasst1',label:'Nachgefasst nach 5 Tagen',  klasse:'st-nachgefasst' },
+    { id:'nachgefasst2',label:'Nachgefasst nach 30 Tagen', klasse:'st-nachgefasst' },
     { id:'auftrag',     label:'Auftragserteilung',     klasse:'st-auftrag' },
     { id:'bearbeitung', label:'In Bearbeitung',        klasse:'st-auftrag' },
     { id:'springer_gewuenscht', label:'Springerteam gewünscht', klasse:'st-aktiv' },
@@ -1378,9 +1379,10 @@ jspdf/dist/jspdf.es.min.js:
   const BEREICH_FILTER = {
     angebote: [
       { id:'alle',        label:'Alle' },
-      { id:'gesendet',    label:'Angebot gesendet' },
-      { id:'nachgefasst', label:'Nachgefasst' },
-      { id:'abgesagt',    label:'Abgesagt' }
+      { id:'gesendet',     label:'Angebot gesendet' },
+      { id:'nachgefasst1', label:'Nachgefasst 5 Tage' },
+      { id:'nachgefasst2', label:'Nachgefasst 30 Tage' },
+      { id:'abgesagt',     label:'Abgesagt' }
     ],
     auftraege: [
       { id:'alle',                label:'Alle' },
@@ -1446,7 +1448,8 @@ jspdf/dist/jspdf.es.min.js:
       } else {
         let stufe = 'gesendet';
         if(ang.status === 'abgesagt') stufe = 'abgesagt';
-        else if(ang.erinnerung1 || ang.erinnerung2) stufe = 'nachgefasst';
+        else if(ang.erinnerung2) stufe = 'nachgefasst2';
+        else if(ang.erinnerung1) stufe = 'nachgefasst1';
         liste.push(Object.assign({}, ang, {
           quelle:'angebot', id: ang.code,
           quelleKontakt: ang.quelle || '',
@@ -1656,6 +1659,10 @@ jspdf/dist/jspdf.es.min.js:
       const auf = (CS_AUFTRAEGE || []).find(x => String(x.id) === String(id));
       if(auf) auf.vorlaufMail = e.vorlaufMail;
       renderToDo();
+      // Offene Kundenseite auffrischen, damit Status und Knopf stimmen
+      const kt = document.getElementById('tab-kunde');
+      if(kt && kt.classList.contains('on')) renderKunde(e);
+      alert('Nachfrage gesendet an ' + (d.empfaenger || ziel) + '.');
     }catch(err){
       alert('Nicht gesendet: ' + err.message);
       if(btn){ btn.disabled = false; btn.textContent = 'jetzt senden'; }
@@ -1708,17 +1715,16 @@ jspdf/dist/jspdf.es.min.js:
       const wann = e.zuletztAm
         ? new Date(e.zuletztAm).toLocaleDateString('de-CH') + (e.zuletztVon ? ' · ' + e.zuletztVon : '')
         : '';
-      // Startart auf einen Blick: entscheidet, ob sofort disponiert werden muss
+      // Startart nur im Eingangsblock zeigen — in den anderen Blöcken sagt
+      // die Überschrift bereits, worum es geht.
       const springer = String(e.springerSofort || '').toLowerCase() === 'ja';
-      const startTag = e.springerSofort
+      const startTag = (e.stufe === 'auftrag' && e.springerSofort)
         ? '<span class="td-start ' + (springer ? 'td-springer' : 'td-warten') + '">' +
             (springer ? 'Start mit Springerteam' : 'Wartet auf feste Raumpflegerin') + '</span>'
         : '';
       // Antwort der Kundschaft auf die Vorlaufmail
       let antwort = '';
-      if(e.springerAntwort === 'ja')
-        antwort = '<span class="td-start td-springer">Springerteam gewünscht</span>';
-      else if(e.springerAntwort === 'nein')
+      if(e.springerAntwort === 'nein')
         antwort = '<span class="td-start td-warten">Springerteam abgelehnt</span>';
 
       // Vorlaufmail: laeuft erst ab dem Wechsel auf «in Bearbeitung»
@@ -1728,8 +1734,9 @@ jspdf/dist/jspdf.es.min.js:
           vorlauf = '<span class="td-vorlauf vl-offen">Vorlaufmail: Datum des Statuswechsels fehlt</span>';
         } else if(e.vorlaufMail){
           const d = new Date(e.vorlaufMail);
-          vorlauf = '<span class="td-vorlauf vl-weg">Vorlaufmail gesendet am ' +
-                    d.toLocaleDateString('de-CH') + '</span>';
+          vorlauf = '<span class="td-vorlauf vl-weg">Nachfrage gesendet am ' +
+                    d.toLocaleDateString('de-CH') +
+                    '<button onclick=\'vorlaufJetzt("' + e.id + '",event)\'>erneut senden</button></span>';
         } else if(e.vorlaufAus){
           vorlauf = '<span class="td-vorlauf vl-aus">Vorlaufmail unterdrückt' +
                     '<button onclick=\'vorlaufSchalten("' + e.id + '",false,event)\'>wieder aktivieren</button></span>';
@@ -1769,14 +1776,14 @@ jspdf/dist/jspdf.es.min.js:
     }
 
     const inhalt =
-      block('Neue Auftragserteilungen',
-        'Erfassen und prüfen, dann auf «In Bearbeitung» setzen — damit startet die Koordination und die Sieben-Werktage-Frist der Vorlaufmail.',
+      block('Neu eingegangen',
+        'Prüfen, dann auf «In Bearbeitung» setzen.',
         neuEing, '#2BB6B7') +
-      block('In Bearbeitung — feste Raumpflegerin wird koordiniert',
-        'Nach sieben Werktagen ohne Zuteilung geht automatisch die Vorlaufmail an die Kundschaft. Sobald die Raumpflegerin steht, auf «Aktiv» setzen.',
+      block('In Bearbeitung',
+        'Raumpflegerin koordinieren. Nach sieben Werktagen geht die Nachfrage automatisch an die Kundschaft.',
         inArbeit, '#E0B454') +
-      block('Start mit Springerteam gewünscht',
-        'Die Kundschaft hat auf die Vorlaufmail geantwortet. Ersten Einsatz über das Springerteam einplanen, dann auf «Aktiv» setzen.',
+      block('Springerteam gewünscht',
+        'Ersten Einsatz über das Springerteam einplanen.',
         springerJa, '#60BEB3');
 
     box.innerHTML = inhalt || '<div class="td-leer">' +
@@ -1820,6 +1827,19 @@ jspdf/dist/jspdf.es.min.js:
                '<button class="btn btn-sm" style="' + hell + '" onclick=\'setStufe("' + e.id + '","aktiv",event)\'>Direkt auf aktiv setzen</button>';
     else if(e.stufe === 'bearbeitung' || e.stufe === 'springer_gewuenscht')
       weiter = '<button class="btn" onclick=\'setStufe("' + e.id + '","aktiv",event)\'>Auf aktiv setzen</button>';
+
+    /* Nachfrage «Start mit Springerteam» von Hand auslösen.
+       Steht immer zur Verfügung, solange der Auftrag in Bearbeitung ist —
+       auch wenn die automatische Mail schon draussen ist. */
+    let nachfrage = '';
+    if(e.quelle === 'auftrag' && e.stufe === 'bearbeitung'){
+      nachfrage = '<button class="btn btn-sm" style="' + hell + '" onclick=\'vorlaufJetzt("' + e.id + '",event)\'>' +
+                  (e.vorlaufMail ? 'Nachfrage Springerteam erneut senden' : 'Nachfrage Springerteam jetzt senden') +
+                  '</button>' +
+                  (e.vorlaufAus
+                    ? '<button class="btn btn-sm" style="' + hell + '" onclick=\'vorlaufSchalten("' + e.id + '",false,event)\'>Automatik wieder aktivieren</button>'
+                    : '<button class="btn btn-sm" style="' + hell + '" onclick=\'vorlaufSchalten("' + e.id + '",true,event)\'>Automatik unterdrücken</button>');
+    }
     else if(e.stufe === 'aktiv')
       weiter = '<span class="crm-status st-aktiv">Kunde ist aktiv</span>';
 
@@ -1909,7 +1929,7 @@ jspdf/dist/jspdf.es.min.js:
         '<h3>Status</h3>' +
         statusInfo +
         '<div class="kd-aktionen">' +
-          weiter +
+          weiter + nachfrage +
           (e.stufe !== 'abgesagt'
             ? '<button class="btn btn-sm btn-danger" onclick=\'setStufe("' + e.id + '","abgesagt",event)\'>Als abgesagt markieren</button>'
             : '<button class="btn btn-sm" style="' + hell + '" onclick=\'setStufe("' + e.id + '","' + (e.quelle === 'auftrag' ? 'auftrag' : 'gesendet') + '",event)\'>Zurückholen</button>') +
@@ -1941,7 +1961,7 @@ jspdf/dist/jspdf.es.min.js:
     const setz = (id, wert) => { const el = document.getElementById(id); if(el) el.textContent = wert; };
     setz('stat-total', alle.length);
     setz('stat-month', imMonat);
-    setz('stat-open', zaehl('gesendet') + zaehl('nachgefasst'));
+    setz('stat-open', zaehl('gesendet') + zaehl('nachgefasst1') + zaehl('nachgefasst2'));
     setz('stat-zusatz', zaehl('aktiv'));
 
     const k = (CS_ANGEBOTE && CS_ANGEBOTE.kennzahlen) || null;
@@ -1949,7 +1969,7 @@ jspdf/dist/jspdf.es.min.js:
     if(info && k){
       info.innerHTML = '<strong>' + k.gesendet + '</strong> Angebote gesendet · ' +
                        '<strong>' + (zaehl('auftrag') + zaehl('aktiv')) + '</strong> Aufträge · ' +
-                       '<strong>' + zaehl('nachgefasst') + '</strong> nachgefasst · ' +
+                       '<strong>' + (zaehl('nachgefasst1') + zaehl('nachgefasst2')) + '</strong> nachgefasst · ' +
                        'Abschlussquote <strong>' + k.quote + '%</strong>';
       info.style.display = 'block';
     }
@@ -2074,7 +2094,7 @@ jspdf/dist/jspdf.es.min.js:
     const auftraege = alle.filter(e => ERTEILT.includes(e.stufe)).length;
     const aktiv     = alle.filter(e => e.stufe === 'aktiv').length;
     const abgesagt  = alle.filter(e => e.stufe === 'abgesagt').length;
-    const offen     = alle.filter(e => e.stufe === 'gesendet' || e.stufe === 'nachgefasst').length;
+    const offen     = alle.filter(e => ['gesendet','nachgefasst1','nachgefasst2'].includes(e.stufe)).length;
     const quote     = angebote ? Math.round(auftraege / angebote * 100) : 0;
 
     // Durchschnittliche Zeit bis zur Erteilung
