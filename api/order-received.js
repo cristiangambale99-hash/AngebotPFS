@@ -48,6 +48,15 @@ export default async function handler(req, res) {
     const auftragId = (b.code || '') || ('A' + Date.now());
     const springerStart = String(b.springerSofort || '').toLowerCase() === 'ja';
 
+    /* Link auf die Vertragsseite. Signiert, damit nur die Kundschaft
+       ihren eigenen Vertrag sieht. */
+    const vertragGeheim = process.env.VERTRAG_SECRET || process.env.ANTWORT_SECRET
+                       || process.env.CRON_SECRET || 'cs-pfs';
+    const vertragSig = crypto.createHmac('sha256', vertragGeheim)
+                             .update(String(auftragId) + '.v').digest('hex').slice(0, 20);
+    const vertragLink = 'https://angebot-pfs.vercel.app/vertrag.html?id=' +
+                        encodeURIComponent(auftragId) + '&sig=' + vertragSig;
+
     const auftrag = {
       code: b.code || '',
       angebotsnr: b.angebotsnr || '',
@@ -210,6 +219,8 @@ export default async function handler(req, res) {
               adminText:'In day-to-day business, Mrs Scalone and Mr Moreno from my administration team are there for you. They are your direct contacts for all organisational matters relating to your cleaning.',
               qualitaet:'Our entire team stands for reliability and care, so that you can rely on consistently high quality. Should you nevertheless be dissatisfied at any time, please come directly to me personally.',
               qualitaetText:'Our entire team stands for reliability and care, so that you can rely on consistently high quality. Should you nevertheless be dissatisfied at any time, please come directly to me personally — I will see to a solution immediately.',
+              vertrag:'You will find your cleaning contract here. You are very welcome to return it signed — with the start of the service it is deemed valid and accepted in all cases.',
+              vertragKnopf:'View contract',
               schluss:'I look forward to working with you and will be in touch as soon as the introduction has been scheduled.',
               gruss:'Kind regards', rolle:'Head of Putzfrauenservice' }
           : { objekt:'Objekt', rhythmus:'Reinigungsrhythmus', tag:'Gewünschter Tag',
@@ -222,6 +233,8 @@ export default async function handler(req, res) {
               adminText:'Im Tagesgeschäft stehen Ihnen Frau Scalone und Herr Moreno aus meinem Administrationsteam zur Seite. Sie sind Ihre direkten Ansprechpersonen für sämtliche organisatorischen Anliegen rund um Ihre Reinigung.',
               qualitaet:'Unser gesamtes Team steht für Zuverlässigkeit und Sorgfalt, damit Sie sich auf eine konstant hohe Qualität verlassen können. Sollten Sie dennoch einmal nicht zufrieden sein, wenden Sie sich jederzeit direkt an mich persönlich.',
               qualitaetText:'Unser gesamtes Team steht für Zuverlässigkeit und Sorgfalt, damit Sie sich auf eine konstant hohe Qualität verlassen können. Sollten Sie dennoch einmal nicht zufrieden sein, wenden Sie sich jederzeit direkt an mich persönlich — ich kümmere mich umgehend um eine Lösung.',
+              vertrag:'Ihren Reinigungsvertrag finden Sie hier. Sehr gerne kann er unterschrieben retourniert werden — mit dem Start der Dienstleistung gilt er in allen Fällen als gültig und angenommen.',
+              vertragKnopf:'Vertrag ansehen',
               schluss:'Ich freue mich auf die Zusammenarbeit und melde mich, sobald die Einführung geplant ist.',
               gruss:'Freundliche Grüsse', rolle:'Bereichsleiter Putzfrauenservice' };
 
@@ -241,6 +254,10 @@ export default async function handler(req, res) {
           <p style="margin:0 0 14px;">${absatzStart}</p>
           <p style="margin:0 0 14px;">${L.admin}</p>
           <p style="margin:0 0 14px;">${L.qualitaet}</p>
+          <p style="margin:0 0 14px;">${L.vertrag}</p>
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;">
+            <tr><td style="background:${CS_FARBE};"><a href="${vertragLink}" style="display:inline-block;padding:13px 28px;font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:bold;color:#FFFFFF;text-decoration:none;">${L.vertragKnopf}</a></td></tr>
+          </table>
           <p style="margin:0 0 18px;">${L.schluss}</p>
           ${eckdaten.length ? `
           <div style="font-family:Verdana,Geneva,sans-serif;font-size:11px;color:#767676;letter-spacing:.08em;margin:20px 0 2px;">${L.ueberblick}</div>
@@ -254,6 +271,7 @@ export default async function handler(req, res) {
           absatzStart + '\n\n' +
           L.adminText + '\n\n' +
           L.qualitaetText + '\n\n' +
+          L.vertrag + '\n' + vertragLink + '\n\n' +
           L.schluss + '\n\n' +
           (eckdaten.length ? eckdaten.map(([k, v]) => `${k}: ${v}`).join('\n') + '\n\n' : '') +
           `${L.gruss}\nCristian Gambale\n${L.rolle}\n\n` +

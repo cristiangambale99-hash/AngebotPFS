@@ -16,6 +16,27 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
+      /* Einzelabruf für die Vertragsseite: nur mit gültiger Signatur.
+         Liefert genau einen Auftrag, nicht die ganze Liste. */
+      if (req.query && req.query.id && req.query.sig) {
+        const id = String(req.query.id);
+        const geheim = process.env.VERTRAG_SECRET || process.env.ANTWORT_SECRET
+                    || process.env.CRON_SECRET || 'cs-pfs';
+        const soll = crypto.createHmac('sha256', geheim)
+                           .update(id + '.v').digest('hex').slice(0, 20);
+        if (String(req.query.sig) !== soll) {
+          return res.status(401).json({ error: 'Nicht berechtigt' });
+        }
+        let auf = null;
+        try { auf = await lesen(SAMMLUNG, id); } catch (e) {}
+        if (!auf) {
+          const alleA = await alleLesen(SAMMLUNG, 500);
+          auf = alleA.find(x => String(x.id || '') === id || String(x._id || '') === id) || null;
+        }
+        if (!auf) return res.status(404).json({ error: 'Auftrag nicht gefunden' });
+        return res.status(200).json({ auftrag: auf });
+      }
+
       const alle = await alleLesen(SAMMLUNG, 500);
       alle.sort((a, b) => (b.eingegangenAm || '').localeCompare(a.eingegangenAm || ''));
 
