@@ -81,8 +81,7 @@ function wartet(a) {
 
 /* Punkte der Admin-Checkliste, die vor der Einführung erledigt sein müssen.
    Muss mit der Liste CHECK_VOR im Admin-Bereich übereinstimmen. */
-const CHECK_VOR_KEYS = ['outlook','checkliste','infochat','pf','aduna','objekt','ablage','merkmale',
-  'kostenst','zustaendig','tarif','planung','dispo','unterlagen','ferien'];
+const CHECK_VOR_KEYS = ['objekt','infos','planung','ablage','chat','dispo','schluessel'];
 
 function gruppieren(auftraege, angebote) {
   const g = { ueberfaellig: [], heute: [], wartend: [], neu: [], angeboteOffen: 0, morgen: [] };
