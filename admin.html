@@ -1043,15 +1043,6 @@ function seiteVerkauf(){
   ];
   const F = FILTERS.verkauf;
 
-  const start =
-    '<div class="card"><div class="card-body">' +
-      '<div style="display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;">' +
-        '<div><h2>Neues Angebot erstellen</h2>' +
-        '<p class="cs-hint" style="margin:4px 0 0;">Angebot erfassen, Kundenlink erzeugen und versenden. ' +
-        'Das Angebot erscheint danach automatisch in der Liste unten.</p></div>' +
-        '<a class="btn primary-action" href="admin-alt.html">Angebot erstellen</a>' +
-      '</div></div></div>';
-
   const kpi = '<div class="kpi-row">' + kacheln.map(x =>
     '<div class="kpi klick' + (F === x.f ? ' on' : '') + '" onclick="setFilter(\'verkauf\',\'' + x.f + '\')">' +
       '<div class="label">' + x.t + '</div><div class="wert">' + x.n + '</div>' +
@@ -1060,13 +1051,247 @@ function seiteVerkauf(){
     '<div class="wert">' + (k.quote != null ? k.quote + '<span class="einheit">%</span>' : '—') + '</div>' +
     '<div class="delta">Aufträge je gesendetem Angebot</div></div></div>';
 
-  return start + kpi +
+  return '<div id="gen-box">' + generatorKarte() + '</div>' + kpi +
     '<div class="card"><div class="card-head">' +
       '<div><h2>Angebote</h2><p><span id="liste-zahl">' + gefiltertVerkauf().length + '</span> von ' + ang.length + ' Angeboten' +
       (F === 'alle' ? '' : ' · <a href="#" onclick="setFilter(\'verkauf\',\'' + F + '\');return false;">Filter aufheben</a>') +
       '</p></div>' + suchfeld('verkauf', 'Name, Ort oder Angebotsnummer') + '</div>' +
       '<div class="card-body eng" id="liste-box">' + verkaufListe() + '</div></div>';
 }
+
+/* ---------- Angebot erstellen ---------- */
+let GEN = {
+  anrede:'Herr', vorname:'', nachname:'', adresse:'', plzort:'', email:'',
+  angebotsnr:'', zimmer:'', frequenz:'woechentlich', anfrageart:'', quelle:'',
+  sprache:'de', von:'', paste:'', link:'', code:'', hinweis:'', hinweisArt:''
+};
+function genSet(feld, wert){ GEN[feld] = wert; }
+function genNeu(){
+  GEN = Object.assign({}, GEN, {vorname:'', nachname:'', adresse:'', plzort:'', email:'',
+    angebotsnr:'', zimmer:'', paste:'', link:'', code:'', hinweis:'', hinweisArt:''});
+  genZeichnen();
+}
+function genZeichnen(){
+  const box = document.getElementById('gen-box');
+  if(box) box.innerHTML = generatorKarte();
+}
+function opt(liste, gewaehlt){
+  return liste.map(o => {
+    const w = Array.isArray(o) ? o[0] : o, t = Array.isArray(o) ? o[1] : o;
+    return '<option value="' + esc(w) + '"' + (String(gewaehlt) === String(w) ? ' selected' : '') + '>' + esc(t) + '</option>';
+  }).join('');
+}
+function generatorKarte(){
+  if(!GEN.von && CS_WER){
+    const vn = CS_WER.split(' ')[0];
+    if(['Cristian','Fiorella','Tayron','Loris'].includes(vn)) GEN.von = vn;
+  }
+  const f = (id, label, typ, breit) =>
+    '<div class="feld"' + (breit ? ' style="grid-column:1/-1;"' : '') + '><label for="g-' + id + '">' + label + '</label>' +
+    '<input id="g-' + id + '" type="' + typ + '" value="' + esc(GEN[id]) + '" oninput="genSet(\'' + id + '\', this.value)"></div>';
+
+  const felder =
+    '<div class="feld-reihe">' +
+      '<div class="feld"><label for="g-anrede">Anrede</label><select id="g-anrede" onchange="genSet(\'anrede\', this.value)">' +
+        opt(['Herr','Frau'], GEN.anrede) + '</select></div>' +
+      f('vorname','Vorname','text') + f('nachname','Nachname','text') +
+    '</div>' +
+    '<div class="feld-reihe">' + f('adresse','Adresse','text') + f('plzort','PLZ und Ort','text') +
+      f('email','E-Mail der Kundschaft','email') + '</div>' +
+    '<div class="feld-reihe">' +
+      f('angebotsnr','Angebotsnummer, vierstellig','text') +
+      f('zimmer','Zimmer, z. B. 4.5','text') +
+      '<div class="feld"><label for="g-frequenz">Rhythmus</label><select id="g-frequenz" onchange="genSet(\'frequenz\', this.value)">' +
+        opt([['woechentlich','Wöchentlich'],['14-taeglich','14-täglich'],['monatlich','Monatlich']], GEN.frequenz) + '</select></div>' +
+    '</div>' +
+    '<div class="feld-reihe">' +
+      '<div class="feld"><label for="g-anfrageart">Anfrageart</label><select id="g-anfrageart" onchange="genSet(\'anfrageart\', this.value)">' +
+        opt([['','Bitte wählen'],'Homepage','Telefonisch','E-Mail'], GEN.anfrageart) + '</select></div>' +
+      '<div class="feld"><label for="g-quelle">Quelle des Kontakts</label><select id="g-quelle" onchange="genSet(\'quelle\', this.value)">' +
+        opt([['','Bitte wählen'],'Suchmaschine','Social Media','Weiterempfehlung','Fahrzeugwerbung','Cross-Selling'], GEN.quelle) + '</select></div>' +
+      '<div class="feld"><label for="g-sprache">Sprache</label><select id="g-sprache" onchange="genSet(\'sprache\', this.value)">' +
+        opt([['de','Deutsch'],['en','English']], GEN.sprache) + '</select></div>' +
+      '<div class="feld"><label for="g-von">Erfasst von</label><select id="g-von" onchange="genSet(\'von\', this.value)">' +
+        opt([['','Bitte wählen'],'Cristian','Fiorella','Tayron','Loris'], GEN.von) + '</select></div>' +
+    '</div>';
+
+  const ergebnis = GEN.link
+    ? '<div class="hinweis" style="margin-top:16px;">' +
+        '<div class="feld" style="margin-bottom:8px;"><label for="g-link">Kundenlink</label>' +
+        '<input id="g-link" type="text" readonly value="' + esc(GEN.link) + '"></div>' +
+        '<p style="margin:0 0 10px;">Zugangscode für die Kundschaft: <strong>' + esc(GEN.code) + '</strong></p>' +
+        '<div class="btn-row">' +
+          '<button class="btn primary-action" onclick="angebotSenden(this)">Angebot jetzt senden</button>' +
+          '<button class="btn secondary" onclick="linkKopieren(\'' + esc(GEN.link) + '\')">Link kopieren</button>' +
+          '<button class="btn" onclick="genNeu()">Neues Angebot beginnen</button>' +
+        '</div></div>'
+    : '';
+
+  const hinweis = GEN.hinweis
+    ? '<div class="hinweis ' + (GEN.hinweisArt || '') + '" style="margin-bottom:14px;">' + GEN.hinweis + '</div>' : '';
+
+  return '<div class="card"><div class="card-head"><div><h2>Neues Angebot</h2>' +
+    '<p>Anfrage einlesen, Angaben prüfen, Link erzeugen und versenden.</p></div></div>' +
+    '<div class="card-body">' + hinweis +
+      '<div class="feld"><label for="g-paste">Anfrage einlesen' +
+        '<span class="erklaerung">Anfrage aus dem Mail hier einfügen, die Felder werden ausgefüllt.</span></label>' +
+        '<textarea id="g-paste" oninput="genSet(\'paste\', this.value)" placeholder="Anfrage hier einfügen …">' + esc(GEN.paste) + '</textarea></div>' +
+      '<div class="btn-row" style="margin-bottom:18px;">' +
+        '<button class="btn secondary" onclick="anfrageEinlesen()">Felder ausfüllen</button>' +
+        '<button class="btn" onclick="genSet(\'paste\',\'\');genZeichnen()">Leeren</button>' +
+      '</div>' +
+      felder +
+      '<div class="btn-row" style="margin-top:6px;">' +
+        '<button class="btn primary-action" onclick="linkErzeugen()">Link erzeugen</button>' +
+      '</div>' + ergebnis +
+    '</div></div>';
+}
+
+function anfrageEinlesen(){
+  const roh = GEN.paste || '';
+  if(!roh.trim()){ GEN.hinweis = 'Bitte zuerst die Anfrage einfügen.'; GEN.hinweisArt = 'neg'; genZeichnen(); return; }
+  const zeilen = roh.split(/\r?\n/).map(z => z.trim());
+  const hole = (...namen) => {
+    for(const n of namen){
+      for(let i = 0; i < zeilen.length; i++){
+        const m = zeilen[i].match(new RegExp('^' + n + '\\s*:?\\s*(.*)$', 'i'));
+        if(m){
+          let v = (m[1] || '').trim();
+          if(!v && zeilen[i+1] && !zeilen[i+1].includes(':')) v = zeilen[i+1].trim();
+          if(v) return v;
+        }
+      }
+    }
+    return '';
+  };
+  const gefunden = [];
+  const setzen = (feld, wert, name) => { if(wert){ GEN[feld] = wert; gefunden.push(name); } };
+
+  const anrede = hole('Anrede', 'Salutation', 'Title');
+  if(/frau|^\s*(mrs|ms|miss)\b/i.test(anrede)) setzen('anrede', 'Frau', 'Anrede');
+  else if(/herr|^\s*mr\b/i.test(anrede)) setzen('anrede', 'Herr', 'Anrede');
+
+  setzen('vorname', hole('Vorname', 'First name', 'Firstname', 'Given name'), 'Vorname');
+  setzen('nachname', hole('Name', 'Nachname', 'Last name', 'Lastname', 'Surname', 'Family name'), 'Name');
+  setzen('adresse', hole('Adresse', 'Strasse', 'Address', 'Street'), 'Adresse');
+
+  const plz = hole('PLZ', 'Postcode', 'Post code', 'Zip', 'Zip code', 'Postal code');
+  const o = hole('Ort', 'City', 'Town', 'Place');
+  setzen('plzort', [plz, o].filter(Boolean).join(' '), 'PLZ und Ort');
+
+  const mailRoh = hole('E-Mail', 'Email', 'Mail', 'E-mail address', 'Email address');
+  const mm = (mailRoh || roh).match(/[\w.+-]+@[\w-]+\.[\w.]+/);
+  setzen('email', mm ? mm[0] : '', 'E-Mail');
+
+  const zm = roh.match(/(\d[.,]?\d?)\s*[-\s]?(?:Zimmer|room)/i);
+  if(zm) setzen('zimmer', zm[1].replace(',', '.'), 'Zimmerzahl');
+
+  if(/14[-\s]?t[äa]g|zwei\s*wochen|alle\s*2\s*wochen|every\s*two\s*weeks|fortnight|bi-?weekly|every\s*other\s*week/i.test(roh)) setzen('frequenz','14-taeglich','Rhythmus');
+  else if(/monatlich|1\s*x\s*(pro\s*)?monat|monthly|once\s*a\s*month/i.test(roh)) setzen('frequenz','monatlich','Rhythmus');
+  else if(/w[öo]chentlich|weekly|every\s*week/i.test(roh)) setzen('frequenz','woechentlich','Rhythmus');
+
+  const paare = [[/suchmaschine|google|search\s*engine/i,'Suchmaschine'], [/social|instagram|facebook/i,'Social Media'],
+                 [/weiterempfehl|empfehlung|recommend|word of mouth|referral/i,'Weiterempfehlung'],
+                 [/fahrzeug|auto|kleber|vehicle|van/i,'Fahrzeugwerbung'], [/cross.?selling/i,'Cross-Selling']];
+  for(const [re, wert] of paare){ if(re.test(roh)){ setzen('quelle', wert, 'Quelle'); break; } }
+
+  if(/offertanfrage|datenschutz akzeptiert|wie sind sie auf uns aufmerksam|quote request|how did you hear about us|privacy.{0,12}accept/i.test(roh))
+    setzen('anfrageart', 'Homepage', 'Anfrageart');
+
+  const t = roh.toLowerCase();
+  const enFeld = /(first name|last name|surname|salutation|how often|how did you hear|privacy|quote request)/.test(t);
+  const enWort = (t.match(/\b(the|and|we|our|you|your|would|please|thank|apartment|rooms|cleaning|hours|week|every)\b/g) || []).length;
+  const deWort = (t.match(/\b(und|wir|unsere|sie|ihre|bitte|danke|wohnung|zimmer|reinigung|stunden|woche|jeweils)\b/g) || []).length;
+  GEN.sprache = (enFeld || enWort > deWort + 2) ? 'en' : 'de';
+
+  if(!gefunden.length){
+    GEN.hinweis = 'Es liessen sich keine Angaben erkennen. Bitte die Felder von Hand ausfüllen.';
+    GEN.hinweisArt = 'neg';
+  }else{
+    GEN.hinweis = 'Übernommen: ' + gefunden.join(', ') + '. Bitte kurz prüfen.' +
+      (GEN.sprache === 'en' ? ' Sprache: English erkannt.' : '');
+    GEN.hinweisArt = '';
+  }
+  genZeichnen();
+}
+
+function b64encode(str){ return btoa(unescape(encodeURIComponent(str))); }
+
+function linkErzeugen(){
+  const fehlt = [];
+  if(!GEN.vorname) fehlt.push('Vorname');
+  if(!GEN.nachname) fehlt.push('Nachname');
+  if(!GEN.adresse) fehlt.push('Adresse');
+  if(!GEN.plzort) fehlt.push('PLZ und Ort');
+  if(!/^[0-9]{4}$/.test(GEN.angebotsnr)) fehlt.push('vierstellige Angebotsnummer');
+  if(!GEN.anfrageart) fehlt.push('Anfrageart');
+  if(!GEN.quelle) fehlt.push('Quelle');
+  if(!GEN.von) fehlt.push('erfassende Person');
+  if(fehlt.length){
+    GEN.hinweis = 'Es fehlt noch: ' + fehlt.join(', ') + '.';
+    GEN.hinweisArt = 'neg'; genZeichnen(); return;
+  }
+  const zeichen = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  GEN.code = Array.from({length:6}, () => zeichen[Math.floor(Math.random() * 32)]).join('');
+  const packed = [GEN.anrede, GEN.vorname, GEN.nachname, GEN.adresse, GEN.plzort,
+                  GEN.angebotsnr, GEN.code, GEN.zimmer, GEN.frequenz, GEN.sprache, GEN.email].join('|');
+  const basis = window.location.origin +
+    window.location.pathname.replace(/\/[^\/]*$/, '/') + 'index.html';
+  GEN.link = basis + '?t=' + b64encode(packed).replace(/=+$/, '');
+  GEN.hinweis = 'Link erzeugt. Jetzt versenden oder kopieren.';
+  GEN.hinweisArt = 'pos';
+  genZeichnen();
+}
+
+async function angebotSenden(btn){
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(GEN.email || '')){
+    GEN.hinweis = 'Bitte eine gültige E-Mail-Adresse der Kundschaft erfassen.'; GEN.hinweisArt = 'neg';
+    genZeichnen(); return;
+  }
+  if(!GEN.link){ GEN.hinweis = 'Bitte zuerst den Link erzeugen.'; GEN.hinweisArt = 'neg'; genZeichnen(); return; }
+  btn.disabled = true; btn.textContent = 'Wird gesendet …';
+  try{
+    const r = await fetch('/api/send-offer', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        to: GEN.email, anrede: GEN.anrede, vorname: GEN.vorname, nachname: GEN.nachname,
+        angebotsnr: GEN.angebotsnr, link: GEN.link, code: GEN.code, sprache: GEN.sprache
+      })
+    });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(d.error ? JSON.stringify(d.error) : 'Fehler ' + r.status);
+
+    let repHinweis = '';
+    try{
+      const rr = await fetch('/api/offers', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          code: GEN.code, angebotsnr: GEN.angebotsnr, anrede: GEN.anrede,
+          vorname: GEN.vorname, nachname: GEN.nachname, adresse: GEN.adresse,
+          ort: GEN.plzort, email: GEN.email, zimmer: GEN.zimmer, frequenz: GEN.frequenz,
+          anfrageart: GEN.anfrageart, quelle: GEN.quelle, erfasstVon: GEN.von,
+          sprache: GEN.sprache, link: GEN.link
+        })
+      });
+      const rd = await rr.json().catch(() => ({}));
+      const rep = rd && rd.reporting;
+      if(rep && rep.geschrieben) repHinweis = ' Im ReportingPFS erfasst.';
+      else if(rep && rep.grund) repHinweis = ' Reporting: ' + esc(rep.grund);
+    }catch(e){ repHinweis = ' Das Reporting konnte nicht geprüft werden.'; }
+
+    const gesendetAn = GEN.email;
+    genNeu();
+    GEN.hinweis = 'Angebot gesendet an ' + esc(gesendetAn) + '.' + repHinweis;
+    GEN.hinweisArt = 'pos';
+    meldung('Angebot gesendet.');
+    await ladeDaten();
+  }catch(err){
+    GEN.hinweis = 'Senden fehlgeschlagen: ' + esc(err.message);
+    GEN.hinweisArt = 'neg';
+    genZeichnen();
+  }
+}
+
 function linkKopieren(link){
   navigator.clipboard.writeText(link)
     .then(() => meldung('Kundenlink kopiert.'))
