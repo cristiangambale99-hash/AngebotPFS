@@ -33,6 +33,26 @@ export default async function handler(req, res) {
   const q = req.query || {};
   const b = req.body || {};
 
+  if (req.method === 'GET' && q.pruefen === '1') {
+    // Diagnose: /api/antwort?id=..&a=ja&sig=..&pruefen=1
+    const id  = String(q.id  || '');
+    const a   = String(q.a   || '');
+    const sig = String(q.sig || '');
+    if (!pruefen(id, a, sig)) return res.status(400).json({ error: 'Signatur stimmt nicht' });
+    try {
+      const fund = await auftragFinden(id);
+      return res.status(200).json({
+        gefunden: !!fund,
+        schluessel: fund ? fund.schluessel : null,
+        stufe: fund ? (fund.daten.stufe || null) : null,
+        mail: fund ? (fund.daten.mail || fund.daten.email || null) : null,
+        resendSchluesselGesetzt: !!process.env.RESEND_API_KEY
+      });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
   if (req.method === 'GET') {
     const id  = String(q.id  || '');
     const a   = String(q.a   || '');
@@ -57,9 +77,15 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Ungültiger Aufruf' });
   }
 
+  const bericht = { ok: false, antwort: a, gespeichert: false, gemeldet: false };
+
   try {
-    const auf = await lesen(SAMMLUNG, id);
-    if (!auf) return res.status(404).json({ error: 'Auftrag nicht gefunden' });
+    const fund = await auftragFinden(id);
+    if (!fund) {
+      return res.status(404).json({ ...bericht, error: 'Auftrag ' + id + ' nicht gefunden' });
+    }
+    const auf = fund.daten;
+    const schluessel = fund.schluessel;
 
     const neu = { ...auf };
     delete neu._id;
@@ -68,19 +94,49 @@ export default async function handler(req, res) {
     // Ja: Auftrag rutscht in den eigenen Status. Nein: bleibt in Bearbeitung,
     // wird aber gekennzeichnet, damit niemand dasselbe nochmals anbietet.
     if (a === 'ja') neu.stufe = 'springer_gewuenscht';
-    await speichern(SAMMLUNG, id, neu);
 
-    await melden(auf, a).catch(() => {});
-    return res.status(200).json({ ok: true, antwort: a });
+    await speichern(SAMMLUNG, schluessel, neu);
+    bericht.gespeichert = true;
+    bericht.schluessel = schluessel;
+    bericht.stufe = neu.stufe;
+
+    // Fehler beim Melden nicht verschlucken — sonst bleibt es unbemerkt
+    try {
+      await melden(auf, a);
+      bericht.gemeldet = true;
+    } catch (e) {
+      bericht.meldefehler = (e && e.message) ? String(e.message).slice(0, 300) : String(e);
+      console.error('antwort.js: Meldung an den Putzfrauenservice fehlgeschlagen', e);
+    }
+
+    bericht.ok = true;
+    return res.status(200).json(bericht);
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error('antwort.js: Fehler beim Speichern', err);
+    return res.status(500).json({ ...bericht, error: err.message });
   }
+}
+
+/* Auftrag suchen: erst direkt über den Dokumentschlüssel, sonst über die
+   ganze Sammlung. Aufträge wurden über die Jahre unterschiedlich abgelegt —
+   mal ist die Auftragsnummer der Dokumentname, mal steht sie im Feld id. */
+async function auftragFinden(id) {
+  try {
+    const direkt = await lesen(SAMMLUNG, id);
+    if (direkt) return { daten: direkt, schluessel: id };
+  } catch (e) { /* weiter mit der Suche über die Sammlung */ }
+
+  const alle = await alleLesen(SAMMLUNG, 500);
+  const treffer = alle.find(x =>
+    String(x.id || '') === String(id) || String(x._id || '') === String(id));
+  if (!treffer) return null;
+  return { daten: treffer, schluessel: String(treffer._id || treffer.id || id) };
 }
 
 /* Meldung an den Putzfrauenservice */
 async function melden(auf, a) {
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return;
+  if (!apiKey) throw new Error('RESEND_API_KEY fehlt — keine Meldung versendet.');
   const name = [auf.anrede, auf.vorname, auf.nachname].filter(Boolean).join(' ') || 'Unbekannt';
   const ort  = [auf.adresse, auf.plzOrt || auf.ort].filter(Boolean).join(', ');
   const ja   = a === 'ja';
@@ -105,7 +161,7 @@ async function melden(auf, a) {
     zeile('Antwort', ja ? 'Ja, Start mit Springerteam' : 'Nein, wartet auf feste Raumpflegerin') +
     '</table></div></div>';
 
-  await fetch('https://api.resend.com/emails', {
+  const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -118,6 +174,9 @@ async function melden(auf, a) {
             '\nTelefon: ' + (auf.mobile || '') + '\nE-Mail: ' + (auf.mail || auf.email || '')
     })
   });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error('Resend: ' + JSON.stringify(d));
+  return d;
 }
 
 function zeile(k, v) {
@@ -196,7 +255,9 @@ async function senden(){
   try{
     var r=await fetch('/api/antwort',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({id:${JSON.stringify(id)},a:${JSON.stringify(a)},sig:${JSON.stringify(sig)}})});
-    if(!r.ok) throw new Error('Server '+r.status);
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok) throw new Error('Server '+r.status+' '+(d.error||''));
+    if(d.meldefehler) console.warn('Meldung an den Putzfrauenservice fehlgeschlagen:', d.meldefehler);
     document.querySelector('h1').textContent=${JSON.stringify(T.dankeT)};
     document.getElementById('frage').textContent=${JSON.stringify(ja ? T.dankeJa : T.dankeNein)};
     b.remove();
@@ -204,6 +265,10 @@ async function senden(){
     document.querySelector('h1').before(h);
   }catch(e){
     document.getElementById('frage').textContent=${JSON.stringify(T.pech)};
+    var hin=document.createElement('div');
+    hin.style.cssText='margin-top:14px;font-size:11.5px;color:#B4232C;word-break:break-all;';
+    hin.textContent=String(e && e.message ? e.message : e);
+    document.getElementById('frage').after(hin);
     b.remove();
   }
 }
