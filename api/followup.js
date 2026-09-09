@@ -88,7 +88,7 @@ export default async function handler(req, res) {
       else if (tageRoh === null || isNaN(tageRoh)) grund = 'Versanddatum nicht lesbar: ' + a.gesendetAm;
       else if (tageRoh < 5) grund = 'erst ' + tageRoh + ' Tage her (nötig: 5)';
       else if (tageRoh < 30 && a.erinnerung1) grund = '1. Erinnerung bereits gesendet, 2. erst ab 30 Tagen';
-      else if (tageRoh < 50 && a.erinnerung2) grund = 'beide Erinnerungen gesendet, Ablauf ab 50 Tagen';
+      else if (tageRoh < 35 && a.erinnerung2) grund = 'beide Erinnerungen gesendet, Ablauf ab 35 Tagen';
 
       if (grund) {
         if (nurPruefen) bericht.details.push({ kunde: name, tage: tageRoh, grund });
@@ -97,8 +97,8 @@ export default async function handler(req, res) {
       }
       const tage = tageRoh;
 
-      // Nach 50 Tagen ohne Rückmeldung gilt das Angebot als abgelaufen
-      if (tage >= 50) {
+      // Nach 35 Tagen ohne Rückmeldung gilt das Angebot als abgelaufen
+      if (tage >= 35) {
         if (nurPruefen) {
           bericht.faellig = bericht.faellig || [];
           bericht.faellig.push({ kunde: [a.vorname, a.nachname].filter(Boolean).join(' '),
@@ -110,7 +110,7 @@ export default async function handler(req, res) {
         delete neuA._id; delete neuA.tage;
         neuA.status = 'abgesagt';
         neuA.abgesagtAm = new Date().toISOString();
-        neuA.abgesagtGrund = 'Keine Rückmeldung innert 50 Tagen';
+        neuA.abgesagtGrund = 'Keine Rückmeldung innert 35 Tagen';
         await speichern(SAMMLUNG, a.code, neuA);
         bericht.abgelaufen++;
         continue;
