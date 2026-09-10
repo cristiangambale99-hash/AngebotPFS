@@ -366,8 +366,8 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
 
         <div class="note note-zeit" id="springer-info"></div>
 
-        <label class="fl" style="margin-top:16px;" id="zutritt-frage">Bitte geben Sie uns an, wie uns der Zutritt gewährleistet ist.</label>
-        <div class="opts" id="zutritt-opts">
+        <label data-i18n="a80" class="fl" style="margin-top:16px;" id="zutritt-frage">Bitte geben Sie uns an, wie uns der Zutritt gewährleistet ist.</label>
+        <div data-i18n="a81" class="opts" id="zutritt-opts">
           <label class="opt wide"><input type="radio" name="f-zutritt" value="Vor Ort">Ich bin vor Ort und öffne die Tür</label>
           <label class="opt wide"><input type="radio" name="f-zutritt" value="Milchkasten, Schlüssel bleibt bei uns">Der Schlüssel liegt im Milchkasten <span class="sub">Sie dürfen ihn behalten</span></label>
           <label class="opt wide"><input type="radio" name="f-zutritt" value="Milchkasten, Schlüssel zurücklegen">Der Schlüssel liegt im Milchkasten <span class="sub">bitte nach der Reinigung zurücklegen</span></label>
@@ -377,8 +377,8 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
     </div>
 
     <div class="card">
-      <h2><span class="n">7</span> Weitere Wünsche</h2>
-      <p class="hint">Freiwillig — beides lässt sich später jederzeit ergänzen.</p>
+      <h2 data-i18n="a82"><span class="n">7</span> Weitere Wünsche</h2>
+      <p data-i18n="a83" class="hint">Freiwillig — beides lässt sich später jederzeit ergänzen.</p>
 
       <label data-i18n="a62" class="fl">Unverbindliche Fensterreinigungsofferte gewünscht?</label>
       <div data-i18n="a63" class="opts">
@@ -429,6 +429,28 @@ var CS_SPRACHE = 'de';
   if(s === 'en' || s === 'de') CS_SPRACHE = s;
   document.documentElement.lang = CS_SPRACHE;
 })();
+/* Die englischen Textbausteine ersetzen ganze Blöcke samt der darin
+   gesetzten Ereignisse. Diese Funktion hängt sie danach wieder an — und
+   ist auch für die deutsche Fassung unschädlich, weil doppelte Aufrufe
+   der Umschaltfunktionen nichts verändern. */
+function ereignisseSetzen(){
+  var paare = [
+    ['input[name="f-springer"]', 'change', function(){ toggleStart(); }],
+    ['#f-startdatum',            'change', function(){ startInfo(); }],
+    ['input[name="f-fenster"]',  'change', function(){ toggleFenster(); }],
+    ['#f-alarm',                 'change', function(){ toggleAlarm(); }],
+    ['.f-tier',                  'change', function(){ tierAndere(); tierKeine(); }],
+    ['#f-boden-andere',          'change', function(){ bodenAndere(); }]
+  ];
+  paare.forEach(function(p){
+    document.querySelectorAll(p[0]).forEach(function(el){
+      if(el.dataset.csGebunden === p[1]) return;
+      el.dataset.csGebunden = p[1];
+      el.addEventListener(p[1], p[2]);
+    });
+  });
+}
+
 function EN(){ return CS_SPRACHE === 'en'; }
 
 const I18N_EN = {
@@ -518,7 +540,11 @@ const I18N_EN = {
 "s9": "Several floors",
 "a74": "Preferred start date",
 "a75": "So that we can schedule your team and prepare all the documents, the earliest possible date is seven days from today. We will confirm this date in writing.",
-"a76": "Cleaning by our relief team takes place between 08:00 and 17:00. We will confirm the exact time by e-mail one day before the clean."
+"a76": "Cleaning by our relief team takes place between 08:00 and 17:00. We will confirm the exact time by e-mail one day before the clean.",
+"a80": "Please tell us how we can access your home.",
+"a81": "\n          <label class=\"opt wide\"><input type=\"radio\" name=\"f-zutritt\" value=\"Vor Ort\">I will be there and open the door</label>\n          <label class=\"opt wide\"><input type=\"radio\" name=\"f-zutritt\" value=\"Milchkasten, Schl\u00fcssel bleibt bei uns\">The key is in the milk box <span class=\"sub\">you may keep it</span></label>\n          <label class=\"opt wide\"><input type=\"radio\" name=\"f-zutritt\" value=\"Milchkasten, Schl\u00fcssel zur\u00fccklegen\">The key is in the milk box <span class=\"sub\">please put it back after the clean</span></label>\n          <label class=\"opt wide\"><input type=\"radio\" name=\"f-zutritt\" value=\"Schl\u00fcssel wird \u00fcbergeben\">I will hand you a key</label>\n        ",
+"a82": "<span class=\"n\">7</span> Further requests",
+"a83": "Optional \u2014 both can be added at any time later."
 };
 const I18N_ATTR_EN = [["#f-boden", "placeholder", "e.g. parquet, tiles"], ["#f-boden-text", "placeholder", "e.g. cork, vinyl"], ["#f-alarmcode", "placeholder", "Treated confidentially"], ["#f-tier-text", "placeholder", "e.g. rabbit, bird"], ["#f-vereinbarungen", "placeholder", "e.g. delicate surfaces, access via neighbours"]];
 
@@ -533,6 +559,7 @@ const I18N_ATTR_EN = [["#f-boden", "placeholder", "e.g. parquet, tiles"], ["#f-b
   I18N_ATTR_EN.forEach(function(a){
     document.querySelectorAll(a[0]).forEach(function(el){ el.setAttribute(a[1], a[2]); });
   });
+  ereignisseSetzen();
   var t = document.querySelector('title[data-i18n]');
   if(t) document.title = t.textContent;
   // Sprache an interne Links weitergeben, damit die Folgeseiten

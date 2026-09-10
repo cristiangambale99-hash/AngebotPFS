@@ -2962,7 +2962,11 @@ function checkCode(){
 
   const nameEl = document.getElementById('hero-name');
   const ledeEl = document.getElementById('hero-lede');
-  if(nameEl) nameEl.textContent = an + ' ' + vn + ' ' + nn;
+  /* Anrede in der Sprache der Kundschaft: Frau/Herr bzw. Mrs/Mr */
+  const anredeTxt = EN()
+    ? (an === 'Frau' ? 'Mrs' : an === 'Herr' ? 'Mr' : '')
+    : (an || '');
+  if(nameEl) nameEl.textContent = [anredeTxt, vn, nn].filter(Boolean).join(' ');
   if(ledeEl) ledeEl.textContent = EN()
     ? 'Your personal cleaning concept for the property at ' + adr + ', ' + ort + '.'
     : 'Ihr persönliches Reinigungskonzept für die Wohnung an der ' + adr + ', ' + ort + '.';
