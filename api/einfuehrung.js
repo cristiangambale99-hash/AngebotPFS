@@ -63,14 +63,24 @@ export default async function handler(req, res) {
   const auf = fund.daten;
   const key = process.env.RESEND_API_KEY;
 
-  /* ---- Bestaetigung durch die Kundschaft ---- */
+  /* ---- Bestaetigung: durch die Kundschaft per Link oder von Hand aus der
+         Verwaltung, wenn die Zusage telefonisch eingegangen ist. In beiden
+         Faellen laeuft derselbe Ablauf, damit die Kundschaft in jedem Fall
+         die Terminbestaetigung mit dem Vertrag erhaelt. ---- */
   if (b.bestaetigen) {
-    if (String(b.sig || '') !== sigEin(id)) return res.status(401).json({ error: 'Nicht berechtigt' });
+    const vonHand = String(b.sig || '') !== sigEin(id);
+    if (vonHand && sitzungPruefen(req) === null) {
+      return res.status(401).json({ error: 'Nicht berechtigt' });
+    }
     const bericht = { ok:false, gespeichert:false, gemeldet:false };
     try {
       const neu = { ...auf };
       delete neu._id;
       neu.einfuehrungBestaetigt = new Date().toISOString();
+      if (vonHand) {
+        neu.einfuehrungBestaetigtVon = String(b.bearbeiter || '').slice(0, 60);
+        neu.einfuehrungBestaetigtArt = 'telefonisch';
+      }
       /* Mit der Zusage steht der Termin: der Auftrag laeuft und wandert auf
          «aktiv». Einfuehrung und erste Reinigung sind derselbe Tag. */
       neu.stufe = 'aktiv';
