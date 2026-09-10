@@ -78,6 +78,7 @@ export default async function handler(req, res) {
       zusatzBackofen: !!b.zusatzBackofen,
       vereinbarungen: b.vereinbarungen || '',
       startDatum: b.startDatum || '', startZeit: b.startZeit || '',
+      zutritt: b.zutritt || '',
       /* Status automatisch setzen:
          Mit Springerteam startet der Auftrag direkt in der eigenen Phase, das
          Startdatum hat die Kundschaft bereits gewaehlt. Ohne Springerteam geht
@@ -131,7 +132,8 @@ export default async function handler(req, res) {
         ['Uhrzeit', b.uhrzeit || ''],
         ['Aufwand', b.aufwandText || ''],
         ['Start', startText],
-        ['Startdatum', b.startDatum ? new Date(b.startDatum).toLocaleDateString('de-CH') : '']
+        ['Startdatum', b.startDatum ? new Date(b.startDatum).toLocaleDateString('de-CH') : ''],
+        ['Zutritt', b.zutritt || '']
       ].filter(([, v]) => v);
 
       const inhaltT = `
@@ -343,9 +345,9 @@ export default async function handler(req, res) {
           ['Telefon', b.mobile || ''],
           ['E-Mail', b.mail || b.email || ''],
           ['Zimmer', b.zimmer || ''],
+          ['Fläche', b.qm ? b.qm + ' m²' : 'nicht angegeben'],
           ['Stockwerk', b.stockwerk ? (b.stockwerk + (b.lift ? ' · Lift: ' + b.lift : '')) : ''],
-        ['Bodenbeläge', b.bodenbelaege || ''],
-          ['Fläche', b.qm ? b.qm + ' m²' : ''],
+          ['Bodenbeläge', b.bodenbelaege || ''],
           ['Angebot Nr.', b.angebotsnr || ''],
           ['Reinigungsrhythmus', b.frequenzText || b.frequenz || '']
         ].filter(([, v]) => v);
