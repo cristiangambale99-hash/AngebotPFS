@@ -837,7 +837,7 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
   <aside class="sidebar" id="sb">
     <div class="brand">
       <div class="mark" role="img" aria-label="Clean Service Scaramuzzo AG"></div>
-      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 20</span></div>
+      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 21</span></div>
     </div>
 
     <nav class="nav">
@@ -2720,10 +2720,19 @@ async function notizSpeichern(id, btn){
   if(!CS_WER){ meldung('Nicht angemeldet.', 'neg'); return; }
   btn.disabled = true; btn.textContent = 'Wird gespeichert …';
   try{
-    const r = await fetch('/api/orders?aktion=update', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({id, notizNeu: text, bearbeiter: CS_WER})
-    });
+    /* Solange nur ein Angebot besteht, gehört die Notiz zum Angebot.
+       Erst mit der Auftragserteilung führt sie der Auftrag. */
+    const fall = LISTE.find(x => String(x.id) === String(id));
+    const nurAngebot = fall && fall.quelle !== 'auftrag';
+    const r = nurAngebot
+      ? await fetch('/api/offers?aktion=status', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({code: fall.code || fall.id, notizNeu: text, bearbeiter: CS_WER})
+        })
+      : await fetch('/api/orders?aktion=update', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({id, notizNeu: text, bearbeiter: CS_WER})
+        });
     const d = await r.json().catch(() => ({}));
     if(r.status === 401){ meldung('Anmeldung abgelaufen, bitte Seite neu laden.', 'neg'); return; }
     if(!r.ok) throw new Error(d.error || 'Server ' + r.status);
@@ -2734,6 +2743,9 @@ async function notizSpeichern(id, btn){
       e.notizen.push(eintrag);
       const auf = AUFTRAEGE.find(x => String(x.id) === String(id));
       if(auf) auf.notizen = e.notizen;
+      const angListe = (ANGEBOTE && ANGEBOTE.angebote) || [];
+      const ang = angListe.find(x => String(x.code || x.id) === String(e.code || id));
+      if(ang) ang.notizen = e.notizen;
     }
     zeichnen();
     meldung('Notiz gespeichert.');
