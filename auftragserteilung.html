@@ -359,12 +359,20 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
       </div>
 
       <div class="folds hidden" id="start-feld">
-        <div class="row" style="margin-bottom:0;">
+        <div class="row" style="margin-bottom:14px;">
           <div><label data-i18n="a74" class="fl" for="f-startdatum">Gewünschtes Startdatum</label>
-            <input type="date" id="f-startdatum"></div>
+            <input type="date" id="f-startdatum" onchange="startInfo()"></div>
         </div>
-        <div data-i18n="a76" class="note note-zeit">Die Reinigung durch unser Springerteam wird jeweils zwischen 08:00 und 17:00 Uhr durchgeführt. Die definitive Uhrzeit teilen wir Ihnen einen Tag vor der Reinigung per E-Mail mit.</div>
-        <div data-i18n="a75" class="note">Damit wir Ihr Team einplanen und alle Unterlagen vorbereiten können, liegt der früheste Termin sieben Tage in der Zukunft. Wir bestätigen Ihnen dieses Datum schriftlich.</div>
+
+        <div class="note note-zeit" id="springer-info"></div>
+
+        <label class="fl" style="margin-top:16px;" id="zutritt-frage">Bitte geben Sie uns an, wie uns der Zutritt gewährleistet ist.</label>
+        <div class="opts" id="zutritt-opts">
+          <label class="opt wide"><input type="radio" name="f-zutritt" value="Vor Ort">Ich bin vor Ort und öffne die Tür</label>
+          <label class="opt wide"><input type="radio" name="f-zutritt" value="Milchkasten, Schlüssel bleibt bei uns">Der Schlüssel liegt im Milchkasten <span class="sub">Sie dürfen ihn behalten</span></label>
+          <label class="opt wide"><input type="radio" name="f-zutritt" value="Milchkasten, Schlüssel zurücklegen">Der Schlüssel liegt im Milchkasten <span class="sub">bitte nach der Reinigung zurücklegen</span></label>
+          <label class="opt wide"><input type="radio" name="f-zutritt" value="Schlüssel wird übergeben">Ich händige Ihnen einen Schlüssel aus</label>
+        </div>
       </div>
     </div>
 
@@ -379,6 +387,7 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
       </div>
       <div data-i18n="a64" class="note" id="fenster-note" style="display:none;">
         Unsere <strong>Spezialreinigungsabteilung</strong> meldet sich für ein separates, unverbindliches Angebot bei Ihnen.
+        Damit die Offerte stimmt, brauchen wir die Wohnungsfläche in Quadratmetern — bitte im Abschnitt «Ihre Wohnung» ergänzen.
       </div>
 
       <div class="row" style="margin-top:16px;margin-bottom:0;">
@@ -484,7 +493,7 @@ const I18N_EN = {
 "a61": "\n        <label class=\"opt\"><input type=\"radio\" name=\"f-springer\" value=\"Nein\" checked>Wait for a regular cleaner <span class=\"sub\">10–14 working days</span></label>\n        <label class=\"opt\"><input type=\"radio\" name=\"f-springer\" value=\"Ja\">Start immediately with the relief team</label>\n      ",
 "a62": "Would you like a non-binding window cleaning quotation?",
 "a63": "\n        <label class=\"opt\"><input type=\"radio\" name=\"f-fenster\" value=\"Nein\" checked>No</label>\n        <label class=\"opt\"><input type=\"radio\" name=\"f-fenster\" value=\"Ja\" onchange=\"toggleFenster()\">Yes, please</label>\n      ",
-"a64": "\n        Our <strong>specialist cleaning department</strong> will contact you with a separate, non-binding offer.\n      ",
+"a64": "\n        Our <strong>specialist cleaning department</strong> will contact you with a separate, non-binding offer.\n        So that the quote is accurate, we need the area of your home in square metres — please add it in the section «Your home».\n      ",
 "a65": "<label class=\"fl\" for=\"f-vereinbarungen\">Special arrangements</label>\n          <textarea id=\"f-vereinbarungen\" placeholder=\"e.g. delicate surfaces, access via neighbours\"></textarea>\n          <div class=\"note\">These details are recorded as a special arrangement on your cleaner's checklist.</div>",
 "a66": "\n        <input type=\"checkbox\" id=\"f-agb\" required>\n        <span>I hereby place a binding order and accept the <a href=\"agb.html\" target=\"_blank\" rel=\"noopener\">general terms and conditions</a>.</span>\n      ",
 "a67": "Place binding order",
@@ -592,6 +601,26 @@ function updateAufwand(){
 document.getElementById('f-zimmer').addEventListener('input', updateAufwand);
 document.getElementById('f-frequenz').addEventListener('change', updateAufwand);
 
+/* ---- Text des Infobalkens beim Sofortstart ---- */
+function startInfo(){
+  const box = document.getElementById('springer-info');
+  const feld = document.getElementById('f-startdatum');
+  if(!box || !feld) return;
+  const en = EN();
+  const d = feld.value ? new Date(feld.value) : null;
+  const datum = d && !isNaN(d)
+    ? d.toLocaleDateString(en ? 'en-GB' : 'de-CH', { weekday:'long', day:'2-digit', month:'long', year:'numeric' })
+    : '';
+  const satz1 = datum
+    ? (en ? 'Your first clean with our relief team takes place on <strong>' + datum + '</strong>.'
+          : 'Ihre erste Reinigung mit unserem Springerteam findet am <strong>' + datum + '</strong> statt.')
+    : (en ? 'Please choose your preferred start date.' : 'Bitte wählen Sie Ihr gewünschtes Startdatum.');
+  const satz2 = en
+    ? 'While the relief team carries out the cleaning we cannot guarantee a fixed time. Cleaning takes place between 08:00 and 17:00; you will receive the exact time by e-mail one day beforehand.'
+    : 'Solange wir die Reinigung mit dem Springerteam ausführen, können wir Ihnen keine fixe Uhrzeit garantieren. Die Reinigung findet zwischen 08:00 und 17:00 Uhr statt, einen Tag vorher erhalten Sie die Zeitmitteilung per E-Mail.';
+  box.innerHTML = satz1 + '<br>' + satz2;
+}
+
 /* ---- Startdatum bei Sofortstart ---- */
 function toggleStart(){
   const ja = (document.querySelector('input[name="f-springer"]:checked') || {}).value === 'Ja';
@@ -607,6 +636,7 @@ function toggleStart(){
       feld.value = feld.min;
     }
   }
+  startInfo();
   updateSteps();
 }
 
@@ -691,6 +721,13 @@ function submitOrder(e){
   if(springerJa){
     const frueh = new Date(); frueh.setDate(frueh.getDate() + 7);
     const grenze = frueh.toISOString().slice(0, 10);
+    const zutritt = document.querySelector('input[name="f-zutritt"]:checked');
+    if(!zutritt){
+      alert(EN() ? 'Please tell us how we can access your home.'
+                 : 'Bitte geben Sie an, wie uns der Zutritt gewährleistet ist.');
+      document.getElementById('zutritt-frage').scrollIntoView({behavior:'smooth', block:'center'});
+      return false;
+    }
     if(!startFeld.value || startFeld.value < grenze){
       alert(EN() ? 'Please choose a start date at least seven days from today.'
                  : 'Bitte wählen Sie ein Startdatum, das mindestens sieben Tage in der Zukunft liegt.');
@@ -701,6 +738,16 @@ function submitOrder(e){
   if(!tage.length){
     alert(EN() ? 'Please select at least one possible cleaning day.'
                : 'Bitte wählen Sie mindestens einen möglichen Reinigungstag.');
+    return false;
+  }
+  /* Für die Fensterreinigungsofferte braucht die Spezialreinigung die Fläche. */
+  const fensterJa = document.querySelector('input[name="f-fenster"]:checked').value === 'Ja';
+  const qmFeld = document.getElementById('f-qm');
+  if(fensterJa && !parseFloat(qmFeld.value)){
+    alert(EN() ? 'For the window cleaning quote please enter the area of your home in square metres.'
+               : 'Für die Fensterreinigungsofferte brauchen wir die Wohnungsfläche in Quadratmetern.');
+    qmFeld.focus();
+    qmFeld.scrollIntoView({behavior:'smooth', block:'center'});
     return false;
   }
 
@@ -752,6 +799,7 @@ function submitOrder(e){
     springerSofort: document.querySelector('input[name="f-springer"]:checked').value,
     startDatum: springerJa ? startFeld.value : '',
     startZeit:  '',   // Uhrzeit legt die Disposition fest, nicht die Kundschaft
+    zutritt:    springerJa ? ((document.querySelector('input[name="f-zutritt"]:checked') || {}).value || '') : '',
     vereinbarungen: document.getElementById('f-vereinbarungen').value
   };
   entry.zusatzBuchen = (entry.zusatzBettbezuege || entry.zusatzWaesche ||

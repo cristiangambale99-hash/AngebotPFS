@@ -745,6 +745,40 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
 .abschnitt-zahl{ background:var(--cs-teal-light); color:var(--cs-teal-dark); border-radius:100px;
   padding:1px 9px; font-size:var(--cs-fs-xs); font-weight:bold; }
 .abschnitt-hinweis{ font-size:var(--cs-fs-sm); color:var(--cs-ink-mute); }
+
+/* ---- Drei klar getrennte Bereiche ---- */
+.gruppe{
+  background:var(--cs-surface); border:1px solid #C6DCDB;
+  border-radius:var(--cs-radius); box-shadow:var(--cs-shadow);
+  margin-bottom:24px; overflow:hidden;
+}
+.gruppe-kopf{
+  display:flex; align-items:center; gap:11px; flex-wrap:wrap;
+  padding:13px 18px; background:var(--cs-teal-light);
+  border-bottom:1px solid #B9DCDC; border-left:6px solid var(--cs-teal);
+}
+.gruppe.g-pos  > .gruppe-kopf{ background:var(--cs-pos-bg); border-bottom-color:#A9DCC0; border-left-color:var(--cs-pos); }
+.gruppe.g-warn > .gruppe-kopf{ background:var(--cs-warn-bg); border-bottom-color:#E2CB94; border-left-color:var(--cs-warn); }
+.gruppe.g-teal > .gruppe-kopf{ background:var(--cs-teal-light); border-left-color:var(--cs-teal); }
+.gruppe-nr{
+  width:22px; height:22px; border-radius:50%; flex:none;
+  display:flex; align-items:center; justify-content:center;
+  font-size:var(--cs-fs-xs); font-weight:bold; color:#fff; background:var(--cs-teal);
+}
+.gruppe.g-pos  .gruppe-nr{ background:var(--cs-pos); }
+.gruppe.g-warn .gruppe-nr{ background:var(--cs-warn); }
+.gruppe-kopf h3{ font-size:var(--cs-fs-md); margin:0; color:var(--cs-ink); }
+.gruppe-zahl{
+  background:rgba(255,255,255,.75); border:1px solid rgba(0,0,0,.08);
+  border-radius:100px; padding:1px 9px; font-size:var(--cs-fs-xs); font-weight:bold; color:var(--cs-ink);
+}
+.gruppe-hinweis{ margin-left:auto; font-size:var(--cs-fs-sm); color:var(--cs-ink-soft); }
+.gruppe-inhalt{ padding:14px 16px 6px; }
+.gruppe-inhalt .zeile{ margin-bottom:10px; }
+@media (max-width:760px){
+  .gruppe-hinweis{ margin-left:0; flex:1 1 100%; }
+  .gruppe-inhalt{ padding:12px 12px 4px; }
+}
 </style>
 </head>
 <body>
@@ -786,7 +820,7 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
   <aside class="sidebar" id="sb">
     <div class="brand">
       <div class="mark" role="img" aria-label="Clean Service Scaramuzzo AG"></div>
-      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 13</span></div>
+      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 15</span></div>
     </div>
 
     <nav class="nav">
@@ -1615,17 +1649,28 @@ function seiteEingang(){
 
   /* Eine Karte, drei schlanke Abschnitte. Der Zustand steht in der Zeile,
      deshalb braucht der Abschnitt nur Titel und Anzahl. */
-  const abschnitt = (titel, hinweis, liste) =>
-    '<div class="abschnitt"><h3>' + titel + '</h3>' +
-      '<span class="abschnitt-zahl">' + liste.length + '</span>' +
-      '<span class="abschnitt-hinweis">' + hinweis + '</span></div>' +
-    (liste.length ? liste.map(zeileFall).join('') : '<p class="cs-hint" style="padding:2px 0 10px;">Zurzeit nichts.</p>');
+  /* Jeder Weg bekommt einen eigenen Block mit eingefärbtem Kopf, damit die
+     drei Bereiche auf einen Blick auseinanderzuhalten sind. */
+  const block = (nr, farbe, titel, hinweis, liste) =>
+    '<section class="gruppe ' + farbe + '">' +
+      '<header class="gruppe-kopf">' +
+        '<span class="gruppe-nr">' + nr + '</span>' +
+        '<h3>' + titel + '</h3>' +
+        '<span class="gruppe-zahl">' + liste.length + '</span>' +
+        '<span class="gruppe-hinweis">' + hinweis + '</span>' +
+      '</header>' +
+      '<div class="gruppe-inhalt">' +
+        (liste.length ? liste.map(zeileFall).join('')
+                      : '<p class="cs-hint" style="margin:0;padding:6px 2px;">Zurzeit nichts.</p>') +
+      '</div>' +
+    '</section>';
 
-  return '<div class="card"><div class="card-body">' +
-      abschnitt('Start mit Springerteam', 'nach der Disposition aktivieren', a) +
-      abschnitt('Wartet auf feste Raumpflegerin', 'Springerteam wird nach sieben Werktagen angeboten', b) +
-      abschnitt('Einführungstermin vorgeschlagen', 'mit der Zusage wird der Auftrag aktiv', c) +
-    '</div></div>';
+  return block(1, 'g-pos', 'Start mit Springerteam',
+        'nach der Disposition aktivieren', a) +
+    block(2, 'g-warn', 'Wartet auf feste Raumpflegerin',
+        'Springerteam wird nach sieben Werktagen angeboten', b) +
+    block(3, 'g-teal', 'Einführungstermin vorgeschlagen',
+        'mit der Zusage wird der Auftrag aktiv', c);
 }
 
 /* Springerteam-Start aktivieren: der Auftrag wird aktiv, das Merkmal bleibt,
@@ -2112,6 +2157,7 @@ function kartenFall(e){
         (e.einfuehrungBestaetigt ? ' · bestätigt' : ' · Zusage steht aus') : '')
   ].filter(Boolean);
   const weiter = [
+    w('Zutritt beim Springerteam', esc(e.zutritt || '')),
     w('Zimmer', esc(e.zimmer || '')),
     w('Angebotsnummer', esc(e.angebotsnr || '')),
     w('Angebot gesendet', dat(e.gesendetAm)),
