@@ -79,7 +79,7 @@ async function anlegen(req, res) {
 
 /* ---- Status ändern ---- */
 async function statusAendern(req, res) {
-  const { code, status, erinnerungAus, notiz } = req.body || {};
+  const { code, status, erinnerungAus, notiz, notizNeu, bearbeiter } = req.body || {};
   if (!code) return res.status(400).json({ error: 'Zugangscode fehlt.' });
 
   const vorhanden = await lesen(SAMMLUNG, code);
@@ -93,6 +93,23 @@ async function statusAendern(req, res) {
   }
   if (typeof erinnerungAus === 'boolean') neu.erinnerungAus = erinnerungAus;
   if (typeof notiz === 'string') neu.notiz = notiz;
+
+  /* Notizen werden als Liste geführt, damit der Verlauf erhalten bleibt —
+     gleich wie beim Auftrag. Ältere Einzelnotizen werden übernommen. */
+  if (typeof notizNeu === 'string' && notizNeu.trim()) {
+    const bisher = Array.isArray(neu.notizen) ? neu.notizen.slice()
+      : (neu.notiz ? [{ text: neu.notiz, von: neu.zuletztVon || '', am: neu.zuletztAm || '' }] : []);
+    bisher.push({
+      text: notizNeu.trim().slice(0, 2000),
+      von: String(bearbeiter || '').slice(0, 60),
+      am: new Date().toISOString()
+    });
+    neu.notizen = bisher;
+  }
+  if (bearbeiter) {
+    neu.zuletztVon = String(bearbeiter).slice(0, 60);
+    neu.zuletztAm = new Date().toISOString();
+  }
 
   const gespeichert = await speichern(SAMMLUNG, code, neu);
   return res.status(200).json({ ok: true, angebot: gespeichert });
