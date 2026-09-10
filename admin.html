@@ -820,7 +820,7 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
   <aside class="sidebar" id="sb">
     <div class="brand">
       <div class="mark" role="img" aria-label="Clean Service Scaramuzzo AG"></div>
-      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 16</span></div>
+      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 17</span></div>
     </div>
 
     <nav class="nav">
@@ -1443,7 +1443,7 @@ function naechsterSchritt(e){
   if(e.stufe === 'aktiv'){
     if(cs.offen && cs.stufe <= 1) return {titel:'Checkliste abschliessen', satz:cs.text, dringend:cs.stufe, knopf:null};
     if(laeuftMitSpringer(e))
-      return {titel:'Übernahme eintragen', satz:'Läuft mit dem Springerteam. Sobald eine feste Raumpflegerin übernimmt, hier eintragen.', dringend:3, knopf:null};
+      return {titel:'Einführung planen', satz:'Läuft mit dem Springerteam. Sobald die feste Raumpflegerin feststeht, Termin vorschlagen.', dringend:3, knopf:null};
     return {titel:'Läuft', satz: e.qualitaetAm ? 'Qualitätsnachfrage geht am ' + dat(e.qualitaetAm) + ' hinaus.' : 'Nichts offen.', dringend:3, knopf:null};
   }
 
@@ -1463,6 +1463,8 @@ function zeileFall(e){
       esc(n.satz) + (merkmale ? '<br>' + merkmale : '') + '</div>' +
     '<div class="btn-row" style="justify-content:flex-end;">' +
       (n.knopf ? '<button class="btn klein primary-action" onclick="event.stopPropagation();' + n.knopf.ruf + '">' + esc(n.knopf.text) + '</button>' : '') +
+      (terminVorgeschlagen(e)
+        ? '<button class="btn klein secondary" onclick="event.stopPropagation();terminBestaetigen(\'' + e.id + '\', this)">Zusage eintragen</button>' : '') +
       '<button class="btn klein secondary" onclick="event.stopPropagation();oeffneFall(\'' + e.id + '\')">Öffnen</button>' +
     '</div></div>';
 }
@@ -2297,6 +2299,16 @@ function kartenSchritte(e){
       '<button class="btn primary-action" onclick="einfuehrungSenden(\'' + e.id + '\', this)">Terminvorschlag senden</button>'));
   }
 
+  /* Sagt die Kundschaft telefonisch zu, wird der Termin hier von Hand
+     bestätigt. Danach läuft alles wie beim Klick im Mail: Auftrag auf aktiv,
+     Bestätigung mit dem unterschriebenen Vertrag an die Kundschaft. */
+  if(auftrag && terminVorgeschlagen(e)){
+    s.push(schritt('Zusage telefonisch erhalten',
+      'Nur wenn die Kundschaft mündlich zugesagt hat. Der Auftrag geht auf aktiv, und die Kundschaft erhält ' +
+      'automatisch die Terminbestätigung mit dem unterschriebenen Vertrag.',
+      '<button class="btn primary-action" onclick="terminBestaetigen(\'' + e.id + '\', this)">Termin von Hand bestätigen</button>'));
+  }
+
   if(auftrag && istSpringerStart(e) && e.stufe !== 'aktiv'){
     s.push(schritt(istSpringerStart(e) ? 'Springerteam-Start aktivieren' : 'Auf aktiv setzen',
       istSpringerStart(e)
@@ -2314,7 +2326,7 @@ function kartenSchritte(e){
       : e.qualitaetMail
         ? 'Am ' + dat(e.qualitaetMail) + ' gesendet, Antwort steht aus.'
         : laeuftMitSpringer(e)
-          ? 'Ruht, solange das Springerteam den Einsatz führt. Sie startet, sobald eine feste Raumpflegerin übernommen hat.'
+          ? 'Ruht, solange das Springerteam den Einsatz führt. Sie startet mit der bestätigten Einführung der festen Raumpflegerin.'
           : e.qualitaetAm
             ? 'Geht automatisch am ' + dat(e.qualitaetAm) + ' hinaus.'
             : 'Noch kein Termin berechnet — dafür fehlt das Datum der ersten Reinigung.';
@@ -2333,23 +2345,10 @@ function kartenSchritte(e){
       '<button class="btn" onclick="qualitaetSenden(\'' + e.id + '\', false, this)">Jetzt an die Kundschaft senden</button>'));
   }
 
-  if(auftrag && e.stufe === 'aktiv' && laeuftMitSpringer(e)){
-    s.push(schritt('Feste Raumpflegerin übernimmt',
-      'Sobald die feste Zuteilung steht. Ab dem Datum der ersten Reinigung durch sie läuft die Frist bis zur ' +
-      'Qualitätsnachfrage; solange das Springerteam führt, fragen wir nicht nach.',
-      '<div class="feld-reihe">' +
-        '<div class="feld"><label for="fest-pfl">Raumpflegerin</label>' +
-        '<input id="fest-pfl" type="text" value="' + esc(e.raumpflegerin || '') + '"></div>' +
-        '<div class="feld"><label for="fest-dat">Erste Reinigung durch sie</label>' +
-        '<input id="fest-dat" type="date" value=""></div>' +
-      '</div>' +
-      '<button class="btn primary-action" onclick="festeUebernahme(\'' + e.id + '\')">Übernahme eintragen</button>'));
-  }
-
   if(auftrag && e.stufe === 'aktiv'){
     s.push(schritt('Läuft',
       laeuftMitSpringer(e)
-        ? 'Der Einsatz läuft mit dem Springerteam. Eine Qualitätsnachfrage geht erst hinaus, wenn eine feste Raumpflegerin übernommen hat.'
+        ? 'Der Einsatz läuft mit dem Springerteam. Die Qualitätsnachfrage startet, sobald die Einführung mit der festen Raumpflegerin bestätigt ist.'
         : 'Die Qualitätsnachfrage geht automatisch hinaus' + (e.qualitaetAm ? ' am ' + dat(e.qualitaetAm) : '') +
           '. Bei einer guten Rückmeldung wird der Fall automatisch archiviert.',
       '<button class="btn" onclick="stufeSetzen(\'' + e.id + '\',\'archiv\')">Von Hand archivieren</button>'));
@@ -2372,7 +2371,7 @@ function kartenSchritte(e){
   const ZUORDNUNG = {
     'Feste Raumpflegerin finden':'Einführung planen',
     'Zusage abwarten':'Einführung planen',
-    'Übernahme eintragen':'Feste Raumpflegerin übernimmt',
+    'Zusage abwarten':'Zusage telefonisch erhalten',
     'Reklamation klären':'Reklamation bearbeiten',
     'Disponieren und aktivieren':'Springerteam-Start aktivieren',
     'Springerteam anbieten':'Nachfrage zum Springerteam'
@@ -2530,17 +2529,35 @@ async function qualitaetSenden(id, probe, btn){
 
 /* Die Bitte um eine Google-Bewertung geht sonst automatisch nach einer guten
    Rückmeldung hinaus. Hier nur als Probe an das Postfach des Putzfrauenservice. */
-async function festeUebernahme(id){
+async function terminBestaetigen(id, btn){
   const e = LISTE.find(x => String(x.id) === String(id));
-  const pfl = (document.getElementById('fest-pfl').value || '').trim();
-  const datum = document.getElementById('fest-dat').value;
   if(!e) return;
-  if(!pfl || !datum){ meldung('Bitte Raumpflegerin und Datum der ersten Reinigung erfassen.', 'neg'); return; }
-  const q = qualitaetsDatum(datum, e.frequenz);
-  await speichern(id, {
-    raumpflegerin: pfl, festStartAm: datum, springerGestartet: false,
-    erstReinigung: datum, qualitaetAm: q ? q.toISOString().slice(0,10) : ''
-  }, 'Übernahme eingetragen. Qualitätsnachfrage am ' + (q ? q.toLocaleDateString('de-CH') : '—') + '.');
+  if(!confirm('Termin von ' + name(e) + ' am ' + dat(e.einfuehrungAm) + ' als bestätigt eintragen?\n\n' +
+              'Die Kundschaft erhält die Bestätigung mit dem unterschriebenen Vertrag.')) return;
+  const text = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Wird eingetragen …';
+  try{
+    const r = await fetch('/api/einfuehrung', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({id, bestaetigen:true, bearbeiter: CS_WER})
+    });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(d.error || 'Server ' + r.status);
+    const felder = {einfuehrungBestaetigt: new Date().toISOString(), stufe:'aktiv',
+                    erstReinigung: e.einfuehrungAm || e.erstReinigung || ''};
+    Object.assign(e, felder);
+    const auf = AUFTRAEGE.find(x => String(x.id) === String(id));
+    if(auf) Object.assign(auf, felder);
+    FALL = null; ANSICHT = 'aktive';
+    document.querySelectorAll('.sidebar .nav a[data-ansicht]').forEach(el =>
+      el.classList.toggle('on', el.dataset.ansicht === 'aktive'));
+    zeichnen();
+    meldung('Termin bestätigt. Der Auftrag steht jetzt unter «Einführungstermin angenommen».');
+    return;
+  }catch(err){
+    meldung('Nicht eingetragen: ' + err.message, 'neg');
+  }
+  btn.disabled = false; btn.textContent = text;
 }
 
 async function qualitaetErneut(id, btn){
