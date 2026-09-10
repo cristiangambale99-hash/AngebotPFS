@@ -681,6 +681,26 @@ textarea{ min-height:96px; resize:vertical; }
   .cl-fall > summary{ gap:6px; }
   .cl-frist{ flex:1 1 100%; }
 }
+
+/* ---- Fallkopf: was jetzt zu tun ist ---- */
+.jetzt{ display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap;
+  background:var(--cs-teal-light); border:1px solid #B9DCDC; border-left:6px solid var(--cs-teal);
+  border-radius:var(--cs-radius); padding:16px 20px; margin-bottom:12px; }
+.jetzt.neg{ background:var(--cs-neg-bg); border-color:#E4B0A4; border-left-color:var(--cs-neg); }
+.jetzt.warn{ background:var(--cs-warn-bg); border-color:#E2CB94; border-left-color:var(--cs-warn); }
+.jetzt.pos{ background:var(--cs-pos-bg); border-color:#A9DCC0; border-left-color:var(--cs-pos); }
+.jetzt-label{ font-size:var(--cs-fs-xs); letter-spacing:.06em; color:var(--cs-ink-soft); text-transform:uppercase; }
+.jetzt h2{ font-size:19px; margin:3px 0 4px; }
+.jetzt p{ margin:0; font-size:var(--cs-fs-sm); color:var(--cs-ink-soft); max-width:62ch; }
+.jetzt .btn{ flex:none; }
+.merkmale{ display:flex; gap:7px; flex-wrap:wrap; margin-bottom:16px; }
+details.mehr{ margin-top:12px; }
+details.mehr > summary{ cursor:pointer; font-size:var(--cs-fs-sm); color:var(--cs-teal-dark);
+  font-weight:bold; list-style:none; padding:7px 0; }
+details.mehr > summary::-webkit-details-marker{ display:none; }
+details.mehr > summary::before{ content:'+ '; }
+details.mehr[open] > summary::before{ content:'– '; }
+@media (max-width:760px){ .jetzt{ flex-direction:column; align-items:stretch; } .jetzt .btn{ width:100%; } }
 </style>
 </head>
 <body>
@@ -722,7 +742,7 @@ textarea{ min-height:96px; resize:vertical; }
   <aside class="sidebar" id="sb">
     <div class="brand">
       <div class="mark" role="img" aria-label="Clean Service Scaramuzzo AG"></div>
-      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 8</span></div>
+      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 9</span></div>
     </div>
 
     <nav class="nav">
@@ -938,7 +958,8 @@ function auftragStufe(a){
 function baueListe(){
   const angebote = (ANGEBOTE && ANGEBOTE.angebote) || [];
   const nachCode = {};
-  AUFTRAEGE.forEach(a => { if(a.code) nachCode[a.code] = a; });
+  const ohneCode = [];
+  AUFTRAEGE.forEach(a => { if(a.code) nachCode[a.code] = a; else ohneCode.push(a); });
   const liste = [];
 
   angebote.forEach(ang => {
@@ -959,7 +980,7 @@ function baueListe(){
       }));
     }
   });
-  Object.values(nachCode).forEach(auf => {
+  ohneCode.concat(Object.values(nachCode)).forEach(auf => {
     liste.push(Object.assign({}, auf, {
       quelle:'auftrag', id: auf.id, stufe: auftragStufe(auf),
       datum: auf.eingegangenAm, alter: tageSeit(auf.eingegangenAm)
@@ -1275,6 +1296,87 @@ function seiteKalender(){
    (Fristen, ausstehende Antworten, Reklamationen) und was das Team selbst
    erfasst. Aufgaben gehören dem Team, nicht einer Person. */
 
+/* ---------- Was ist jetzt zu tun ----------
+   Eine einzige Stelle bestimmt für jeden Fall die nächste Handlung. Listen,
+   Fallseite und Kennzahlen zeigen dieselbe Antwort, damit niemand sucht.
+   dringend: 0 überfällig · 1 bald · 2 wir warten · 3 läuft */
+function naechsterSchritt(e){
+  const cs = checkStatus(e);
+  const w = wartetAuf(e);
+
+  if(unzufrieden(e))
+    return {titel:'Reklamation klären', satz:'Die Kundschaft ist nicht zufrieden. Kontakt aufnehmen, dann zweite Nachfrage senden.', dringend:0, knopf:null};
+
+  if(e.quelle !== 'auftrag')
+    return {titel:'Auf Antwort warten', satz:'Erinnerungen nach 5 und 30 Tagen laufen automatisch.', dringend:2, knopf:null};
+
+  if(['archiv','abgesagt'].includes(e.stufe))
+    return {titel:'Abgeschlossen', satz:'Für diesen Fall ist nichts mehr offen.', dringend:3, knopf:null};
+
+  if(e.stufe === 'auftrag')
+    return {titel:'In Bearbeitung nehmen', satz:'Damit startet die Frist bis zur Springerteam-Nachfrage.',
+            dringend:(tageSeit(e.eingegangenAm) || 0) >= 3 ? 0 : 3,
+            knopf:{text:'In Bearbeitung nehmen', ruf:"inBearbeitung('" + e.id + "')"}};
+
+  if(terminVorgeschlagen(e)){
+    const tage = e.einfuehrungVorschlagAm ? tageSeit(e.einfuehrungVorschlagAm) : 0;
+    return {titel:'Zusage abwarten',
+            satz:'Terminvorschlag für den ' + dat(e.einfuehrungAm) + ' ist draussen' +
+                 (tage > 7 ? ', seit ' + tage + ' Tagen ohne Antwort — nachfassen.' : ', Zusage steht aus.'),
+            dringend: tage > 7 ? 0 : 2, knopf:null};
+  }
+
+  if(istSpringerStart(e) && e.stufe !== 'aktiv')
+    return {titel:'Disponieren und aktivieren',
+            satz:(e.raumpflegerin ? 'Disponiert auf ' + e.raumpflegerin + '. ' : 'Raumpflegerin einteilen. ') +
+                 'Start ' + (e.startDatum ? dat(e.startDatum) : 'noch offen') + '.',
+            dringend:3, knopf:{text:'Aktivieren', ruf:"springerAktivieren('" + e.id + "')"}};
+
+  if(w)
+    return {titel:'Auf die Kundschaft warten', satz:'Wartet auf ' + w.grund + '.',
+            dringend:(tageSeit(w.seit) > 7 ? 0 : 2), knopf:null};
+
+  if(e.stufe === 'bearbeitung' && !e.vorlaufMail && !e.vorlaufAus){
+    const rest = e.bearbeitungAb ? VORLAUF_WERKTAGE - werktageSeit(e.bearbeitungAb) : null;
+    if(rest !== null && rest <= 0)
+      return {titel:'Springerteam anbieten', satz:'Die automatische Nachfrage ist überfällig.', dringend:0,
+              knopf:{text:'Jetzt senden', ruf:"vorlaufJetzt('" + e.id + "')"}};
+    return {titel:'Einführung planen',
+            satz: rest === null ? 'Termin mit der Raumpflegerin abmachen und vorschlagen.'
+                 : 'Springerteam wird in ' + rest + ' Werktag' + (rest === 1 ? '' : 'en') + ' automatisch angeboten.',
+            dringend:(rest !== null && rest <= 2) ? 1 : 3, knopf:null};
+  }
+
+  if(e.stufe === 'bearbeitung' || e.stufe === 'springer_gewuenscht')
+    return {titel:'Einführung planen', satz:'Raumpflegerin, Datum und Uhrzeit erfassen und der Kundschaft vorschlagen.', dringend:3, knopf:null};
+
+  if(e.stufe === 'aktiv'){
+    if(cs.offen && cs.stufe <= 1) return {titel:'Checkliste abschliessen', satz:cs.text, dringend:cs.stufe, knopf:null};
+    if(laeuftMitSpringer(e))
+      return {titel:'Übernahme eintragen', satz:'Läuft mit dem Springerteam. Sobald eine feste Raumpflegerin übernimmt, hier eintragen.', dringend:3, knopf:null};
+    return {titel:'Läuft', satz: e.qualitaetAm ? 'Qualitätsnachfrage geht am ' + dat(e.qualitaetAm) + ' hinaus.' : 'Nichts offen.', dringend:3, knopf:null};
+  }
+
+  if(cs.offen && cs.stufe <= 1) return {titel:'Checkliste abschliessen', satz:cs.text, dringend:cs.stufe, knopf:null};
+  return {titel:'Läuft', satz:'Nichts offen.', dringend:3, knopf:null};
+}
+
+/* Eine Listenzeile, überall gleich: wer, was jetzt, ein Knopf. */
+function zeileFall(e){
+  const n = naechsterSchritt(e);
+  const merkmale = [qualitaetMerkmal(e), einfuehrungMerkmal(e), springerMerkmal(e)].filter(Boolean).join(' ');
+  return '<div class="zeile' + (n.dringend === 0 ? ' dringend' : n.dringend === 1 ? ' bald' : '') +
+    '" onclick="oeffneFall(\'' + e.id + '\')">' +
+    '<div class="wer"><strong>' + esc(name(e)) + '</strong><span>' + esc(ort(e)) +
+      (e.frequenz ? ' · ' + esc(e.frequenz) : '') + '</span></div>' +
+    '<div class="warum"><strong style="color:var(--cs-ink);">' + esc(n.titel) + '</strong><br>' +
+      esc(n.satz) + (merkmale ? '<br>' + merkmale : '') + '</div>' +
+    '<div class="btn-row" style="justify-content:flex-end;">' +
+      (n.knopf ? '<button class="btn klein primary-action" onclick="event.stopPropagation();' + n.knopf.ruf + '">' + esc(n.knopf.text) + '</button>' : '') +
+      '<button class="btn klein secondary" onclick="event.stopPropagation();oeffneFall(\'' + e.id + '\')">Öffnen</button>' +
+    '</div></div>';
+}
+
 /* ---------- Checklisten: alles Offene an einem Ort ----------
    Ersetzt die Aufgabenliste aus dem Planner. Jede Kundschaft bringt ihre
    Teilaufgaben mit; hier stehen sie gebündelt, nach Stichtag geordnet, und
@@ -1420,61 +1522,9 @@ function seiteEingang(){
     return leer('Keine offene Auftragserteilung',
       'Sobald eine Auftragserteilung eingeht, steht sie hier — bis der Auftrag aktiv gesetzt ist.');
 
-  const zeileSpringer = e => {
-    const dr = dringlichkeit(e);
-    const bereit = !!e.raumpflegerin;
-    const warum = e.springerAntwort === 'ja' && !e.startDatum
-      ? 'Die Kundschaft hat das Springerteam nachträglich angenommen. Raumpflegerin einteilen und Starttermin setzen.'
-      : (bereit ? 'Disponiert auf ' + esc(e.raumpflegerin) + '. Aktivieren, sobald die erste Reinigung steht.'
-                : 'Noch nicht disponiert. Raumpflegerin einteilen, dann aktivieren.');
-    return '<div class="zeile' + (dr.stufe === 0 ? ' dringend' : '') + '" onclick="oeffneFall(\'' + e.id + '\')">' +
-      '<div class="wer"><strong>' + esc(name(e)) + '</strong><span>' + esc(ort(e)) +
-        (e.frequenz ? ' · ' + esc(e.frequenz) : '') + '</span></div>' +
-      '<div class="warum">' + springerMerkmal(e) + ' Start ' +
-        (e.startDatum ? dat(e.startDatum) + (e.startZeit ? ', ' + esc(e.startZeit) + ' Uhr' : '')
-          : e.einfuehrungAm ? dat(e.einfuehrungAm) + (e.einfuehrungZeit ? ', ' + esc(e.einfuehrungZeit) + ' Uhr' : '')
-          : 'noch offen') +
-        '<br>' + warum + '</div>' +
-      '<button class="btn primary-action" onclick="event.stopPropagation();springerAktivieren(\'' + e.id + '\')">Aktivieren</button>' +
-    '</div>';
-  };
-
-  const zeileFix = e => {
-    const dr = dringlichkeit(e);
-    const rest = e.bearbeitungAb ? VORLAUF_WERKTAGE - werktageSeit(e.bearbeitungAb) : null;
-    const text = e.springerAntwort === 'nein'
-      ? 'Springerteam am ' + dat(e.vorlaufMail) + ' angeboten und abgelehnt. Wir bleiben bei der festen Raumpflegerin.'
-      : e.vorlaufMail
-        ? 'Springerteam am ' + dat(e.vorlaufMail) + ' angeboten, Antwort steht aus.'
-        : rest === null ? 'Datum des Statuswechsels fehlt, deshalb läuft keine Frist.'
-        : rest > 0 ? 'Springerteam wird in ' + rest + ' Werktag' + (rest === 1 ? '' : 'en') + ' automatisch angeboten.'
-        : 'Angebot des Springerteams geht beim nächsten Lauf hinaus.';
-    return '<div class="zeile' + (dr.stufe === 0 ? ' dringend' : dr.stufe === 1 ? ' bald' : '') +
-      '" onclick="oeffneFall(\'' + e.id + '\')">' +
-      '<div class="wer"><strong>' + esc(name(e)) + '</strong><span>' + esc(ort(e)) +
-        (e.frequenz ? ' · ' + esc(e.frequenz) : '') + '</span></div>' +
-      '<div class="warum">' + springerMerkmal(e) + ' ' + esc(text) + '</div>' +
-      '<button class="btn secondary" onclick="event.stopPropagation();oeffneFall(\'' + e.id + '\')">Fall öffnen</button>' +
-    '</div>';
-  };
-
-  const zeileTermin = e => {
-    const tage = e.einfuehrungVorschlagAm ? tageSeit(e.einfuehrungVorschlagAm) : null;
-    return '<div class="zeile' + (tage !== null && tage > 7 ? ' dringend' : '') +
-      '" onclick="oeffneFall(\'' + e.id + '\')">' +
-      '<div class="wer"><strong>' + esc(name(e)) + '</strong><span>' + esc(ort(e)) +
-        (e.frequenz ? ' · ' + esc(e.frequenz) : '') + '</span></div>' +
-      '<div class="warum">' + einfuehrungMerkmal(e) + ' ' + checkMerkmal(e) + ' ' +
-        dat(e.einfuehrungAm) + (e.einfuehrungZeit ? ', ' + esc(e.einfuehrungZeit) + ' Uhr' : '') +
-        (e.raumpflegerin ? ' mit ' + esc(e.raumpflegerin) : '') + '<br>' +
-        esc(tage === null ? 'Wartet auf die Zusage der Kundschaft.'
-          : tage > 7 ? 'Seit ' + tage + ' Tagen keine Zusage — bitte nachfassen.'
-          : !tage ? 'Heute vorgeschlagen, Zusage steht aus.'
-          : 'Vorgeschlagen vor ' + tage + ' Tag' + (tage === 1 ? '' : 'en') + ', Zusage steht aus.') +
-        ' Mit der Zusage wird der Auftrag automatisch aktiv.</div>' +
-      '<button class="btn secondary" onclick="event.stopPropagation();oeffneFall(\'' + e.id + '\')">Fall öffnen</button>' +
-    '</div>';
-  };
+  const zeileSpringer = e => zeileFall(e);
+  const zeileFix = e => zeileFall(e);
+  const zeileTermin = e => zeileFall(e);
 
   const block = (titel, hinweis, liste, zeile) =>
     '<div class="card"><div class="card-head"><div><h2>' + titel + '</h2><p>' + hinweis + '</p></div>' +
@@ -1488,13 +1538,13 @@ function seiteEingang(){
         ' zu lange — sie stehen in ihrem Block zuoberst und sind rot markiert.</div>'
       : '') +
     block('Start mit Springerteam',
-      'Sofortiger Start gewünscht oder nachträglich angenommen. Nach der Disposition aktivieren.',
+      'Nach der Disposition aktivieren.',
       a, zeileSpringer) +
     block('Wartet auf feste Raumpflegerin',
-      'Bleibt in Bearbeitung. Nach sieben Werktagen bieten wir das Springerteam automatisch noch einmal an.',
+      'Nach sieben Werktagen bieten wir das Springerteam automatisch an.',
       b, zeileFix) +
     block('Einführungstermin vorgeschlagen',
-      'Die Kundschaft hat den Terminvorschlag erhalten. Sagt sie zu, wird der Auftrag automatisch aktiv.',
+      'Mit der Zusage wird der Auftrag automatisch aktiv.',
       c, zeileTermin);
 }
 
@@ -1853,27 +1903,9 @@ function gefiltertAktive(){
 function aktiveListe(){
   const l = gefiltertAktive();
   if(!l.length) return '<p class="cs-hint" style="padding:18px;">Für diese Auswahl gibt es keinen Auftrag.</p>';
-  return '<div style="padding:14px;">' + l.map(e => {
-    const d = stufeDef(e.stufe);
-    const wartet = wartetAuf(e);
-    return '<div class="zeile' + (unzufrieden(e) ? ' dringend' : '') + '" onclick="oeffneFall(\'' + e.id + '\')">' +
-      '<div class="wer"><strong>' + esc(name(e)) + '</strong>' +
-        '<span>' + esc(ort(e)) + (e.frequenz ? ' · ' + esc(e.frequenz) : '') + '</span></div>' +
-      '<div class="warum"><span class="tag ' + d.art + '">' + d.label + '</span> ' +
-        qualitaetMerkmal(e) + ' ' + springerMerkmal(e) + '<br>' +
-        (unzufrieden(e) && e.qualitaetText ? '«' + esc(e.qualitaetText).slice(0, 140) + '»<br>' : '') +
-        esc(e.raumpflegerin ? 'Raumpflegerin ' + e.raumpflegerin + '. ' : '') +
-        esc(unzufrieden(e)
-            ? 'Reklamation offen: bitte Kontakt aufnehmen, Ursache klären und danach die zweite Nachfrage senden.'
-            : e.stufe === 'aktiv'
-            ? (wartet ? 'Wartet auf ' + wartet.grund + '.'
-               : e.qualitaetAm ? 'Qualitätsnachfrage am ' + dat(e.qualitaetAm) + '.'
-               : 'Läuft.')
-            : e.stufe === 'archiv' ? 'Abgeschlossen.' : 'Abgesagt.') + '</div>' +
-      '<button class="btn klein secondary" onclick="event.stopPropagation();oeffneFall(\'' + e.id + '\')">Öffnen</button>' +
-    '</div>';
-  }).join('') + '</div>';
+  return '<div style="padding:14px;">' + l.map(e => zeileFall(e)).join('') + '</div>';
 }
+
 function seiteAktive(){
   const alle = LISTE.filter(e => e.quelle === 'auftrag' && ['aktiv','archiv','abgesagt'].includes(e.stufe));
   const F = FILTERS.aktive;
@@ -1934,53 +1966,57 @@ function leer(titel, text){
 /* ---------- Fallseite ---------- */
 function fallSeite(e){
   const d = stufeDef(e.stufe);
-  const dr = dringlichkeit(e);
-  return '<button class="btn secondary" style="margin-bottom:16px;" onclick="zurueck()">← Zurück zur Liste</button>' +
-    '<div class="fall-kopf">' +
-      '<div><h2 style="font-size:16px;">' + esc(e.angebotsnr ? 'Angebot ' + e.angebotsnr : 'Auftrag ' + String(e.code || e.id)) + '</h2>' +
-      '<p class="cs-hint" style="margin-top:3px;">' +
-        (e.datum ? 'Erfasst am ' + dat(e.datum) : '') + '</p></div>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
-        '<span class="tag ' + d.art + '">' + d.label + '</span>' +
-        qualitaetMerkmal(e) + einfuehrungMerkmal(e) + springerMerkmal(e) +
-        (istSpringerStart(e) && e.startDatum
-          ? '<span class="tag neutral">Start ' + dat(e.startDatum) + (e.startZeit ? ', ' + esc(e.startZeit) + ' Uhr' : '') + '</span>' : '') +
-      '</div>' +
+  const n = naechsterSchritt(e);
+  const farbe = n.dringend === 0 ? 'neg' : n.dringend === 1 ? 'warn' : n.dringend === 2 ? '' : 'pos';
+  return '<button class="btn secondary klein" style="margin-bottom:14px;" onclick="zurueck()">← Zurück</button>' +
+    '<div class="jetzt ' + farbe + '">' +
+      '<div class="jetzt-text">' +
+        '<div class="jetzt-label">Jetzt zu tun</div>' +
+        '<h2>' + esc(n.titel) + '</h2>' +
+        '<p>' + esc(n.satz) + '</p></div>' +
+      (n.knopf ? '<button class="btn primary-action" onclick="' + n.knopf.ruf + '">' + esc(n.knopf.text) + '</button>' : '') +
     '</div>' +
+    '<div class="merkmale"><span class="tag ' + d.art + '">' + d.label + '</span>' +
+      qualitaetMerkmal(e) + einfuehrungMerkmal(e) + springerMerkmal(e) + '</div>' +
     (unzufrieden(e)
-      ? '<div class="hinweis neg"><strong>Reklamation offen.</strong> Die Kundschaft hat mit «' +
-        esc(QUALITAET_LABEL[e.qualitaetAntwort] || e.qualitaetAntwort) + '» geantwortet' +
-        (e.qualitaetAntwortAm ? ' am ' + dat(e.qualitaetAntwortAm) : '') + '.' +
-        (e.qualitaetText ? '<br>«' + esc(e.qualitaetText).replace(/\n/g,' ') + '»' : '') + '</div>'
-      : '') +
-    (dr.stufe <= 1 ? '<div class="hinweis ' + (dr.stufe === 0 ? 'neg' : 'warn') + '">' + esc(dr.text) + '</div>' : '') +
+      ? '<div class="hinweis neg"><strong>Reklamation.</strong> «' +
+        esc(QUALITAET_LABEL[e.qualitaetAntwort] || e.qualitaetAntwort) + '»' +
+        (e.qualitaetText ? ' — «' + esc(e.qualitaetText).replace(/\n/g,' ') + '»' : '') + '</div>' : '') +
     '<div class="fall-grid">' +
-      '<div>' + kartenFall(e) + kartenCheckliste(e) + kartenLeistungen(e) + kartenVerlauf(e) + '</div>' +
-      '<div>' + kartenSchritte(e) + '</div>' +
+      '<div>' + kartenCheckliste(e) + kartenFall(e) + kartenVerlauf(e) + '</div>' +
+      '<div>' + kartenSchritte(e) + kartenLeistungen(e) + '</div>' +
     '</div>';
 }
 
 function kartenFall(e){
-  const zeilen = [
-    ['E-Mail', mailVon(e) ? '<a href="mailto:' + esc(mailVon(e)) + '">' + esc(mailVon(e)) + '</a>' : '—'],
-    ['Telefon', e.mobile ? '<a href="tel:' + esc(String(e.mobile).replace(/\s/g,'')) + '">' + esc(e.mobile) + '</a>' : '—'],
-    ['Adresse', esc(ort(e)) || '—'],
-    ['Rhythmus', esc(e.frequenz || '—')],
-    ['Zimmer', esc(e.zimmer || '—')],
-    ['Angebotsnummer', esc(e.angebotsnr || '—')],
-    ['Angebot gesendet', dat(e.gesendetAm) || '—'],
-    ['Auftrag eingegangen', dat(e.eingegangenAm) || '—'],
-    ['Raumpflegerin', esc(e.raumpflegerin || '—')],
-    ['Einführung', e.einfuehrungAm ? dat(e.einfuehrungAm) + (e.einfuehrungZeit ? ', ' + esc(e.einfuehrungZeit) : '') +
-        (e.einfuehrungBestaetigt ? ' · bestätigt' : ' · noch nicht bestätigt') : '—'],
-    ['Erste Reinigung', dat(e.erstReinigung) || '—'],
-    ['Feste Raumpflegerin ab', e.festStartAm ? dat(e.festStartAm) : (laeuftMitSpringer(e) ? 'läuft mit Springerteam' : '—')],
-    ['Vertrag', e.vertragSigniertAm ? 'unterschrieben am ' + dat(e.vertragSigniertAm) : 'noch nicht unterschrieben'],
-    ['Qualitätsnachfrage', e.qualitaetAm ? dat(e.qualitaetAm) + (e.qualitaetAntwort ? ' · beantwortet: ' + esc(QUALITAET_LABEL[e.qualitaetAntwort] || e.qualitaetAntwort) : '') : '—'],
-    ['Rückmeldung im Wortlaut', e.qualitaetText ? esc(e.qualitaetText).replace(/\n/g,'<br>') : '—']
-  ];
-  return '<div class="card"><div class="card-head"><h2>Der Fall</h2></div><div class="card-body">' +
-    '<dl class="dl">' + zeilen.map(z => '<dt>' + z[0] + '</dt><dd>' + z[1] + '</dd>').join('') + '</dl></div></div>';
+  const w = (k, v) => (v ? [k, v] : null);
+  const wichtig = [
+    w('E-Mail', mailVon(e) ? '<a href="mailto:' + esc(mailVon(e)) + '">' + esc(mailVon(e)) + '</a>' : ''),
+    w('Telefon', e.mobile ? '<a href="tel:' + esc(String(e.mobile).replace(/\s/g,'')) + '">' + esc(e.mobile) + '</a>' : ''),
+    w('Adresse', esc(ort(e))),
+    w('Rhythmus', esc(e.frequenz || '')),
+    w('Raumpflegerin', esc(e.raumpflegerin || '')),
+    w('Einführung', e.einfuehrungAm ? dat(e.einfuehrungAm) + (e.einfuehrungZeit ? ', ' + esc(e.einfuehrungZeit) + ' Uhr' : '') +
+        (e.einfuehrungBestaetigt ? ' · bestätigt' : ' · Zusage steht aus') : '')
+  ].filter(Boolean);
+  const weiter = [
+    w('Zimmer', esc(e.zimmer || '')),
+    w('Angebotsnummer', esc(e.angebotsnr || '')),
+    w('Angebot gesendet', dat(e.gesendetAm)),
+    w('Auftrag eingegangen', dat(e.eingegangenAm)),
+    w('Erste Reinigung', dat(e.erstReinigung)),
+    w('Feste Raumpflegerin ab', e.festStartAm ? dat(e.festStartAm) : (laeuftMitSpringer(e) ? 'läuft mit Springerteam' : '')),
+    w('Vertrag', e.vertragSigniertAm ? 'unterschrieben am ' + dat(e.vertragSigniertAm) : ''),
+    w('Qualitätsnachfrage', e.qualitaetAm ? dat(e.qualitaetAm) +
+        (e.qualitaetAntwort ? ' · ' + esc(QUALITAET_LABEL[e.qualitaetAntwort] || e.qualitaetAntwort) : '') : ''),
+    w('Rückmeldung im Wortlaut', e.qualitaetText ? esc(e.qualitaetText).replace(/\n/g,'<br>') : '')
+  ].filter(Boolean);
+  const dl = l => '<dl class="dl">' + l.map(z => '<dt>' + z[0] + '</dt><dd>' + z[1] + '</dd>').join('') + '</dl>';
+  return '<div class="card"><div class="card-head"><h2>Kontakt und Objekt</h2>' +
+      '<span class="cs-mute">' + esc(e.angebotsnr ? 'Angebot ' + e.angebotsnr : String(e.code || '')) + '</span></div>' +
+    '<div class="card-body">' + dl(wichtig) +
+      (weiter.length ? '<details class="mehr"><summary>Weitere Angaben</summary>' + dl(weiter) + '</details>' : '') +
+    '</div></div>';
 }
 
 function kartenVerlauf(e){
@@ -2016,12 +2052,20 @@ function kartenVerlauf(e){
     '<textarea id="notiz" placeholder="Was wurde besprochen oder vereinbart?"></textarea></div>' +
     '<button class="btn primary-action" onclick="notizSpeichern(\'' + e.id + '\', this)">Notiz speichern</button>' +
     '<div class="zeit" style="margin-top:20px;">' +
-      (ereignisse.length ? ereignisse.map(x =>
+      (ereignisse.length ? ereignisse.slice(0,4).map(x =>
         '<div class="e' + (x.sys ? ' sys' : '') + '">' +
           '<div class="wann">' + (x.am ? datZeit(x.am) : '') + (x.von ? ' · ' + esc(x.von) : '') + '</div>' +
           '<div class="was">' + (x.sys ? '<strong>' + x.was + '</strong>' : x.was) + '</div></div>').join('')
         : '<p class="cs-hint">Noch keine Einträge.</p>') +
-    '</div></div></div>';
+    '</div>' +
+    (ereignisse.length > 4
+      ? '<details class="mehr"><summary>Ganzer Verlauf (' + ereignisse.length + ' Einträge)</summary>' +
+        '<div class="zeit" style="margin-top:12px;">' + ereignisse.slice(4).map(x =>
+          '<div class="e' + (x.sys ? ' sys' : '') + '">' +
+            '<div class="wann">' + (x.am ? datZeit(x.am) : '') + (x.von ? ' · ' + esc(x.von) : '') + '</div>' +
+            '<div class="was">' + (x.sys ? '<strong>' + x.was + '</strong>' : x.was) + '</div></div>').join('') +
+        '</div></details>' : '') +
+    '</div></div>';
 }
 
 /* Nur die Handlungen, die im aktuellen Status möglich sind */
@@ -2041,7 +2085,8 @@ function kartenSchritte(e){
       '<button class="btn primary-action" onclick="inBearbeitung(\'' + e.id + '\')">In Bearbeitung nehmen</button>'));
   }
 
-  if(auftrag && e.stufe === 'bearbeitung' && !e.vorlaufMail){
+  /* Sobald ein Termin vorgeschlagen ist, ist das Springerteam kein Thema mehr. */
+  if(auftrag && e.stufe === 'bearbeitung' && !e.vorlaufMail && !terminVorgeschlagen(e)){
     const rest = e.bearbeitungAb ? VORLAUF_WERKTAGE - werktageSeit(e.bearbeitungAb) : null;
     const faellig = e.bearbeitungAb ? vorlaufDatum(e.bearbeitungAb, VORLAUF_WERKTAGE) : null;
     s.push(schritt('Nachfrage zum Springerteam',
@@ -2136,9 +2181,18 @@ function kartenSchritte(e){
       '<button class="btn" onclick="stufeSetzen(\'' + e.id + '\',\'bearbeitung\')">Wieder öffnen</button>'));
   }
 
-  return '<div class="card"><div class="card-head"><div><h2>Die nächsten Schritte</h2>' +
-    '<p>Nur die Handlungen, die jetzt möglich sind</p></div></div>' +
-    '<div class="card-body">' + s.join('') + '</div></div>';
+  if(!s.length) return '';
+  /* Die Handlung, die oben als «Jetzt zu tun» steht, gehört auch hier nach vorn. */
+  const jetzt = naechsterSchritt(e).titel;
+  const treffer = s.findIndex(x => x.indexOf('<h4>' + jetzt) !== -1);
+  if(treffer > 0) s.unshift(s.splice(treffer, 1)[0]);
+  const erste = s[0], rest = s.slice(1);
+  return '<div class="card"><div class="card-head"><div><h2>Was du hier tun kannst</h2>' +
+    '<p>Nur die Handlungen, die im aktuellen Status möglich sind</p></div></div>' +
+    '<div class="card-body">' + erste +
+      (rest.length ? '<details class="mehr"><summary>Weitere Möglichkeiten (' + rest.length + ')</summary>' +
+        '<div style="margin-top:10px;">' + rest.join('') + '</div></details>' : '') +
+    '</div></div>';
 }
 function schritt(titel, text, knoepfe){
   return '<div class="schritt"><h4>' + titel + '</h4><p>' + text + '</p>' + knoepfe + '</div>';
