@@ -127,9 +127,18 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 .note p{margin:0 0 8px;}
 .note p:last-child{margin:0;}
 .note-zeit{
-  background:#fff;border-left:4px solid var(--teal);border-color:#CFE6EA;
-  font-weight:600;color:var(--ink);
+  background:var(--tint);border:1px solid #CFE6EA;border-left:3px solid var(--teal);
+  color:var(--body-c);font-weight:400;
 }
+.note-zeit strong{ color:var(--ink);font-weight:700; }
+.note-zeit .zeile{ display:block; }
+.note-zeit .zeile + .zeile{ margin-top:6px; }
+
+/* Auswahl mit Zusatzzeile: Text oben, Erläuterung darunter */
+.opt.zwei{ align-items:flex-start; padding:11px 13px; }
+.opt.zwei > span{ display:block; }
+.opt.zwei .sub{ display:block;margin:2px 0 0;font-size:11.5px;color:var(--mute); }
+.zutritt-frage{ margin-top:18px; }
 .note-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px;}
 .note-head strong{font-family:var(--head);font-size:14px;}
 .note-tag{font-size:11.5px;font-weight:700;color:var(--teal-deep);background:#fff;
@@ -350,7 +359,7 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
     <!-- 6 Start und Fenster -->
     <div class="card">
       <h2 data-i18n="a59"><span class="n">6</span> Start der Reinigung</h2>
-      <p class="hint">Wann sollen wir beginnen?</p>
+      <p data-i18n="a84" class="hint">Wann sollen wir beginnen?</p>
 
       <label data-i18n="a60" class="fl">Start mit unserem Springerteam?</label>
       <div data-i18n="a61" class="opts">
@@ -366,12 +375,12 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
 
         <div class="note note-zeit" id="springer-info"></div>
 
-        <label data-i18n="a80" class="fl" style="margin-top:16px;" id="zutritt-frage">Bitte geben Sie uns an, wie uns der Zutritt gewährleistet ist.</label>
+        <label data-i18n="a80" class="fl zutritt-frage" id="zutritt-frage">Wie erhalten wir Zutritt zu Ihrer Wohnung?</label>
         <div data-i18n="a81" class="opts" id="zutritt-opts">
-          <label class="opt wide"><input type="radio" name="f-zutritt" value="Vor Ort">Ich bin vor Ort und öffne die Tür</label>
-          <label class="opt wide"><input type="radio" name="f-zutritt" value="Milchkasten, Schlüssel bleibt bei uns">Der Schlüssel liegt im Milchkasten <span class="sub">Sie dürfen ihn behalten</span></label>
-          <label class="opt wide"><input type="radio" name="f-zutritt" value="Milchkasten, Schlüssel zurücklegen">Der Schlüssel liegt im Milchkasten <span class="sub">bitte nach der Reinigung zurücklegen</span></label>
-          <label class="opt wide"><input type="radio" name="f-zutritt" value="Schlüssel wird übergeben">Ich händige Ihnen einen Schlüssel aus</label>
+          <label class="opt wide zwei"><input type="radio" name="f-zutritt" value="Vor Ort"><span>Ich bin vor Ort und öffne die Tür</span></label>
+          <label class="opt wide zwei"><input type="radio" name="f-zutritt" value="Milchkasten, Schlüssel bleibt bei uns"><span>Schlüssel im Milchkasten<span class="sub">Sie dürfen ihn behalten</span></span></label>
+          <label class="opt wide zwei"><input type="radio" name="f-zutritt" value="Milchkasten, Schlüssel zurücklegen"><span>Schlüssel im Milchkasten<span class="sub">bitte nach jeder Reinigung zurücklegen</span></span></label>
+          <label class="opt wide zwei"><input type="radio" name="f-zutritt" value="Schlüssel wird übergeben"><span>Ich händige Ihnen einen Schlüssel aus</span></label>
         </div>
       </div>
     </div>
@@ -541,10 +550,11 @@ const I18N_EN = {
 "a74": "Preferred start date",
 "a75": "So that we can schedule your team and prepare all the documents, the earliest possible date is seven days from today. We will confirm this date in writing.",
 "a76": "Cleaning by our relief team takes place between 08:00 and 17:00. We will confirm the exact time by e-mail one day before the clean.",
-"a80": "Please tell us how we can access your home.",
-"a81": "\n          <label class=\"opt wide\"><input type=\"radio\" name=\"f-zutritt\" value=\"Vor Ort\">I will be there and open the door</label>\n          <label class=\"opt wide\"><input type=\"radio\" name=\"f-zutritt\" value=\"Milchkasten, Schl\u00fcssel bleibt bei uns\">The key is in the milk box <span class=\"sub\">you may keep it</span></label>\n          <label class=\"opt wide\"><input type=\"radio\" name=\"f-zutritt\" value=\"Milchkasten, Schl\u00fcssel zur\u00fccklegen\">The key is in the milk box <span class=\"sub\">please put it back after the clean</span></label>\n          <label class=\"opt wide\"><input type=\"radio\" name=\"f-zutritt\" value=\"Schl\u00fcssel wird \u00fcbergeben\">I will hand you a key</label>\n        ",
+"a80": "How do we get access to your home?",
+"a81": "\n          <label class=\"opt wide zwei\"><input type=\"radio\" name=\"f-zutritt\" value=\"Vor Ort\"><span>I will be there and open the door</span></label>\n          <label class=\"opt wide zwei\"><input type=\"radio\" name=\"f-zutritt\" value=\"Milchkasten, Schl\u00fcssel bleibt bei uns\"><span>Key in the milk box<span class=\"sub\">you may keep it</span></span></label>\n          <label class=\"opt wide zwei\"><input type=\"radio\" name=\"f-zutritt\" value=\"Milchkasten, Schl\u00fcssel zur\u00fccklegen\"><span>Key in the milk box<span class=\"sub\">please put it back after each clean</span></span></label>\n          <label class=\"opt wide zwei\"><input type=\"radio\" name=\"f-zutritt\" value=\"Schl\u00fcssel wird \u00fcbergeben\"><span>I will hand you a key</span></label>\n        ",
 "a82": "<span class=\"n\">7</span> Further requests",
-"a83": "Optional \u2014 both can be added at any time later."
+"a83": "Optional \u2014 both can be added at any time later.",
+"a84": "When would you like us to start?"
 };
 const I18N_ATTR_EN = [["#f-boden", "placeholder", "e.g. parquet, tiles"], ["#f-boden-text", "placeholder", "e.g. cork, vinyl"], ["#f-alarmcode", "placeholder", "Treated confidentially"], ["#f-tier-text", "placeholder", "e.g. rabbit, bird"], ["#f-vereinbarungen", "placeholder", "e.g. delicate surfaces, access via neighbours"]];
 
@@ -645,7 +655,7 @@ function startInfo(){
   const satz2 = en
     ? 'While the relief team carries out the cleaning we cannot guarantee a fixed time. Cleaning takes place between 08:00 and 17:00; you will receive the exact time by e-mail one day beforehand.'
     : 'Solange wir die Reinigung mit dem Springerteam ausführen, können wir Ihnen keine fixe Uhrzeit garantieren. Die Reinigung findet zwischen 08:00 und 17:00 Uhr statt, einen Tag vorher erhalten Sie die Zeitmitteilung per E-Mail.';
-  box.innerHTML = satz1 + '<br>' + satz2;
+  box.innerHTML = '<span class="zeile">' + satz1 + '</span><span class="zeile">' + satz2 + '</span>';
 }
 
 /* ---- Startdatum bei Sofortstart ---- */

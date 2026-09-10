@@ -837,7 +837,7 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
   <aside class="sidebar" id="sb">
     <div class="brand">
       <div class="mark" role="img" aria-label="Clean Service Scaramuzzo AG"></div>
-      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 21</span></div>
+      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 22</span></div>
     </div>
 
     <nav class="nav">
@@ -2232,12 +2232,12 @@ function kartenFall(e){
     w('Telefon', e.mobile ? '<a href="tel:' + esc(String(e.mobile).replace(/\s/g,'')) + '">' + esc(e.mobile) + '</a>' : ''),
     w('Adresse', esc(ort(e))),
     w('Rhythmus', esc(e.frequenz || '')),
+    w('Zutritt', e.zutritt ? '<strong>' + esc(e.zutritt) + '</strong>' : ''),
     w('Raumpflegerin', esc(e.raumpflegerin || '')),
     w('Einführung', e.einfuehrungAm ? dat(e.einfuehrungAm) + (e.einfuehrungZeit ? ', ' + esc(e.einfuehrungZeit) + ' Uhr' : '') +
         (e.einfuehrungBestaetigt ? ' · bestätigt' : ' · Zusage steht aus') : '')
   ].filter(Boolean);
   const weiter = [
-    w('Zutritt beim Springerteam', esc(e.zutritt || '')),
     w('Zimmer', esc(e.zimmer || '')),
     w('Angebotsnummer', esc(e.angebotsnr || '')),
     w('Angebot gesendet', dat(e.gesendetAm)),
