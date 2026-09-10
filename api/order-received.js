@@ -131,7 +131,7 @@ export default async function handler(req, res) {
         ['Uhrzeit', b.uhrzeit || ''],
         ['Aufwand', b.aufwandText || ''],
         ['Start', startText],
-        ['Startdatum', b.startDatum ? (new Date(b.startDatum).toLocaleDateString('de-CH') + (b.startZeit ? ', ' + b.startZeit + ' Uhr' : '')) : '']
+        ['Startdatum', b.startDatum ? new Date(b.startDatum).toLocaleDateString('de-CH') : '']
       ].filter(([, v]) => v);
 
       const inhaltT = `
@@ -202,10 +202,10 @@ export default async function handler(req, res) {
 
         const absatzStart = EN
           ? (mitSpringer
-            ? 'As requested, we are starting straight away with our relief team so that you do not have to wait. My administration team will contact you over the next few days to arrange the first visit. In parallel we will carefully organise your regular cleaner.'
+            ? 'As requested, we are starting straight away with our relief team so that you do not have to wait. Cleaning takes place between 08:00 and 17:00; we will confirm the exact time by e-mail one day before the clean. In parallel we will carefully organise your regular cleaner.'
             : 'For the introduction including the first clean we normally need a lead time of 10 to 14 working days. During this period we carefully organise the right cleaner for your needs and settle the final details with you. Should the start nevertheless be delayed, we would be glad to offer our relief team as an interim solution so that you notice no interruption.')
           : (mitSpringer
-            ? 'Wie von Ihnen gewünscht, starten wir bereits jetzt mit unserem Springerteam, damit Sie nicht warten müssen. Mein Administrationsteam meldet sich in den nächsten Tagen bei Ihnen, um den ersten Einsatz mit Ihnen zu vereinbaren. Parallel dazu organisieren wir sorgfältig Ihre feste Raumpflegerin.'
+            ? 'Wie von Ihnen gewünscht, starten wir bereits jetzt mit unserem Springerteam, damit Sie nicht warten müssen. Die Reinigung findet jeweils zwischen 08:00 und 17:00 Uhr statt; die definitive Uhrzeit teilen wir Ihnen einen Tag vor der Reinigung per E-Mail mit. Parallel dazu organisieren wir sorgfältig Ihre feste Raumpflegerin.'
             : 'Für die Einführung inklusive erster Reinigung benötigen wir in der Regel eine Vorlaufzeit von 10 bis 14 Werktagen. In dieser Zeit organisieren wir sorgfältig die passende Reinigungskraft für Ihre Bedürfnisse und stimmen mit Ihnen die letzten Details ab. Sollte sich der Start dennoch verzögern, bieten wir Ihnen als Übergangslösung gerne unser Springerteam an, damit Sie keinen Unterbruch spüren.');
 
         const L = EN
