@@ -701,6 +701,41 @@ details.mehr > summary::-webkit-details-marker{ display:none; }
 details.mehr > summary::before{ content:'+ '; }
 details.mehr[open] > summary::before{ content:'– '; }
 @media (max-width:760px){ .jetzt{ flex-direction:column; align-items:stretch; } .jetzt .btn{ width:100%; } }
+
+/* ---- Angebotsformular in Schritten ---- */
+.card-body.gen{ padding:0; }
+.gen-schritt{ display:flex; gap:16px; padding:20px 22px; border-bottom:1px solid var(--cs-border-soft); }
+.gen-schritt:last-child{ border-bottom:none; }
+.gen-schritt.fertig{ background:var(--cs-pos-bg); }
+.gen-nr{
+  flex:none; width:26px; height:26px; border-radius:50%; background:var(--cs-teal); color:#fff;
+  font-size:var(--cs-fs-sm); font-weight:bold; display:flex; align-items:center; justify-content:center; margin-top:2px;
+}
+.gen-schritt.fertig .gen-nr{ background:var(--cs-pos); }
+.gen-inhalt{ flex:1; min-width:0; max-width:820px; }
+.gen-inhalt h3{ font-size:var(--cs-fs-md); margin-bottom:4px; }
+.gen-inhalt > p.cs-hint{ margin:0 0 12px; }
+.gen-inhalt .feld-reihe{ gap:14px; }
+.gen-inhalt .feld{ margin-bottom:10px; }
+
+/* ---- Anleitung ---- */
+.anl-schritte{ display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
+.anl-schritt{ border:1px solid var(--cs-border); border-top:3px solid var(--cs-teal);
+  border-radius:var(--cs-radius-sm); padding:14px 16px; background:#fff; }
+.anl-nr{ width:24px; height:24px; border-radius:50%; background:var(--cs-teal); color:#fff;
+  font-size:var(--cs-fs-xs); font-weight:bold; display:flex; align-items:center; justify-content:center; margin-bottom:8px; }
+.anl-schritt h4{ margin:0 0 5px; font-size:var(--cs-fs-md); }
+.anl-schritt p{ margin:0; font-size:var(--cs-fs-sm); color:var(--cs-ink-soft); }
+.anl-zeile{ padding:11px 0; border-bottom:1px solid var(--cs-border-soft); }
+.anl-zeile:last-child{ border-bottom:none; }
+.anl-zeile strong{ color:var(--cs-teal-deep); }
+.anl-zeile p{ margin:3px 0 0; font-size:var(--cs-fs-sm); color:var(--cs-ink-soft); }
+.anl-liste{ margin:0; padding-left:20px; font-size:var(--cs-fs-sm); color:var(--cs-ink-soft); }
+.anl-liste li{ margin-bottom:6px; }
+details.anl-frage{ border-bottom:1px solid var(--cs-border-soft); margin-top:0; }
+details.anl-frage:last-child{ border-bottom:none; }
+details.anl-frage > summary{ font-size:var(--cs-fs-md); color:var(--cs-ink); }
+details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--cs-ink-soft); max-width:78ch; }
 </style>
 </head>
 <body>
@@ -742,16 +777,17 @@ details.mehr[open] > summary::before{ content:'– '; }
   <aside class="sidebar" id="sb">
     <div class="brand">
       <div class="mark" role="img" aria-label="Clean Service Scaramuzzo AG"></div>
-      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 9</span></div>
+      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 11</span></div>
     </div>
 
     <nav class="nav">
-      <a href="#" class="on" data-ansicht="checklisten">Checklisten <span class="zahl" id="n-check">0</span></a>
-      <a href="#" data-ansicht="eingang">Auftragserteilungen <span class="zahl" id="n-eingang">0</span></a>
+      <a href="#" class="on" data-ansicht="eingang">Auftragserteilungen <span class="zahl" id="n-eingang">0</span></a>
       <a href="#" data-ansicht="aktive">Aktive Aufträge <span class="zahl" id="n-aktive">0</span></a>
+      <a href="#" data-ansicht="unzufrieden">Unzufriedene Kunden <span class="zahl" id="n-unzu">0</span></a>
       <a href="#" data-ansicht="kalender">Kalender <span class="zahl" id="n-kalender">0</span></a>
       <a href="#" data-ansicht="verkauf">Neues Angebot</a>
       <a href="#" data-ansicht="auswertung">Auswertung</a>
+      <a href="#" data-ansicht="anleitung">Anleitung</a>
     </nav>
 
     <div class="kontext">
@@ -813,7 +849,7 @@ details.mehr[open] > summary::before{ content:'– '; }
 let CS_TOKEN = sessionStorage.getItem('cs_token') || '';
 let CS_WER   = sessionStorage.getItem('cs_wer') || '';
 let AUFTRAEGE = [], ANGEBOTE = null, LISTE = [];
-let ANSICHT = 'checklisten', FALL = null, ZULETZT = [];
+let ANSICHT = 'eingang', FALL = null, ZULETZT = [];
 let KAL_MONAT = null;   // erster Tag des angezeigten Monats
 let FILTERS = {verkauf:'alle', aktive:'alle'};
 let SUCHE   = {verkauf:'', aktive:''};
@@ -1075,8 +1111,7 @@ function zeichnen(){
   const titel = document.getElementById('seiten-titel');
   const text = document.getElementById('seiten-text');
 
-  document.getElementById('n-check').textContent =
-    LISTE.filter(e => e.quelle === 'auftrag' && !['archiv','abgesagt'].includes(e.stufe) && checkOffenVor(e)).length;
+  document.getElementById('n-unzu').textContent = LISTE.filter(unzufrieden).length;
   document.getElementById('n-eingang').textContent = LISTE.filter(offenerAuftrag).length;
   document.getElementById('n-kalender').textContent = termine()
     .filter(t => t.bestaetigt && t.datum >= new Date().toISOString().slice(0,10)).length;
@@ -1096,14 +1131,15 @@ function zeichnen(){
     return;
   }
   const seiten = {
-    checklisten:['Checklisten', 'Alle offenen Punkte des Admin-Teams, nach Stichtag geordnet.', seiteChecklisten],
     eingang:    ['Auftragserteilungen', 'Alles, was noch nicht aktiv läuft — nach Dringlichkeit sortiert.', seiteEingang],
-    aktive:     ['Aktive Aufträge', 'Laufende Kundschaft, Archiv und Absagen.', seiteAktive],
+    aktive:     ['Aktive Aufträge', 'Laufende Kundschaft — nach Startart getrennt.', seiteAktive],
+    unzufrieden:['Unzufriedene Kunden', 'Negative Rückmeldungen, die eine zweite Runde brauchen.', seiteUnzufrieden],
     kalender:   ['Kalender', 'Alle Einführungstermine im Überblick.', seiteKalender],
     verkauf:    ['Neues Angebot', 'Angebot erstellen und alle laufenden Angebote verfolgen.', seiteVerkauf],
-    auswertung: ['Auswertung', 'Zahlen zum laufenden Bestand.', seiteAuswertung]
+    auswertung: ['Auswertung', 'Zahlen zum laufenden Bestand.', seiteAuswertung],
+    anleitung:  ['Anleitung', 'Wie der Ablauf funktioniert und wer wann was macht.', seiteAnleitung]
   };
-  const s = seiten[ANSICHT] || seiten.checklisten;
+  const s = seiten[ANSICHT] || seiten.eingang;
   titel.textContent = s[0]; text.textContent = s[1];
   box.innerHTML = s[2]();
 }
@@ -1336,6 +1372,15 @@ function naechsterSchritt(e){
     return {titel:'Auf die Kundschaft warten', satz:'Wartet auf ' + w.grund + '.',
             dringend:(tageSeit(w.seit) > 7 ? 0 : 2), knopf:null};
 
+  /* Wartet die Kundschaft länger als zwei Wochen auf eine feste
+     Raumpflegerin, ist das ein Fall für sofort. */
+  const wartetLange = e.stufe === 'bearbeitung' && !istSpringerStart(e) &&
+    (tageSeit(e.bearbeitungAb || e.eingegangenAm) || 0) > 14;
+  if(wartetLange)
+    return {titel:'Feste Raumpflegerin finden',
+            satz:'Seit ' + (tageSeit(e.bearbeitungAb || e.eingegangenAm)) + ' Tagen ohne Zuteilung. Bitte heute lösen.',
+            dringend:0, knopf:null};
+
   if(e.stufe === 'bearbeitung' && !e.vorlaufMail && !e.vorlaufAus){
     const rest = e.bearbeitungAb ? VORLAUF_WERKTAGE - werktageSeit(e.bearbeitungAb) : null;
     if(rest !== null && rest <= 0)
@@ -1364,7 +1409,7 @@ function naechsterSchritt(e){
 /* Eine Listenzeile, überall gleich: wer, was jetzt, ein Knopf. */
 function zeileFall(e){
   const n = naechsterSchritt(e);
-  const merkmale = [qualitaetMerkmal(e), einfuehrungMerkmal(e), springerMerkmal(e)].filter(Boolean).join(' ');
+  const merkmale = [startMerkmal(e), qualitaetMerkmal(e), einfuehrungMerkmal(e), springerMerkmal(e)].filter(Boolean).join(' ');
   return '<div class="zeile' + (n.dringend === 0 ? ' dringend' : n.dringend === 1 ? ' bald' : '') +
     '" onclick="oeffneFall(\'' + e.id + '\')">' +
     '<div class="wer"><strong>' + esc(name(e)) + '</strong><span>' + esc(ort(e)) +
@@ -1377,77 +1422,100 @@ function zeileFall(e){
     '</div></div>';
 }
 
-/* ---------- Checklisten: alles Offene an einem Ort ----------
-   Ersetzt die Aufgabenliste aus dem Planner. Jede Kundschaft bringt ihre
-   Teilaufgaben mit; hier stehen sie gebündelt, nach Stichtag geordnet, und
-   lassen sich direkt abhaken, ohne den Fall zu öffnen. */
-function checkFaelle(){
-  return LISTE
-    .filter(e => e.quelle === 'auftrag' && !['archiv','abgesagt'].includes(e.stufe))
-    .map(e => Object.assign({e}, checkStatus(e)))
-    .filter(x => x.offen > 0)
-    .sort((a,b) => a.stufe - b.stufe || String(a.frist || '9999').localeCompare(String(b.frist || '9999')));
-}
+/* ---------- Anleitung für das Admin-Team ---------- */
+function seiteAnleitung(){
+  const schritte = [
+    ['Anfrage kommt herein', 'Unter «Neues Angebot» die Anfrage einlesen, Angaben prüfen, Link erzeugen und senden. Das Angebot erscheint danach in der Liste darunter.'],
+    ['Angebot läuft', 'Nach 5 und nach 30 Tagen erinnert das System automatisch. Nach 35 Tagen ohne Reaktion wird abgesagt. Hier ist nichts zu tun.'],
+    ['Auftrag kommt herein', 'Der Auftrag steht unter «Auftragserteilungen» — je nachdem, was die Kundschaft gewählt hat, im Block «Start mit Springerteam» oder «Wartet auf feste Raumpflegerin».'],
+    ['Einführung planen', 'Im Fall Raumpflegerin, Datum und Uhrzeit erfassen und den Terminvorschlag senden. Der Fall wechselt in den Block «Einführungstermin vorgeschlagen».'],
+    ['Zusage der Kundschaft', 'Mit der Zusage geht der Auftrag automatisch auf «aktiv», die Kundschaft erhält die Bestätigung mit dem unterschriebenen Vertrag, und im Kalender wird der Eintrag grün.'],
+    ['Qualität und Abschluss', 'Die Qualitätsnachfrage geht automatisch hinaus. Gute Rückmeldung heisst Archiv und Bitte um eine Google-Bewertung, schlechte heisst «Unzufriedene Kunden».']
+  ];
 
-function seiteChecklisten(){
-  const faelle = checkFaelle();
-  const punkteOffen = faelle.reduce((n,x) => n + x.offen, 0);
-  const ueberfaellig = faelle.filter(x => x.stufe === 0).length;
-  const bald = faelle.filter(x => x.stufe === 1).length;
-  const fertig = LISTE.filter(e => e.quelle === 'auftrag' && !['archiv','abgesagt'].includes(e.stufe) && !checkOffenVor(e)).length;
+  const bereiche = [
+    ['Auftragserteilungen', 'Alles, was noch nicht aktiv läuft, in drei Blöcken: Start mit Springerteam, Wartet auf feste Raumpflegerin, Einführungstermin vorgeschlagen. Rot heisst, der Fall liegt zu lange.'],
+    ['Aktive Aufträge', 'Die laufende Kundschaft, getrennt nach Startart: mit Springerteam oder mit fester Raumpflegerin. Dazu die Fälle, bei denen die Qualitätsnachfrage unterwegs ist, sowie Archiv und Absagen.'],
+    ['Unzufriedene Kunden', 'Jede negative Rückmeldung landet hier. Zuerst anrufen und die Ursache klären, danach die zweite Nachfrage senden.'],
+    ['Kalender', 'Alle Einführungstermine im Monatsraster. Grün heisst bestätigt, gelb heisst vorgeschlagen und noch ohne Zusage.'],
+    ['Neues Angebot', 'Angebot erstellen in vier Schritten und die Pipeline aller laufenden Angebote.'],
+    ['Auswertung', 'Zahlen zum Bestand: gesendete Angebote, Abschlussquote, aktive Kundschaft, Verteilung nach Status.']
+  ];
 
-  const kpi = '<div class="kpi-row">' +
-    '<div class="kpi k-neg"><div class="label">Stichtag verpasst</div><div class="wert">' + ueberfaellig +
-      '</div><div class="delta">Einführung steht unmittelbar bevor oder war schon.</div></div>' +
-    '<div class="kpi k-warn"><div class="label">In den nächsten zwei Tagen</div><div class="wert">' + bald +
-      '</div><div class="delta">Stichtag ist der Tag vor der Einführung.</div></div>' +
-    '<div class="kpi"><div class="label">Offene Punkte</div><div class="wert">' + punkteOffen +
-      '</div><div class="delta">über ' + faelle.length + ' Kundschaften</div></div>' +
-    '<div class="kpi k-pos"><div class="label">Vollständig</div><div class="wert">' + fertig +
-      '</div><div class="delta">Nichts mehr zu tun.</div></div>' +
-    '</div>';
+  const fristen = [
+    ['7 Werktage', 'nach «In Bearbeitung»', 'Das Springerteam wird der Kundschaft automatisch angeboten — ausser es steht bereits ein Einführungstermin.'],
+    ['14 Tage', 'ohne feste Zuteilung', 'Der Fall wird rot: «Feste Raumpflegerin finden».'],
+    ['1 Tag', 'vor der Einführung', 'Stichtag für die Admin-Checkliste. Alle sieben Punkte müssen erledigt sein.'],
+    ['14 Tage / 4 Wochen / 2 Monate', 'nach der ersten Reinigung', 'Die Qualitätsnachfrage geht hinaus, je nach Rhythmus wöchentlich, 14-täglich oder monatlich. Solange das Springerteam führt, ruht sie.'],
+    ['7 Tage', 'nach der Qualitätsnachfrage', 'Ohne Rückmeldung wandert der Auftrag ins Archiv mit dem Merkmal «Kein Feedback erhalten».'],
+    ['5 und 30 Tage', 'nach dem Angebot', 'Erinnerungen an die Kundschaft. Nach 35 Tagen gilt das Angebot als abgesagt.']
+  ];
 
-  if(!faelle.length)
-    return kpi + leer('Alles abgehakt', 'Bei keiner laufenden Kundschaft ist ein Punkt offen.');
+  const automatisch = [
+    'Angebot senden und die beiden Erinnerungen danach',
+    'Bestätigung der Auftragserteilung an die Kundschaft',
+    'Angebot des Springerteams nach sieben Werktagen',
+    'Terminvorschlag für die Einführung, sobald du ihn auslöst',
+    'Bestätigung des Termins samt unterschriebenem Vertrag',
+    'Qualitätsnachfrage und, bei guter Rückmeldung, die Bitte um eine Google-Bewertung',
+    'Tägliche Zusammenfassung am Morgen an den Putzfrauenservice'
+  ];
 
-  const punkt = (e, k, text) =>
-    '<label class="cl-item off"><input type="checkbox" onchange="checkPunkt(\'' + e.id + '\', \'' + k + '\', this.checked)">' +
-    '<span>' + esc(text) + '</span></label>';
+  const fragen = [
+    ['Wo sehe ich, was ich als Nächstes tun muss?',
+     'In jeder Liste steht in der Mitte fett die Handlung und darunter ein Satz warum. Öffnest du den Fall, steht dieselbe Handlung oben im farbigen Balken «Jetzt zu tun», mit dem passenden Knopf daneben.'],
+    ['Was bedeuten die Farben?',
+     'Rot heisst überfällig und gehört heute erledigt. Gelb heisst, eine Frist läuft in den nächsten Tagen ab. Türkis heisst, wir warten auf die Kundschaft. Grün heisst, es läuft und ist nichts offen.'],
+    ['Wann hake ich die Checkliste ab?',
+     'Laufend, sobald ein Punkt erledigt ist. Spätestens am Tag vor der Einführung müssen alle sieben Punkte stehen. Jedes Häkchen speichert Name und Datum.'],
+    ['Die Kundschaft hat den Termin noch nicht bestätigt — was tun?',
+     'Der Fall bleibt im Block «Einführungstermin vorgeschlagen». Nach sieben Tagen ohne Zusage wird er rot; dann telefonisch nachfassen. Der Termin lässt sich im Fall jederzeit neu vorschlagen.'],
+    ['Wir starten mit dem Springerteam — wann kommt die Qualitätsnachfrage?',
+     'Gar nicht, solange das Springerteam den Einsatz führt. Erst wenn du im Fall die Übernahme durch eine feste Raumpflegerin einträgst, startet die Frist ab deren erster Reinigung.'],
+    ['Eine Kundschaft ist unzufrieden — wie weiter?',
+     'Zuerst anrufen und die Ursache klären. Danach im Fall oder direkt in der Liste «Zweite Nachfrage» senden. Die alte Antwort wandert in den Verlauf, der Fall verlässt die Liste, bis die neue Antwort eintrifft.'],
+    ['Wer steht als Absender in den Mails?',
+     'Bis und mit Angebot Cristian Gambale. Ab der Auftragserteilung das Admin-Team des Putzfrauenservice mit der Hauptnummer 0844 355 355.'],
+    ['Ich habe etwas falsch angeklickt — ist das schlimm?',
+     'Nein. Statuswechsel lassen sich im Fall unter «Weitere Möglichkeiten» korrigieren, Häkchen einfach wieder entfernen. Nur versendete Mails lassen sich nicht zurückholen.']
+  ];
 
-  const block = x => {
-    const e = x.e;
-    const offenVor = CHECK_VOR.filter(([k]) => !checkErledigt(e, k));
-    const offenNach = CHECK_NACH.filter(([k]) => !checkErledigt(e, k));
-    const farbe = x.stufe === 0 ? 'neg' : x.stufe === 1 ? 'warn' : 'neutral';
-    return '<details class="cl-fall' + (x.stufe === 0 ? ' dringend' : x.stufe === 1 ? ' bald' : '') + '"' +
-        (x.stufe <= 1 ? ' open' : '') + '>' +
-      '<summary>' +
-        '<span class="cl-name">' + esc(name(e)) + '<small>' + esc(ort(e)) +
-          (e.raumpflegerin ? ' · ' + esc(e.raumpflegerin) : '') + '</small></span>' +
-        '<span class="cl-frist">' + (x.frist
-            ? 'Stichtag ' + dat(x.frist) + '<small>Einführung ' + dat(e.einfuehrungAm) +
-              (e.einfuehrungZeit ? ', ' + esc(e.einfuehrungZeit) + ' Uhr' : '') + '</small>'
-            : 'Ohne Termin<small>Stichtag entsteht mit der Einführung</small>') + '</span>' +
-        '<span class="tag ' + farbe + '">' + x.offen + ' offen</span>' +
-      '</summary>' +
-      '<div class="cl-inhalt">' +
-        (offenVor.length
-          ? '<div class="cl-teil">' + offenVor.map(([k,t]) => punkt(e,k,t)).join('') + '</div>'
-          : '<p class="cs-hint">Alles erledigt.</p>') +
-        (offenNach.length
-          ? '<div class="cl-teil"><h4>Nach der ersten Reinigung</h4>' + offenNach.map(([k,t]) => punkt(e,k,t)).join('') + '</div>'
-          : '') +
-        '<div class="btn-row" style="margin-top:10px;">' +
-          '<button class="btn klein secondary" onclick="oeffneFall(\'' + e.id + '\')">Fall öffnen</button>' +
-        '</div>' +
-      '</div></details>';
-  };
+  return '<div class="hinweis">Diese Seite erklärt den ganzen Ablauf. Sie ändert nichts an Daten — hier kann nichts kaputtgehen.</div>' +
 
-  return kpi +
-    '<div class="card"><div class="card-head"><div><h2>Offene Punkte</h2>' +
-      '<p>Nach Stichtag geordnet. Alles muss einen Tag vor der Einführung erledigt sein.</p></div>' +
-      '<span class="tag neutral">' + faelle.length + '</span></div>' +
-    '<div class="card-body">' + faelle.map(block).join('') + '</div></div>';
+    '<div class="card"><div class="card-head"><div><h2>So läuft ein Auftrag</h2>' +
+      '<p>Von der Anfrage bis zum Archiv</p></div></div><div class="card-body">' +
+      '<div class="anl-schritte">' + schritte.map((x, i) =>
+        '<div class="anl-schritt"><div class="anl-nr">' + (i + 1) + '</div>' +
+        '<h4>' + x[0] + '</h4><p>' + x[1] + '</p></div>').join('') + '</div>' +
+    '</div></div>' +
+
+    '<div class="card"><div class="card-head"><div><h2>Die Bereiche im Menü</h2>' +
+      '<p>Was wo zu finden ist</p></div></div><div class="card-body">' +
+      bereiche.map(x => '<div class="anl-zeile"><strong>' + x[0] + '</strong><p>' + x[1] + '</p></div>').join('') +
+    '</div></div>' +
+
+    '<div class="card"><div class="card-head"><div><h2>Fristen</h2>' +
+      '<p>Was wann von selbst passiert</p></div></div><div class="card-body eng">' +
+      '<div class="table-scroll"><table class="table"><thead><tr>' +
+        '<th>Frist</th><th>ab wann</th><th>was passiert</th></tr></thead><tbody>' +
+        fristen.map(x => '<tr><td><strong>' + x[0] + '</strong></td><td>' + x[1] + '</td><td>' + x[2] + '</td></tr>').join('') +
+      '</tbody></table></div>' +
+    '</div></div>' +
+
+    '<div class="card"><div class="card-head"><div><h2>Das läuft ohne uns</h2>' +
+      '<p>Diese Nachrichten gehen automatisch hinaus</p></div></div><div class="card-body">' +
+      '<ul class="anl-liste">' + automatisch.map(x => '<li>' + x + '</li>').join('') + '</ul>' +
+    '</div></div>' +
+
+    '<div class="card"><div class="card-head"><div><h2>Häufige Fragen</h2>' +
+      '<p>Antippen zum Aufklappen</p></div></div><div class="card-body">' +
+      fragen.map(x => '<details class="mehr anl-frage"><summary>' + x[0] + '</summary>' +
+        '<p>' + x[1] + '</p></details>').join('') +
+    '</div></div>' +
+
+    '<div class="card"><div class="card-head"><div><h2>Wenn etwas nicht stimmt</h2></div></div>' +
+    '<div class="card-body"><p>Melde dich bei Cristian, direkt unter 052 557 02 08 oder 076 822 00 16. ' +
+    'Halte die Kundschaft und, wenn möglich, die Angebotsnummer bereit.</p></div></div>';
 }
 
 /* ---------- Auftragserteilungen ---------- *//* ---------- Auftragserteilungen ---------- */
@@ -1479,7 +1547,8 @@ function unzufrieden(e){
   return ['teilweise','nicht'].includes(e.qualitaetAntwort);
 }
 function qualitaetMerkmal(e){
-  if(!e.qualitaetAntwort) return '';
+  if(!e.qualitaetAntwort)
+    return e.qualitaetKeineAntwort ? '<span class="tag neutral">Kein Feedback erhalten</span>' : '';
   const l = QUALITAET_LABEL[e.qualitaetAntwort] || e.qualitaetAntwort;
   return unzufrieden(e)
     ? '<span class="tag neg">Kundschaft ' + l.toLowerCase() + '</span>'
@@ -1498,9 +1567,16 @@ function einfuehrungMerkmal(e){
 function laeuftMitSpringer(e){
   return e.springerGestartet === true && !e.festStartAm;
 }
+function startMerkmal(e){
+  if(e.quelle !== 'auftrag') return '';
+  if(e.stufe !== 'aktiv') return '';
+  return istSpringerStart(e) && laeuftMitSpringer(e)
+    ? '<span class="tag pos">Mit Springerteam gestartet</span>'
+    : '<span class="tag">Feste Raumpflegerin</span>';
+}
 function springerMerkmal(e){
-  if(e.stufe === 'aktiv' && laeuftMitSpringer(e)) return '<span class="tag pos">Läuft mit Springerteam</span>';
-  if(e.stufe === 'aktiv' && istSpringerStart(e)) return '<span class="tag pos">Springerteam gestartet</span>';
+  /* Bei aktiven Aufträgen zeigt startMerkmal die Startart, hier bliebe es doppelt. */
+  if(e.stufe === 'aktiv') return '';
   if(e.springerAntwort === 'ja') return '<span class="tag pos">Springerteam angenommen</span>';
   if(String(e.springerSofort || '').toLowerCase() === 'ja') return '<span class="tag">Springerteam gewünscht</span>';
   if(e.springerAntwort === 'nein') return '<span class="tag neutral">Springerteam abgelehnt</span>';
@@ -1509,14 +1585,15 @@ function springerMerkmal(e){
 }
 
 function seiteEingang(){
+  /* Sortierung und Zählung folgen derselben Quelle wie die Zeilen selbst. */
   const nachDringlichkeit = (x,y) => {
-    const dx = dringlichkeit(x).stufe, dy = dringlichkeit(y).stufe;
+    const dx = naechsterSchritt(x).dringend, dy = naechsterSchritt(y).dringend;
     return dx - dy || String(x.eingegangenAm || '').localeCompare(String(y.eingegangenAm || ''));
   };
   const a = mitSpringer().sort(nachDringlichkeit);
   const b = ohneSpringer().sort(nachDringlichkeit);
   const c = terminOffen().sort(nachDringlichkeit);
-  const ueberfaellig = [...a, ...b, ...c].filter(e => dringlichkeit(e).stufe === 0).length;
+  const ueberfaellig = [...a, ...b, ...c].filter(e => naechsterSchritt(e).dringend === 0).length;
 
   if(!a.length && !b.length && !c.length)
     return leer('Keine offene Auftragserteilung',
@@ -1673,65 +1750,75 @@ function generatorKarte(){
     const vn = CS_WER.split(' ')[0];
     if(['Cristian','Fiorella','Tayron','Loris'].includes(vn)) GEN.von = vn;
   }
-  const f = (id, label, typ, breit) =>
-    '<div class="feld"' + (breit ? ' style="grid-column:1/-1;"' : '') + '><label for="g-' + id + '">' + label + '</label>' +
+  const f = (id, label, typ, hinweis) =>
+    '<div class="feld"><label for="g-' + id + '">' + label +
+      (hinweis ? '<span class="erklaerung">' + hinweis + '</span>' : '') + '</label>' +
     '<input id="g-' + id + '" type="' + typ + '" value="' + esc(GEN[id]) + '" oninput="genSet(\'' + id + '\', this.value)"></div>';
+  const sel = (id, label, werte) =>
+    '<div class="feld"><label for="g-' + id + '">' + label + '</label>' +
+    '<select id="g-' + id + '" onchange="genSet(\'' + id + '\', this.value)">' + opt(werte, GEN[id]) + '</select></div>';
 
-  const felder =
-    '<div class="feld-reihe">' +
-      '<div class="feld"><label for="g-anrede">Anrede</label><select id="g-anrede" onchange="genSet(\'anrede\', this.value)">' +
-        opt(['Herr','Frau'], GEN.anrede) + '</select></div>' +
-      f('vorname','Vorname','text') + f('nachname','Nachname','text') +
-    '</div>' +
-    '<div class="feld-reihe">' + f('adresse','Adresse','text') + f('plzort','PLZ und Ort','text') +
-      f('email','E-Mail der Kundschaft','email') + '</div>' +
-    '<div class="feld-reihe">' +
-      f('angebotsnr','Angebotsnummer, vierstellig','text') +
-      f('zimmer','Zimmer, z. B. 4.5','text') +
-      '<div class="feld"><label for="g-frequenz">Rhythmus</label><select id="g-frequenz" onchange="genSet(\'frequenz\', this.value)">' +
-        opt([['woechentlich','Wöchentlich'],['14-taeglich','14-täglich'],['monatlich','Monatlich']], GEN.frequenz) + '</select></div>' +
-    '</div>' +
-    '<div class="feld-reihe">' +
-      '<div class="feld"><label for="g-anfrageart">Anfrageart</label><select id="g-anfrageart" onchange="genSet(\'anfrageart\', this.value)">' +
-        opt([['','Bitte wählen'],'Homepage','Telefonisch','E-Mail'], GEN.anfrageart) + '</select></div>' +
-      '<div class="feld"><label for="g-quelle">Quelle des Kontakts</label><select id="g-quelle" onchange="genSet(\'quelle\', this.value)">' +
-        opt([['','Bitte wählen'],'Suchmaschine','Social Media','Weiterempfehlung','Fahrzeugwerbung','Cross-Selling'], GEN.quelle) + '</select></div>' +
-      '<div class="feld"><label for="g-sprache">Sprache</label><select id="g-sprache" onchange="genSet(\'sprache\', this.value)">' +
-        opt([['de','Deutsch'],['en','English']], GEN.sprache) + '</select></div>' +
-      '<div class="feld"><label for="g-von">Erfasst von</label><select id="g-von" onchange="genSet(\'von\', this.value)">' +
-        opt([['','Bitte wählen'],'Cristian','Fiorella','Tayron','Loris'], GEN.von) + '</select></div>' +
-    '</div>';
+  const schritt1 =
+    '<div class="gen-schritt"><div class="gen-nr">1</div><div class="gen-inhalt">' +
+      '<h3>Anfrage einlesen</h3>' +
+      '<p class="cs-hint">Anfrage aus dem Mail einfügen — die Felder darunter füllen sich von selbst. ' +
+      'Wer von Hand erfasst, überspringt diesen Schritt.</p>' +
+      '<textarea id="g-paste" oninput="genSet(\'paste\', this.value)" placeholder="Anfrage hier einfügen …" ' +
+        'style="min-height:88px;">' + esc(GEN.paste) + '</textarea>' +
+      '<div class="btn-row" style="margin-top:8px;">' +
+        '<button class="btn primary-action klein" onclick="anfrageEinlesen()">Felder ausfüllen</button>' +
+        '<button class="btn klein" onclick="genSet(\'paste\',\'\');genZeichnen()">Leeren</button>' +
+      '</div>' +
+    '</div></div>';
 
-  const ergebnis = GEN.link
-    ? '<div class="hinweis" style="margin-top:16px;">' +
-        '<div class="feld" style="margin-bottom:8px;"><label for="g-link">Kundenlink</label>' +
-        '<input id="g-link" type="text" readonly value="' + esc(GEN.link) + '"></div>' +
-        '<p style="margin:0 0 10px;">Zugangscode für die Kundschaft: <strong>' + esc(GEN.code) + '</strong></p>' +
+  const schritt2 =
+    '<div class="gen-schritt"><div class="gen-nr">2</div><div class="gen-inhalt">' +
+      '<h3>Kundschaft</h3>' +
+      '<div class="feld-reihe">' + sel('anrede','Anrede',['Herr','Frau']) +
+        f('vorname','Vorname','text') + f('nachname','Nachname','text') + '</div>' +
+      '<div class="feld-reihe">' + f('adresse','Adresse','text') + f('plzort','PLZ und Ort','text') +
+        f('email','E-Mail','email') + '</div>' +
+    '</div></div>';
+
+  const schritt3 =
+    '<div class="gen-schritt"><div class="gen-nr">3</div><div class="gen-inhalt">' +
+      '<h3>Auftrag</h3>' +
+      '<div class="feld-reihe">' +
+        f('angebotsnr','Angebotsnummer','text','vierstellig') +
+        f('zimmer','Zimmer','text','z. B. 4.5') +
+        sel('frequenz','Rhythmus',[['woechentlich','Wöchentlich'],['14-taeglich','14-täglich'],['monatlich','Monatlich']]) +
+      '</div>' +
+      '<div class="feld-reihe">' +
+        sel('anfrageart','Anfrageart',[['','Bitte wählen'],'Homepage','Telefonisch','E-Mail']) +
+        sel('quelle','Quelle',[['','Bitte wählen'],'Suchmaschine','Social Media','Weiterempfehlung','Fahrzeugwerbung','Cross-Selling']) +
+        sel('sprache','Sprache',[['de','Deutsch'],['en','English']]) +
+        sel('von','Erfasst von',[['','Bitte wählen'],'Cristian','Fiorella','Tayron','Loris']) +
+      '</div>' +
+    '</div></div>';
+
+  const schritt4 = GEN.link
+    ? '<div class="gen-schritt fertig"><div class="gen-nr">✓</div><div class="gen-inhalt">' +
+        '<h3>Senden</h3>' +
+        '<div class="feld"><label for="g-link">Kundenlink</label>' +
+          '<input id="g-link" type="text" readonly value="' + esc(GEN.link) + '"></div>' +
+        '<p class="cs-hint" style="margin:0 0 10px;">Zugangscode für die Kundschaft: <strong>' + esc(GEN.code) + '</strong></p>' +
         '<div class="btn-row">' +
           '<button class="btn primary-action" onclick="angebotSenden(this)">Angebot jetzt senden</button>' +
           '<button class="btn secondary" onclick="linkKopieren(\'' + esc(GEN.link) + '\')">Link kopieren</button>' +
           '<button class="btn" onclick="genNeu()">Neues Angebot beginnen</button>' +
-        '</div></div>'
-    : '';
+        '</div>' +
+      '</div></div>'
+    : '<div class="gen-schritt"><div class="gen-nr">4</div><div class="gen-inhalt">' +
+        '<h3>Senden</h3>' +
+        '<p class="cs-hint">Zuerst den Kundenlink erzeugen, danach erscheint hier der Versand.</p>' +
+        '<button class="btn primary-action" onclick="linkErzeugen()">Link erzeugen</button>' +
+      '</div></div>';
 
   const hinweis = GEN.hinweis
-    ? '<div class="hinweis ' + (GEN.hinweisArt || '') + '" style="margin-bottom:14px;">' + GEN.hinweis + '</div>' : '';
+    ? '<div class="hinweis ' + (GEN.hinweisArt || '') + '" style="margin:0 0 16px;">' + GEN.hinweis + '</div>' : '';
 
-  return '<div class="card"><div class="card-head"><div><h2>Neues Angebot</h2>' +
-    '<p>Anfrage einlesen, Angaben prüfen, Link erzeugen und versenden.</p></div></div>' +
-    '<div class="card-body">' + hinweis +
-      '<div class="feld"><label for="g-paste">Anfrage einlesen' +
-        '<span class="erklaerung">Anfrage aus dem Mail hier einfügen, die Felder werden ausgefüllt.</span></label>' +
-        '<textarea id="g-paste" oninput="genSet(\'paste\', this.value)" placeholder="Anfrage hier einfügen …">' + esc(GEN.paste) + '</textarea></div>' +
-      '<div class="btn-row" style="margin-bottom:18px;">' +
-        '<button class="btn secondary" onclick="anfrageEinlesen()">Felder ausfüllen</button>' +
-        '<button class="btn" onclick="genSet(\'paste\',\'\');genZeichnen()">Leeren</button>' +
-      '</div>' +
-      felder +
-      '<div class="btn-row" style="margin-top:6px;">' +
-        '<button class="btn primary-action" onclick="linkErzeugen()">Link erzeugen</button>' +
-      '</div>' + ergebnis +
-    '</div></div>';
+  return '<div class="card"><div class="card-body gen">' + hinweis +
+    schritt1 + schritt2 + schritt3 + schritt4 + '</div></div>';
 }
 
 function anfrageEinlesen(){
@@ -1887,17 +1974,24 @@ function linkKopieren(link){
 
 /* ---------- Aufträge: CRM-Stufen für den Tagesdienst ---------- */
 const AKTIV_STUFEN = [
-  {f:'unzufrieden', t:'Unzufrieden', h:'Reklamation offen — zuerst anschauen.', k:'k-neg'},
-  {f:'aktiv',    t:'Aktiv',    h:'Reinigung läuft.', k:'k-pos'},
-  {f:'archiv',   t:'Archiv',   h:'Abgeschlossen.'},
-  {f:'abgesagt', t:'Abgesagt', h:'Kundschaft abgesprungen.'}
+  {f:'springer', t:'Mit Springerteam', h:'Feste Zuteilung noch offen.', k:'k-pos'},
+  {f:'fest',     t:'Feste Raumpflegerin', h:'Läuft mit fester Zuteilung.', k:''},
+  {f:'qualitaet',t:'Qualitätsnachfrage läuft', h:'Nachfrage ist unterwegs.', k:'k-warn'},
+  {f:'archiv',   t:'Archiv', h:'Abgeschlossen.', k:''},
+  {f:'abgesagt', t:'Abgesagt', h:'Kundschaft abgesprungen.', k:''}
 ];
+function aktivArt(e){
+  if(e.stufe === 'archiv') return 'archiv';
+  if(e.stufe === 'abgesagt') return 'abgesagt';
+  if(e.qualitaetMail && !e.qualitaetAntwort) return 'qualitaet';
+  return laeuftMitSpringer(e) ? 'springer' : 'fest';
+}
 function gefiltertAktive(){
   const F = FILTERS.aktive;
   return LISTE.filter(e => e.quelle === 'auftrag' && ['aktiv','archiv','abgesagt'].includes(e.stufe))
-    .filter(e => F === 'alle' ? true : F === 'unzufrieden' ? unzufrieden(e) : e.stufe === F)
+    .filter(e => !unzufrieden(e))
+    .filter(e => F === 'alle' ? true : aktivArt(e) === F)
     .filter(e => passt(e, 'aktive'))
-    .sort((a,b) => (unzufrieden(b) ? 1 : 0) - (unzufrieden(a) ? 1 : 0))
     .sort((a,b) => String(b.erstReinigung || b.datum || '').localeCompare(String(a.erstReinigung || a.datum || '')));
 }
 function aktiveListe(){
@@ -1905,26 +1999,15 @@ function aktiveListe(){
   if(!l.length) return '<p class="cs-hint" style="padding:18px;">Für diese Auswahl gibt es keinen Auftrag.</p>';
   return '<div style="padding:14px;">' + l.map(e => zeileFall(e)).join('') + '</div>';
 }
-
 function seiteAktive(){
-  const alle = LISTE.filter(e => e.quelle === 'auftrag' && ['aktiv','archiv','abgesagt'].includes(e.stufe));
+  const alle = LISTE.filter(e => e.quelle === 'auftrag' && ['aktiv','archiv','abgesagt'].includes(e.stufe) && !unzufrieden(e));
   const F = FILTERS.aktive;
-  const reklamationen = alle.filter(unzufrieden).length;
-  const springer = alle.filter(e => e.stufe === 'aktiv' && istSpringerStart(e)).length;
-
   const kpi = '<div class="kpi-row">' + AKTIV_STUFEN.map(x =>
     '<div class="kpi klick ' + (x.k || '') + (F === x.f ? ' on' : '') + '" onclick="setFilter(\'aktive\',\'' + x.f + '\')">' +
       '<div class="label">' + x.t + '</div>' +
-      '<div class="wert">' + (x.f === 'unzufrieden' ? alle.filter(unzufrieden).length
-        : alle.filter(e => e.stufe === x.f).length) + '</div>' +
-      '<div class="delta">' + x.h + '</div></div>').join('') +
-    '<div class="kpi"><div class="label">Mit Springerteam gestartet</div><div class="wert">' + springer +
-    '</div><div class="delta">von den aktiven Aufträgen</div></div></div>';
-
-  return (reklamationen && F !== 'unzufrieden'
-      ? '<div class="hinweis neg">' + (reklamationen === 1 ? 'Eine Kundschaft ist' : reklamationen + ' Kundschaften sind') +
-        ' nicht zufrieden. <a href="#" onclick="setFilter(\'aktive\',\'unzufrieden\');return false;">Jetzt anschauen</a></div>'
-      : '') + kpi +
+      '<div class="wert">' + alle.filter(e => aktivArt(e) === x.f).length + '</div>' +
+      '<div class="delta">' + x.h + '</div></div>').join('') + '</div>';
+  return kpi +
     '<div class="card"><div class="card-head">' +
       '<div><h2>' + (F === 'alle' ? 'Alle' : (AKTIV_STUFEN.find(x => x.f === F) || {}).t) + '</h2>' +
       '<p><span id="liste-zahl">' + gefiltertAktive().length + '</span> von ' + alle.length + ' Aufträgen' +
@@ -1932,6 +2015,32 @@ function seiteAktive(){
       '</p></div>' + suchfeld('aktive', 'Name, Ort oder Angebotsnummer') + '</div>' +
       '<div class="card-body eng" id="liste-box">' + aktiveListe() + '</div></div>';
 }
+
+/* ---------- Unzufriedene Kundschaft ---------- */
+function seiteUnzufrieden(){
+  const l = LISTE.filter(unzufrieden)
+    .sort((a,b) => String(b.qualitaetAntwortAm || '').localeCompare(String(a.qualitaetAntwortAm || '')));
+  if(!l.length)
+    return leer('Keine Reklamation offen', 'Sobald eine Rückmeldung negativ ausfällt, steht der Auftrag hier.');
+  return '<div class="hinweis neg">Diese Kundschaften haben negativ geantwortet. Zuerst Kontakt aufnehmen und die ' +
+      'Ursache klären, danach im Fall die zweite Qualitätsnachfrage senden.</div>' +
+    '<div class="card"><div class="card-head"><div><h2>Reklamationen</h2>' +
+      '<p>Nach Datum der Rückmeldung</p></div><span class="tag neg">' + l.length + '</span></div>' +
+    '<div class="card-body">' + l.map(e =>
+      '<div class="zeile dringend" onclick="oeffneFall(\'' + e.id + '\')">' +
+        '<div class="wer"><strong>' + esc(name(e)) + '</strong><span>' + esc(ort(e)) +
+          (e.raumpflegerin ? ' · ' + esc(e.raumpflegerin) : '') + '</span></div>' +
+        '<div class="warum">' + qualitaetMerkmal(e) +
+          (e.qualitaetAntwortAm ? ' vom ' + dat(e.qualitaetAntwortAm) : '') +
+          (e.qualitaetText ? '<br>«' + esc(e.qualitaetText).replace(/\n/g,' ') + '»' : '') + '</div>' +
+        '<div class="btn-row" style="justify-content:flex-end;">' +
+          '<button class="btn klein primary-action" onclick="event.stopPropagation();qualitaetErneut(\'' + e.id + '\', this)">Zweite Nachfrage</button>' +
+          '<button class="btn klein secondary" onclick="event.stopPropagation();oeffneFall(\'' + e.id + '\')">Öffnen</button>' +
+        '</div></div>').join('') +
+    '</div></div>';
+}
+
+
 
 /* ---------- Auswertung ---------- */
 function seiteAuswertung(){
@@ -1977,7 +2086,7 @@ function fallSeite(e){
       (n.knopf ? '<button class="btn primary-action" onclick="' + n.knopf.ruf + '">' + esc(n.knopf.text) + '</button>' : '') +
     '</div>' +
     '<div class="merkmale"><span class="tag ' + d.art + '">' + d.label + '</span>' +
-      qualitaetMerkmal(e) + einfuehrungMerkmal(e) + springerMerkmal(e) + '</div>' +
+      startMerkmal(e) + qualitaetMerkmal(e) + einfuehrungMerkmal(e) + springerMerkmal(e) + '</div>' +
     (unzufrieden(e)
       ? '<div class="hinweis neg"><strong>Reklamation.</strong> «' +
         esc(QUALITAET_LABEL[e.qualitaetAntwort] || e.qualitaetAntwort) + '»' +
@@ -2100,7 +2209,10 @@ function kartenSchritte(e){
         : '<button class="btn" onclick="vorlaufSchalten(\'' + e.id + '\',true)">Unterdrücken</button>')));
   }
 
-  if(auftrag && ['bearbeitung','springer_gewuenscht'].includes(e.stufe)){
+  /* Auch nach dem Aktivieren mit dem Springerteam lässt sich der
+     Einführungstermin mit der festen Raumpflegerin vorschlagen. */
+  if(auftrag && (['bearbeitung','springer_gewuenscht'].includes(e.stufe) ||
+                 (e.stufe === 'aktiv' && !e.einfuehrungBestaetigt))){
     s.push(schritt('Einführung planen',
       'Einführung und erste Reinigung sind derselbe Termin. Die Kundschaft erhält einen Terminvorschlag; mit ihrer Zusage wird der Auftrag automatisch aktiv.',
       '<div class="feld-reihe">' +
@@ -2182,8 +2294,18 @@ function kartenSchritte(e){
   }
 
   if(!s.length) return '';
-  /* Die Handlung, die oben als «Jetzt zu tun» steht, gehört auch hier nach vorn. */
-  const jetzt = naechsterSchritt(e).titel;
+  /* Die Handlung, die oben als «Jetzt zu tun» steht, gehört auch hier nach vorn.
+     Wo der Wortlaut abweicht, führt diese Zuordnung zum passenden Schritt. */
+  const ZUORDNUNG = {
+    'Feste Raumpflegerin finden':'Einführung planen',
+    'Zusage abwarten':'Einführung planen',
+    'Übernahme eintragen':'Feste Raumpflegerin übernimmt',
+    'Reklamation klären':'Reklamation bearbeiten',
+    'Disponieren und aktivieren':'Springerteam-Start aktivieren',
+    'Springerteam anbieten':'Nachfrage zum Springerteam'
+  };
+  const roh = naechsterSchritt(e).titel;
+  const jetzt = ZUORDNUNG[roh] || roh;
   const treffer = s.findIndex(x => x.indexOf('<h4>' + jetzt) !== -1);
   if(treffer > 0) s.unshift(s.splice(treffer, 1)[0]);
   const erste = s[0], rest = s.slice(1);
