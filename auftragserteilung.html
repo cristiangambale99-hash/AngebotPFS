@@ -118,6 +118,10 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 .note strong{color:var(--ink);}
 .note p{margin:0 0 8px;}
 .note p:last-child{margin:0;}
+.note-zeit{
+  background:#fff;border-left:4px solid var(--teal);border-color:#CFE6EA;
+  font-weight:600;color:var(--ink);
+}
 .note-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px;}
 .note-head strong{font-family:var(--head);font-size:14px;}
 .note-tag{font-size:11.5px;font-weight:700;color:var(--teal-deep);background:#fff;
@@ -346,12 +350,11 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
       </div>
 
       <div class="folds hidden" id="start-feld">
-        <div class="row two" style="margin-bottom:0;">
+        <div class="row" style="margin-bottom:0;">
           <div><label data-i18n="a74" class="fl" for="f-startdatum">Gewünschtes Startdatum</label>
             <input type="date" id="f-startdatum"></div>
-          <div><label data-i18n="a76" class="fl" for="f-startzeit">Gewünschte Uhrzeit</label>
-            <input type="time" id="f-startzeit" step="900" value="08:00"></div>
         </div>
+        <div data-i18n="a76" class="note note-zeit">Die Reinigung durch unser Springerteam wird jeweils zwischen 08:00 und 17:00 Uhr durchgeführt. Die definitive Uhrzeit teilen wir Ihnen einen Tag vor der Reinigung per E-Mail mit.</div>
         <div data-i18n="a75" class="note">Damit wir Ihr Team einplanen und alle Unterlagen vorbereiten können, liegt der früheste Termin sieben Tage in der Zukunft. Wir bestätigen Ihnen dieses Datum schriftlich.</div>
       </div>
       <div style="height:18px;"></div>
@@ -493,7 +496,7 @@ const I18N_EN = {
 "s9": "Several floors",
 "a74": "Preferred start date",
 "a75": "So that we can schedule your team and prepare all the documents, the earliest possible date is seven days from today. We will confirm this date in writing.",
-"a76": "Preferred time"
+"a76": "Cleaning by our relief team takes place between 08:00 and 17:00. We will confirm the exact time by e-mail one day before the clean."
 };
 const I18N_ATTR_EN = [["#f-boden", "placeholder", "e.g. parquet, tiles"], ["#f-boden-text", "placeholder", "e.g. cork, vinyl"], ["#f-alarmcode", "placeholder", "Treated confidentially"], ["#f-tier-text", "placeholder", "e.g. rabbit, bird"], ["#f-vereinbarungen", "placeholder", "e.g. delicate surfaces, access via neighbours"]];
 
@@ -675,12 +678,6 @@ function submitOrder(e){
   if(springerJa){
     const frueh = new Date(); frueh.setDate(frueh.getDate() + 7);
     const grenze = frueh.toISOString().slice(0, 10);
-    const zeitFeld = document.getElementById('f-startzeit');
-    if(springerJa && !zeitFeld.value){
-      alert(EN() ? 'Please choose a start time.' : 'Bitte wählen Sie eine Uhrzeit für den Start.');
-      zeitFeld.focus();
-      return false;
-    }
     if(!startFeld.value || startFeld.value < grenze){
       alert(EN() ? 'Please choose a start date at least seven days from today.'
                  : 'Bitte wählen Sie ein Startdatum, das mindestens sieben Tage in der Zukunft liegt.');
@@ -741,7 +738,7 @@ function submitOrder(e){
     fensterOfferte: document.querySelector('input[name="f-fenster"]:checked').value,
     springerSofort: document.querySelector('input[name="f-springer"]:checked').value,
     startDatum: springerJa ? startFeld.value : '',
-    startZeit:  springerJa ? (document.getElementById('f-startzeit').value || '') : '',
+    startZeit:  '',   // Uhrzeit legt die Disposition fest, nicht die Kundschaft
     vereinbarungen: document.getElementById('f-vereinbarungen').value
   };
   entry.zusatzBuchen = (entry.zusatzBettbezuege || entry.zusatzWaesche ||

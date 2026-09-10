@@ -736,6 +736,15 @@ details.anl-frage{ border-bottom:1px solid var(--cs-border-soft); margin-top:0; 
 details.anl-frage:last-child{ border-bottom:none; }
 details.anl-frage > summary{ font-size:var(--cs-fs-md); color:var(--cs-ink); }
 details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--cs-ink-soft); max-width:78ch; }
+
+/* ---- Abschnitte statt Kartenstapel ---- */
+.abschnitt{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+  padding:18px 2px 10px; border-bottom:2px solid var(--cs-teal-light); margin-bottom:12px; }
+.abschnitt:first-child{ padding-top:4px; }
+.abschnitt h3{ font-size:var(--cs-fs-md); color:var(--cs-teal-deep); margin:0; }
+.abschnitt-zahl{ background:var(--cs-teal-light); color:var(--cs-teal-dark); border-radius:100px;
+  padding:1px 9px; font-size:var(--cs-fs-xs); font-weight:bold; }
+.abschnitt-hinweis{ font-size:var(--cs-fs-sm); color:var(--cs-ink-mute); }
 </style>
 </head>
 <body>
@@ -777,7 +786,7 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
   <aside class="sidebar" id="sb">
     <div class="brand">
       <div class="mark" role="img" aria-label="Clean Service Scaramuzzo AG"></div>
-      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 11</span></div>
+      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 13</span></div>
     </div>
 
     <nav class="nav">
@@ -1131,7 +1140,7 @@ function zeichnen(){
     return;
   }
   const seiten = {
-    eingang:    ['Auftragserteilungen', 'Alles, was noch nicht aktiv läuft — nach Dringlichkeit sortiert.', seiteEingang],
+    eingang:    ['Auftragserteilungen', 'Alles, was noch nicht aktiv läuft. Rot heisst: heute erledigen.', seiteEingang],
     aktive:     ['Aktive Aufträge', 'Laufende Kundschaft — nach Startart getrennt.', seiteAktive],
     unzufrieden:['Unzufriedene Kunden', 'Negative Rückmeldungen, die eine zweite Runde brauchen.', seiteUnzufrieden],
     kalender:   ['Kalender', 'Alle Einführungstermine im Überblick.', seiteKalender],
@@ -1365,7 +1374,8 @@ function naechsterSchritt(e){
   if(istSpringerStart(e) && e.stufe !== 'aktiv')
     return {titel:'Disponieren und aktivieren',
             satz:(e.raumpflegerin ? 'Disponiert auf ' + e.raumpflegerin + '. ' : 'Raumpflegerin einteilen. ') +
-                 'Start ' + (e.startDatum ? dat(e.startDatum) : 'noch offen') + '.',
+                 'Start ' + (e.startDatum ? dat(e.startDatum) : 'noch offen') +
+                 '. Uhrzeit einen Tag vorher der Kundschaft mitteilen (Fenster 08:00–17:00).',
             dringend:3, knopf:{text:'Aktivieren', ruf:"springerAktivieren('" + e.id + "')"}};
 
   if(w)
@@ -1603,26 +1613,19 @@ function seiteEingang(){
   const zeileFix = e => zeileFall(e);
   const zeileTermin = e => zeileFall(e);
 
-  const block = (titel, hinweis, liste, zeile) =>
-    '<div class="card"><div class="card-head"><div><h2>' + titel + '</h2><p>' + hinweis + '</p></div>' +
-      '<span class="tag neutral">' + liste.length + '</span></div>' +
-    '<div class="card-body">' +
-      (liste.length ? liste.map(zeile).join('') : '<p class="cs-hint">Zurzeit nichts.</p>') +
-    '</div></div>';
+  /* Eine Karte, drei schlanke Abschnitte. Der Zustand steht in der Zeile,
+     deshalb braucht der Abschnitt nur Titel und Anzahl. */
+  const abschnitt = (titel, hinweis, liste) =>
+    '<div class="abschnitt"><h3>' + titel + '</h3>' +
+      '<span class="abschnitt-zahl">' + liste.length + '</span>' +
+      '<span class="abschnitt-hinweis">' + hinweis + '</span></div>' +
+    (liste.length ? liste.map(zeileFall).join('') : '<p class="cs-hint" style="padding:2px 0 10px;">Zurzeit nichts.</p>');
 
-  return (ueberfaellig
-      ? '<div class="hinweis neg">' + (ueberfaellig === 1 ? 'Ein Fall liegt' : ueberfaellig + ' Fälle liegen') +
-        ' zu lange — sie stehen in ihrem Block zuoberst und sind rot markiert.</div>'
-      : '') +
-    block('Start mit Springerteam',
-      'Nach der Disposition aktivieren.',
-      a, zeileSpringer) +
-    block('Wartet auf feste Raumpflegerin',
-      'Nach sieben Werktagen bieten wir das Springerteam automatisch an.',
-      b, zeileFix) +
-    block('Einführungstermin vorgeschlagen',
-      'Mit der Zusage wird der Auftrag automatisch aktiv.',
-      c, zeileTermin);
+  return '<div class="card"><div class="card-body">' +
+      abschnitt('Start mit Springerteam', 'nach der Disposition aktivieren', a) +
+      abschnitt('Wartet auf feste Raumpflegerin', 'Springerteam wird nach sieben Werktagen angeboten', b) +
+      abschnitt('Einführungstermin vorgeschlagen', 'mit der Zusage wird der Auftrag aktiv', c) +
+    '</div></div>';
 }
 
 /* Springerteam-Start aktivieren: der Auftrag wird aktiv, das Merkmal bleibt,
