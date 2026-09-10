@@ -50,28 +50,36 @@ h1,h2,h3{font-family:var(--head);color:var(--ink);margin:0;line-height:1.2;lette
 .intro p{margin:0;font-size:14.5px;max-width:60ch;}
 
 /* Fortschritt */
-.steps{display:flex;gap:7px;margin-bottom:18px;}
-.steps div{flex:1;height:4px;border-radius:4px;background:var(--border);transition:background .4s var(--ease);}
-.steps div.on{background:linear-gradient(90deg,var(--cd-haupt),#60BEB3);}
+.steps{display:flex;gap:10px;margin-bottom:26px;}
+.steps div{flex:1;}
+.steps div::before{content:'';display:block;height:4px;border-radius:4px;background:var(--border);
+  transition:background .4s var(--ease);margin-bottom:6px;}
+.steps div.on::before{background:linear-gradient(90deg,var(--cd-haupt),#60BEB3);}
+.steps span{font-size:11.5px;color:var(--mute);}
+.steps div.on span{color:var(--teal-deep);font-weight:600;}
+@media (max-width:560px){ .steps span{font-size:10.5px;} }
 
-/* Abschnitte */
+/* Abschnitte — ein Block je Thema, ohne Kasten im Kasten */
 .card{
-  background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;
-  padding:20px;margin-bottom:12px;box-shadow:0 1px 3px rgba(14,30,29,.04);
+  background:var(--surface);border:none;border-radius:0;
+  padding:26px 0 22px;margin:0;border-bottom:1px solid var(--border-soft);box-shadow:none;
 }
+.card:last-of-type{border-bottom:none;}
+#orderForm{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;
+  padding:6px 26px 22px;box-shadow:0 1px 3px rgba(14,30,29,.04);}
+@media (max-width:560px){ #orderForm{padding:2px 16px 18px;border-radius:12px;} }
 .card > h2{
-  font-size:15.5px;display:flex;align-items:center;gap:10px;margin-bottom:5px;
+  font-size:17px;display:flex;align-items:baseline;gap:9px;margin-bottom:3px;
 }
 .card > h2 .n{
-  width:26px;height:26px;border-radius:50%;background:var(--tint);border:1px solid #CFE6EA;
-  color:var(--teal-deep);font-size:12px;font-weight:700;flex:none;
-  display:flex;align-items:center;justify-content:center;
+  color:var(--teal);font-size:13px;font-weight:700;flex:none;
 }
-.card > .hint{font-size:12.5px;color:var(--mute);margin:0 0 14px 37px;}
-@media (max-width:560px){.card{padding:17px 16px;} .card > .hint{margin-left:0;}}
+.card > .hint{font-size:13px;color:var(--mute);margin:0 0 16px 0;}
+@media (max-width:560px){.card{padding:22px 0 18px;}}
 
 /* Felder */
-.row{display:grid;gap:10px;margin-bottom:10px;}
+.row{display:grid;gap:12px;margin-bottom:14px;}
+.row:last-child{margin-bottom:0;}
 .row.two{grid-template-columns:1fr 1fr;}
 .row.three{grid-template-columns:1fr 1fr 1fr;}
 .row.anrede{grid-template-columns:110px 1fr 1fr;}
@@ -79,10 +87,10 @@ h1,h2,h3{font-family:var(--head);color:var(--ink);margin:0;line-height:1.2;lette
   .row.two,.row.three{grid-template-columns:1fr;}
   .row.anrede{grid-template-columns:1fr;}
 }
-label.fl{display:block;font-size:11.5px;font-weight:600;color:var(--mute);margin-bottom:5px;}
+label.fl{display:block;font-size:12px;font-weight:600;color:var(--body-c);margin-bottom:5px;}
 input[type=text],input[type=tel],input[type=email],input[type=number],select,textarea{
-  width:100%;font-family:var(--body);font-size:14.5px;padding:10px 13px;
-  border:1.5px solid var(--border);border-radius:10px;background:#fff;color:var(--ink);
+  width:100%;font-family:var(--body);font-size:14.5px;padding:10px 12px;
+  border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--ink);
   transition:border-color .2s var(--ease),box-shadow .2s var(--ease);
 }
 input:focus,select:focus,textarea:focus{
@@ -96,7 +104,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 .opts{display:flex;flex-wrap:wrap;gap:7px;}
 .opt{
   display:inline-flex;align-items:center;gap:8px;cursor:pointer;
-  border:1.5px solid var(--border);border-radius:9px;padding:9px 13px;
+  border:1px solid var(--border);border-radius:8px;padding:9px 13px;min-height:42px;
   background:#fff;font-size:13.5px;color:var(--body-c);
   transition:all .2s var(--ease);
 }
@@ -170,7 +178,7 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
   </div>
 
   <div class="steps" id="steps">
-    <div class="on"></div><div></div><div></div>
+    <div class="on"><span>Angaben</span></div><div><span>Wohnung und Termin</span></div><div><span>Absenden</span></div>
   </div>
 
   <form id="orderForm" onsubmit="return submitOrder(event)">
@@ -319,7 +327,7 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
 
     <!-- 5 Zusatzleistungen -->
     <div class="card">
-      <h2 data-i18n="a52"><span class="n">5</span> Zusatzleistungen und Start</h2>
+      <h2 data-i18n="a52"><span class="n">5</span> Zusatzleistungen</h2>
       <p data-i18n="a53" class="hint">Frei wählbar, jederzeit anpassbar. Verrechnet wird nur der zusätzliche Aufwand.</p>
 
       <div data-i18n="a54" class="opts">
@@ -341,7 +349,8 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
 
     <!-- 6 Start und Fenster -->
     <div class="card">
-      <h2 data-i18n="a59"><span class="n">6</span> Start und Weiteres</h2>
+      <h2 data-i18n="a59"><span class="n">6</span> Start der Reinigung</h2>
+      <p class="hint">Wann sollen wir beginnen?</p>
 
       <label data-i18n="a60" class="fl">Start mit unserem Springerteam?</label>
       <div data-i18n="a61" class="opts">
@@ -357,7 +366,11 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
         <div data-i18n="a76" class="note note-zeit">Die Reinigung durch unser Springerteam wird jeweils zwischen 08:00 und 17:00 Uhr durchgeführt. Die definitive Uhrzeit teilen wir Ihnen einen Tag vor der Reinigung per E-Mail mit.</div>
         <div data-i18n="a75" class="note">Damit wir Ihr Team einplanen und alle Unterlagen vorbereiten können, liegt der früheste Termin sieben Tage in der Zukunft. Wir bestätigen Ihnen dieses Datum schriftlich.</div>
       </div>
-      <div style="height:18px;"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="n">7</span> Weitere Wünsche</h2>
+      <p class="hint">Freiwillig — beides lässt sich später jederzeit ergänzen.</p>
 
       <label data-i18n="a62" class="fl">Unverbindliche Fensterreinigungsofferte gewünscht?</label>
       <div data-i18n="a63" class="opts">
@@ -459,14 +472,14 @@ const I18N_EN = {
 "a49": "Pets in the household",
 "a50": "\n        <label class=\"opt\"><input type=\"checkbox\" id=\"f-tier-keine\" value=\"Keine\" onchange=\"tierKeine()\">None</label>\n        <label class=\"opt\"><input type=\"checkbox\" class=\"f-tier\" value=\"Katze\" onchange=\"tierAndere()\">Cat</label>\n        <label class=\"opt\"><input type=\"checkbox\" class=\"f-tier\" value=\"Hund\" onchange=\"tierAndere()\">Dog</label>\n        <label class=\"opt\"><input type=\"checkbox\" class=\"f-tier\" id=\"f-tier-andere\" value=\"Andere\" onchange=\"tierAndere()\">Other</label>\n      ",
 "a51": "\n        <label class=\"fl\" for=\"f-tier-text\">Which animals?</label>\n        <input type=\"text\" id=\"f-tier-text\" placeholder=\"z. B. Kaninchen, Vogel\">\n      ",
-"a52": "<span class=\"n\">5</span> Additional services and start",
+"a52": "<span class=\"n\">5</span> Additional services",
 "a53": "Freely selectable and adjustable at any time. Only the additional time is charged.",
 "a54": "\n        <label class=\"opt\"><input type=\"checkbox\" id=\"f-z-bettbezuege\">Changing bed linen <span class=\"sub\">+30 min.</span></label>\n        <label class=\"opt\"><input type=\"checkbox\" id=\"f-z-waesche\">Laundry &amp; tumble drying <span class=\"sub\">+30 min.</span></label>\n        <label class=\"opt\"><input type=\"checkbox\" id=\"f-z-geschirrspueler\">Dishwasher <span class=\"sub\">+15 min.</span></label>\n        <label class=\"opt\"><input type=\"checkbox\" id=\"f-z-backofen\">Oven cleaning service <span class=\"sub\">CHF 50/mth</span></label>\n      ",
 "a55": "Ironing service",
 "a56": "No ironing service",
 "a57": "30 minutes per visit",
 "a58": "1 hour per visit",
-"a59": "<span class=\"n\">6</span> Start and further details",
+"a59": "<span class=\"n\">6</span> Start of cleaning",
 "a60": "Start with our relief team?",
 "a61": "\n        <label class=\"opt\"><input type=\"radio\" name=\"f-springer\" value=\"Nein\" checked>Wait for a regular cleaner <span class=\"sub\">10–14 working days</span></label>\n        <label class=\"opt\"><input type=\"radio\" name=\"f-springer\" value=\"Ja\">Start immediately with the relief team</label>\n      ",
 "a62": "Would you like a non-binding window cleaning quotation?",
