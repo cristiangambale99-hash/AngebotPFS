@@ -820,7 +820,7 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
   <aside class="sidebar" id="sb">
     <div class="brand">
       <div class="mark" role="img" aria-label="Clean Service Scaramuzzo AG"></div>
-      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 15</span></div>
+      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 16</span></div>
     </div>
 
     <nav class="nav">
@@ -1159,7 +1159,8 @@ function zeichnen(){
   document.getElementById('n-kalender').textContent = termine()
     .filter(t => t.bestaetigt && t.datum >= new Date().toISOString().slice(0,10)).length;
   document.getElementById('n-aktive').textContent =
-    LISTE.filter(e => e.quelle === 'auftrag' && e.stufe === 'aktiv').length;
+    LISTE.filter(e => e.quelle === 'auftrag' && !unzufrieden(e) &&
+      (e.stufe === 'aktiv' || terminVorgeschlagen(e))).length;
   document.getElementById('zuletzt').innerHTML = ZULETZT.map(z =>
     '<button class="k-item" onclick="oeffneFall(\'' + z.id + '\')">' + esc(z.txt) +
     '<small>' + esc(z.sub) + '</small></button>').join('') ||
@@ -1175,7 +1176,7 @@ function zeichnen(){
   }
   const seiten = {
     eingang:    ['Auftragserteilungen', 'Alles, was noch nicht aktiv läuft. Rot heisst: heute erledigen.', seiteEingang],
-    aktive:     ['Aktive Aufträge', 'Laufende Kundschaft — nach Startart getrennt.', seiteAktive],
+    aktive:     ['Aktive Aufträge', 'Vom Springerteam-Einsatz über den Terminvorschlag bis zur laufenden Reinigung.', seiteAktive],
     unzufrieden:['Unzufriedene Kunden', 'Negative Rückmeldungen, die eine zweite Runde brauchen.', seiteUnzufrieden],
     kalender:   ['Kalender', 'Alle Einführungstermine im Überblick.', seiteKalender],
     verkauf:    ['Neues Angebot', 'Angebot erstellen und alle laufenden Angebote verfolgen.', seiteVerkauf],
@@ -1636,10 +1637,9 @@ function seiteEingang(){
   };
   const a = mitSpringer().sort(nachDringlichkeit);
   const b = ohneSpringer().sort(nachDringlichkeit);
-  const c = terminOffen().sort(nachDringlichkeit);
-  const ueberfaellig = [...a, ...b, ...c].filter(e => naechsterSchritt(e).dringend === 0).length;
+  const ueberfaellig = [...a, ...b].filter(e => naechsterSchritt(e).dringend === 0).length;
 
-  if(!a.length && !b.length && !c.length)
+  if(!a.length && !b.length)
     return leer('Keine offene Auftragserteilung',
       'Sobald eine Auftragserteilung eingeht, steht sie hier — bis der Auftrag aktiv gesetzt ist.');
 
@@ -1668,9 +1668,7 @@ function seiteEingang(){
   return block(1, 'g-pos', 'Start mit Springerteam',
         'nach der Disposition aktivieren', a) +
     block(2, 'g-warn', 'Wartet auf feste Raumpflegerin',
-        'Springerteam wird nach sieben Werktagen angeboten', b) +
-    block(3, 'g-teal', 'Einführungstermin vorgeschlagen',
-        'mit der Zusage wird der Auftrag aktiv', c);
+        'Springerteam wird nach sieben Werktagen angeboten', b);
 }
 
 /* Springerteam-Start aktivieren: der Auftrag wird aktiv, das Merkmal bleibt,
@@ -1700,9 +1698,19 @@ function setFilter(ansicht, f){
 function sucheAendern(ansicht, wert){
   SUCHE[ansicht] = wert;
   const box = document.getElementById('liste-box');
-  if(box) box.innerHTML = (ansicht === 'verkauf' ? verkaufListe() : aktiveListe());
-  const z = document.getElementById('liste-zahl');
-  if(z) z.textContent = (ansicht === 'verkauf' ? gefiltertVerkauf() : gefiltertAktive()).length;
+  if(!box) return;
+  if(ansicht === 'verkauf'){
+    box.innerHTML = verkaufListe();
+    const z = document.getElementById('liste-zahl');
+    if(z) z.textContent = gefiltertVerkauf().length;
+  }else{
+    /* Bei den aktiven Aufträgen werden ganze Bereiche neu gezeichnet. */
+    const feld = document.getElementById('suche');
+    const pos = feld ? feld.selectionStart : null;
+    zeichnen();
+    const neuFeld = document.getElementById('suche');
+    if(neuFeld){ neuFeld.focus(); if(pos !== null) neuFeld.setSelectionRange(pos, pos); }
+  }
 }
 function passt(e, ansicht){
   const q = (SUCHE[ansicht] || '').trim().toLowerCase();
@@ -2021,47 +2029,63 @@ function linkKopieren(link){
 }
 
 /* ---------- Aufträge: CRM-Stufen für den Tagesdienst ---------- */
-const AKTIV_STUFEN = [
-  {f:'springer', t:'Mit Springerteam', h:'Feste Zuteilung noch offen.', k:'k-pos'},
-  {f:'fest',     t:'Feste Raumpflegerin', h:'Läuft mit fester Zuteilung.', k:''},
-  {f:'qualitaet',t:'Qualitätsnachfrage läuft', h:'Nachfrage ist unterwegs.', k:'k-warn'},
-  {f:'archiv',   t:'Archiv', h:'Abgeschlossen.', k:''},
-  {f:'abgesagt', t:'Abgesagt', h:'Kundschaft abgesprungen.', k:''}
-];
+/* ---------- Aktive Aufträge ----------
+   Drei Bereiche entlang des Ablaufs: der Einsatz läuft mit dem Springerteam,
+   ein Termin ist vorgeschlagen, oder der Termin ist bestätigt und der Auftrag
+   läuft mit der festen Raumpflegerin. Abgeschlossenes liegt darunter. */
 function aktivArt(e){
   if(e.stufe === 'archiv') return 'archiv';
   if(e.stufe === 'abgesagt') return 'abgesagt';
-  if(e.qualitaetMail && !e.qualitaetAntwort) return 'qualitaet';
-  return laeuftMitSpringer(e) ? 'springer' : 'fest';
+  if(terminVorgeschlagen(e)) return 'vorgeschlagen';
+  if(e.stufe === 'aktiv' && laeuftMitSpringer(e)) return 'springer';
+  if(e.stufe === 'aktiv') return 'angenommen';
+  return 'anderes';
 }
-function gefiltertAktive(){
-  const F = FILTERS.aktive;
-  return LISTE.filter(e => e.quelle === 'auftrag' && ['aktiv','archiv','abgesagt'].includes(e.stufe))
-    .filter(e => !unzufrieden(e))
-    .filter(e => F === 'alle' ? true : aktivArt(e) === F)
-    .filter(e => passt(e, 'aktive'))
-    .sort((a,b) => String(b.erstReinigung || b.datum || '').localeCompare(String(a.erstReinigung || a.datum || '')));
-}
-function aktiveListe(){
-  const l = gefiltertAktive();
-  if(!l.length) return '<p class="cs-hint" style="padding:18px;">Für diese Auswahl gibt es keinen Auftrag.</p>';
-  return '<div style="padding:14px;">' + l.map(e => zeileFall(e)).join('') + '</div>';
+function aktiveFaelle(){
+  return LISTE
+    .filter(e => e.quelle === 'auftrag' && !unzufrieden(e))
+    .filter(e => ['aktiv','archiv','abgesagt'].includes(e.stufe) || terminVorgeschlagen(e))
+    .filter(e => passt(e, 'aktive'));
 }
 function seiteAktive(){
-  const alle = LISTE.filter(e => e.quelle === 'auftrag' && ['aktiv','archiv','abgesagt'].includes(e.stufe) && !unzufrieden(e));
-  const F = FILTERS.aktive;
-  const kpi = '<div class="kpi-row">' + AKTIV_STUFEN.map(x =>
-    '<div class="kpi klick ' + (x.k || '') + (F === x.f ? ' on' : '') + '" onclick="setFilter(\'aktive\',\'' + x.f + '\')">' +
-      '<div class="label">' + x.t + '</div>' +
-      '<div class="wert">' + alle.filter(e => aktivArt(e) === x.f).length + '</div>' +
-      '<div class="delta">' + x.h + '</div></div>').join('') + '</div>';
-  return kpi +
-    '<div class="card"><div class="card-head">' +
-      '<div><h2>' + (F === 'alle' ? 'Alle' : (AKTIV_STUFEN.find(x => x.f === F) || {}).t) + '</h2>' +
-      '<p><span id="liste-zahl">' + gefiltertAktive().length + '</span> von ' + alle.length + ' Aufträgen' +
-      (F === 'alle' ? '' : ' · <a href="#" onclick="setFilter(\'aktive\',\'' + F + '\');return false;">Filter aufheben</a>') +
-      '</p></div>' + suchfeld('aktive', 'Name, Ort oder Angebotsnummer') + '</div>' +
-      '<div class="card-body eng" id="liste-box">' + aktiveListe() + '</div></div>';
+  const alle = aktiveFaelle();
+  const art = k => alle.filter(e => aktivArt(e) === k)
+    .sort((x,y) => String(y.erstReinigung || y.einfuehrungAm || y.datum || '')
+      .localeCompare(String(x.erstReinigung || x.einfuehrungAm || x.datum || '')));
+
+  const springer = art('springer');
+  const vorgeschlagen = art('vorgeschlagen');
+  const angenommen = art('angenommen');
+  const abgeschlossen = art('archiv').concat(art('abgesagt'));
+
+  const block = (nr, farbe, titel, hinweis, liste) =>
+    '<section class="gruppe ' + farbe + '">' +
+      '<header class="gruppe-kopf">' +
+        '<span class="gruppe-nr">' + nr + '</span>' +
+        '<h3>' + titel + '</h3>' +
+        '<span class="gruppe-zahl">' + liste.length + '</span>' +
+        '<span class="gruppe-hinweis">' + hinweis + '</span>' +
+      '</header>' +
+      '<div class="gruppe-inhalt">' +
+        (liste.length ? liste.map(zeileFall).join('')
+                      : '<p class="cs-hint" style="margin:0;padding:6px 2px;">Zurzeit nichts.</p>') +
+      '</div></section>';
+
+  return '<div style="max-width:340px;margin-bottom:18px;">' +
+      suchfeld('aktive', 'Name, Ort oder Angebotsnummer') + '</div>' +
+    '<div id="liste-box">' +
+      block(1, 'g-pos', 'Ausführung mit Springerteam',
+        'feste Raumpflegerin noch offen', springer) +
+      block(2, 'g-warn', 'Einführungstermin vorgeschlagen',
+        'wir warten auf die Zusage der Kundschaft', vorgeschlagen) +
+      block(3, 'g-teal', 'Einführungstermin angenommen',
+        'läuft mit fester Raumpflegerin', angenommen) +
+      (abgeschlossen.length
+        ? '<details class="mehr"><summary>Abgeschlossen und abgesagt (' + abgeschlossen.length + ')</summary>' +
+          '<div class="gruppe-inhalt" style="padding-left:0;padding-right:0;">' +
+          abgeschlossen.map(zeileFall).join('') + '</div></details>'
+        : '') +
+    '</div>';
 }
 
 /* ---------- Unzufriedene Kundschaft ---------- */
