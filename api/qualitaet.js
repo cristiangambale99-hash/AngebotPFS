@@ -254,7 +254,7 @@ export async function bewertungBitten(auf, zielAdresse) {
     method:'POST',
     headers:{ Authorization:'Bearer ' + key, 'Content-Type':'application/json' },
     body: JSON.stringify({
-      from:'Putzfrauenservice Admin-Team · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
+      from:'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
       to:[mail], bcc: zielAdresse ? [] : [EMPFAENGER], reply_to: EMPFAENGER,
       subject: L.betreff, html,
       text: anrede + '\n\n' + L.a1 + '\n\n' + L.a2 + '\n\n' + L.knopf + ': ' + GOOGLE_LINK + '\n\n' + L.a3 +

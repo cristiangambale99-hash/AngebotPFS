@@ -151,7 +151,7 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'Cristian Gambale · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
+        from: 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
         reply_to: 'putzfrauenservice@clean-service.ch',
         to: [to],
         subject,

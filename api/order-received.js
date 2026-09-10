@@ -568,7 +568,7 @@ const CS_ROLLE = { de:'Bereichsleiter Putzfrauenservice', en:'Head of Putzfrauen
 const CS_TEAM_NAME = 'Putzfrauenservice · Admin-Team';
 const CS_TEAM_ROLLE = 'Clean Service Scaramuzzo AG';
 const CS_TEAM_TEL = '0844 355 355';
-const CS_ABSENDER_TEAM = 'Putzfrauenservice Admin-Team · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>';
+const CS_ABSENDER_TEAM = 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>';
 
 const CS_CLAIM = { de:'Putzfrauenservice<br>seit 1984', en:'Putzfrauenservice<br>since 1984' };
 

@@ -56,6 +56,22 @@ export default async function handler(req, res) {
     await speichern(SAMMLUNG, fund.schluessel, neu);
     bericht.gespeichert = true;
 
+    /* Der unterschriebene Vertrag wird in einer eigenen Sammlung abgelegt,
+       damit die Terminbestätigung ihn beilegen kann. Eigene Sammlung, weil
+       ein Firestore-Dokument nur rund ein Megabyte fasst. */
+    if (pdfRoh && pdfRoh.length < 900000) {
+      try {
+        await speichern('vertraege', fund.schluessel, {
+          pdf: pdfRoh,
+          dateiname: 'Reinigungsvertrag_' + (auf.angebotsnr || fund.schluessel) + '_unterschrieben.pdf',
+          am: neu.vertragSigniertAm
+        });
+        bericht.vertragAbgelegt = true;
+      } catch (e) {
+        bericht.ablagefehler = String(e.message || e).slice(0, 300);
+      }
+    }
+
     const key = process.env.RESEND_API_KEY;
     if (key) {
       const name = [auf.anrede, auf.vorname, auf.nachname].filter(Boolean).join(' ') || 'Unbekannt';
@@ -366,12 +382,11 @@ const CS_LOGO = 'iVBORw0KGgoAAAANSUhEUgAAAbgAAACVCAIAAACl7Xi4AABsOElEQVR42u29d5w
 const CS_FARBE = '#2BB6B7', CS_DUNKEL = '#12797A', CS_TEXT = '#333333', CS_GRAU = '#767676';
 
 const CS_ROLLE = { de:'Bereichsleiter Putzfrauenservice', en:'Head of Putzfrauenservice' };
-/* Ab der Auftragserteilung zeichnet das Admin-Team des Putzfrauenservice,
-   davor Cristian Gambale. */
+/* Ab der Auftragserteilung zeichnet das Admin-Team des Putzfrauenservice. */
 const CS_TEAM_NAME = 'Putzfrauenservice · Admin-Team';
 const CS_TEAM_ROLLE = 'Clean Service Scaramuzzo AG';
 const CS_TEAM_TEL = '0844 355 355';
-const CS_ABSENDER_TEAM = 'Putzfrauenservice Admin-Team · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>';
+const CS_ABSENDER_TEAM = 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>';
 
 const CS_CLAIM = { de:'Putzfrauenservice<br>seit 1984', en:'Putzfrauenservice<br>since 1984' };
 
