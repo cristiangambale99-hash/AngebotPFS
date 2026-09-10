@@ -837,7 +837,7 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
   <aside class="sidebar" id="sb">
     <div class="brand">
       <div class="mark" role="img" aria-label="Clean Service Scaramuzzo AG"></div>
-      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 19</span></div>
+      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 20</span></div>
     </div>
 
     <nav class="nav">
@@ -1489,27 +1489,50 @@ function zeileFall(e){
 /* ---------- Anleitung für das Admin-Team ---------- */
 function seiteAnleitung(){
   const schritte = [
-    ['Anfrage kommt herein', 'Unter «Neues Angebot» die Anfrage einlesen, Angaben prüfen, Link erzeugen und senden. Das Angebot erscheint danach in der Liste darunter.'],
-    ['Angebot läuft', 'Nach 5 und nach 30 Tagen erinnert das System automatisch. Nach 35 Tagen ohne Reaktion wird abgesagt. Hier ist nichts zu tun.'],
-    ['Auftrag kommt herein', 'Der Auftrag steht unter «Auftragserteilungen» — je nachdem, was die Kundschaft gewählt hat, im Block «Start mit Springerteam» oder «Wartet auf feste Raumpflegerin».'],
-    ['Einführung planen', 'Im Fall Raumpflegerin, Datum und Uhrzeit erfassen und den Terminvorschlag senden. Der Fall wechselt in den Block «Einführungstermin vorgeschlagen».'],
-    ['Zusage der Kundschaft', 'Mit der Zusage geht der Auftrag automatisch auf «aktiv», die Kundschaft erhält die Bestätigung mit dem unterschriebenen Vertrag, und im Kalender wird der Eintrag grün.'],
-    ['Qualität und Abschluss', 'Die Qualitätsnachfrage geht automatisch hinaus. Gute Rückmeldung heisst Archiv und Bitte um eine Google-Bewertung, schlechte heisst «Unzufriedene Kunden».']
+    ['Anfrage kommt herein',
+     'Unter «Neues Angebot» die Anfrage in Schritt 1 einlesen, die Angaben in Schritt 2 und 3 prüfen, in Schritt 4 den Link erzeugen und senden.'],
+    ['Angebot läuft',
+     'Nach 5 und nach 30 Tagen erinnert das System automatisch, nach 35 Tagen ohne Reaktion wird abgesagt. Hier ist nichts zu tun.'],
+    ['Auftragserteilung kommt herein',
+     'Der Auftrag steht unter «Auftragserteilungen», je nach Wunsch der Kundschaft im Block «Start mit Springerteam» oder «Wartet auf feste Raumpflegerin».'],
+    ['Einführung planen',
+     'Im Fall Raumpflegerin, Datum und Uhrzeit erfassen und den Terminvorschlag senden. Der Fall wechselt damit zu den aktiven Aufträgen in den Block «Einführungstermin vorgeschlagen».'],
+    ['Zusage der Kundschaft',
+     'Mit ihrer Zusage geht der Auftrag automatisch auf aktiv, sie erhält die Bestätigung mit dem unterschriebenen Vertrag, und der Fall rutscht zu «Einführungstermin angenommen». Sagt sie telefonisch zu, trägst du das von Hand ein — mit demselben Ergebnis.'],
+    ['Qualität und Abschluss',
+     'Die Qualitätsnachfrage geht automatisch hinaus. Gute Rückmeldung heisst Archiv und Bitte um eine Google-Bewertung, schlechte heisst «Unzufriedene Kunden», keine Rückmeldung heisst nach sieben Tagen Archiv.']
   ];
 
   const bereiche = [
-    ['Auftragserteilungen', 'Alles, was noch nicht aktiv läuft, in drei Blöcken: Start mit Springerteam, Wartet auf feste Raumpflegerin, Einführungstermin vorgeschlagen. Rot heisst, der Fall liegt zu lange.'],
-    ['Aktive Aufträge', 'Die laufende Kundschaft, getrennt nach Startart: mit Springerteam oder mit fester Raumpflegerin. Dazu die Fälle, bei denen die Qualitätsnachfrage unterwegs ist, sowie Archiv und Absagen.'],
-    ['Unzufriedene Kunden', 'Jede negative Rückmeldung landet hier. Zuerst anrufen und die Ursache klären, danach die zweite Nachfrage senden.'],
-    ['Kalender', 'Alle Einführungstermine im Monatsraster. Grün heisst bestätigt, gelb heisst vorgeschlagen und noch ohne Zusage.'],
-    ['Neues Angebot', 'Angebot erstellen in vier Schritten und die Pipeline aller laufenden Angebote.'],
-    ['Auswertung', 'Zahlen zum Bestand: gesendete Angebote, Abschlussquote, aktive Kundschaft, Verteilung nach Status.']
+    ['Auftragserteilungen',
+     'Zwei Blöcke. «Start mit Springerteam» — nach der Disposition aktivieren. «Wartet auf feste Raumpflegerin» — nach sieben Werktagen bieten wir das Springerteam automatisch an. Rot heisst, der Fall liegt zu lange.'],
+    ['Aktive Aufträge',
+     'Drei Blöcke entlang des Ablaufs: «Ausführung mit Springerteam», «Einführungstermin vorgeschlagen» und «Einführungstermin angenommen». Archiv und Absagen liegen zusammengeklappt darunter.'],
+    ['Unzufriedene Kunden',
+     'Jede negative Rückmeldung landet hier, mit dem Wortlaut. Zuerst anrufen und die Ursache klären, danach die zweite Nachfrage senden.'],
+    ['Kalender',
+     'Alle Einführungstermine im Monatsraster. Grün heisst bestätigt, gelb heisst vorgeschlagen und noch ohne Zusage.'],
+    ['Neues Angebot',
+     'Angebot erstellen in vier Schritten, darunter die Pipeline aller laufenden Angebote mit der Abschlussquote.'],
+    ['Auswertung',
+     'Zahlen zum Bestand: gesendete Angebote, Abschlussquote, aktive Kundschaft, Verteilung nach Status.']
+  ];
+
+  const checkliste = [
+    'Objekt eröffnet',
+    'Alle Informationen gemäss Anleitung erfasst',
+    'Mitarbeiterplanung erfasst',
+    'Checkliste und Vertrag abgelegt',
+    'Chat eröffnet',
+    'Einführung disponiert und im Kalender eingetragen',
+    'Schlüsselanhänger vorbereitet'
   ];
 
   const fristen = [
     ['7 Werktage', 'nach «In Bearbeitung»', 'Das Springerteam wird der Kundschaft automatisch angeboten — ausser es steht bereits ein Einführungstermin.'],
     ['14 Tage', 'ohne feste Zuteilung', 'Der Fall wird rot: «Feste Raumpflegerin finden».'],
     ['1 Tag', 'vor der Einführung', 'Stichtag für die Admin-Checkliste. Alle sieben Punkte müssen erledigt sein.'],
+    ['7 Tage', 'nach dem Terminvorschlag', 'Ohne Zusage wird der Fall rot und gehört nachgefasst.'],
     ['14 Tage / 4 Wochen / 2 Monate', 'nach der ersten Reinigung', 'Die Qualitätsnachfrage geht hinaus, je nach Rhythmus wöchentlich, 14-täglich oder monatlich. Solange das Springerteam führt, ruht sie.'],
     ['7 Tage', 'nach der Qualitätsnachfrage', 'Ohne Rückmeldung wandert der Auftrag ins Archiv mit dem Merkmal «Kein Feedback erhalten».'],
     ['5 und 30 Tage', 'nach dem Angebot', 'Erinnerungen an die Kundschaft. Nach 35 Tagen gilt das Angebot als abgesagt.']
@@ -1520,8 +1543,9 @@ function seiteAnleitung(){
     'Bestätigung der Auftragserteilung an die Kundschaft',
     'Angebot des Springerteams nach sieben Werktagen',
     'Terminvorschlag für die Einführung, sobald du ihn auslöst',
-    'Bestätigung des Termins samt unterschriebenem Vertrag',
+    'Terminbestätigung samt unterschriebenem Vertrag — auch wenn du die Zusage von Hand einträgst',
     'Qualitätsnachfrage und, bei guter Rückmeldung, die Bitte um eine Google-Bewertung',
+    'Archivierung nach sieben Tagen ohne Rückmeldung',
     'Tägliche Zusammenfassung am Morgen an den Putzfrauenservice'
   ];
 
@@ -1529,17 +1553,19 @@ function seiteAnleitung(){
     ['Wo sehe ich, was ich als Nächstes tun muss?',
      'In jeder Liste steht in der Mitte fett die Handlung und darunter ein Satz warum. Öffnest du den Fall, steht dieselbe Handlung oben im farbigen Balken «Jetzt zu tun», mit dem passenden Knopf daneben.'],
     ['Was bedeuten die Farben?',
-     'Rot heisst überfällig und gehört heute erledigt. Gelb heisst, eine Frist läuft in den nächsten Tagen ab. Türkis heisst, wir warten auf die Kundschaft. Grün heisst, es läuft und ist nichts offen.'],
+     'Rot heisst überfällig und gehört heute erledigt. Gelb heisst, eine Frist läuft in den nächsten Tagen ab. Türkis heisst, wir warten auf die Kundschaft. Grün heisst, es läuft und ist nichts offen. Im Verlauf hat zusätzlich jede Person ihre eigene Farbe: Cristian blau, Fiorella pink, Tayron braun.'],
+    ['Die Kundschaft hat telefonisch zugesagt — was mache ich?',
+     'Im Block «Einführungstermin vorgeschlagen» auf «Zusage eintragen» klicken, oder im Fall auf «Termin von Hand bestätigen». Der Auftrag geht auf aktiv, und die Kundschaft erhält automatisch die Terminbestätigung mit dem unterschriebenen Vertrag — genau wie beim Klick im Mail.'],
     ['Wann hake ich die Checkliste ab?',
      'Laufend, sobald ein Punkt erledigt ist. Spätestens am Tag vor der Einführung müssen alle sieben Punkte stehen. Jedes Häkchen speichert Name und Datum.'],
-    ['Die Kundschaft hat den Termin noch nicht bestätigt — was tun?',
-     'Der Fall bleibt im Block «Einführungstermin vorgeschlagen». Nach sieben Tagen ohne Zusage wird er rot; dann telefonisch nachfassen. Der Termin lässt sich im Fall jederzeit neu vorschlagen.'],
-    ['Wir starten mit dem Springerteam — wann kommt die Qualitätsnachfrage?',
-     'Gar nicht, solange das Springerteam den Einsatz führt. Erst wenn du im Fall die Übernahme durch eine feste Raumpflegerin einträgst, startet die Frist ab deren erster Reinigung.'],
+    ['Wir starten mit dem Springerteam — was gilt da?',
+     'Die Reinigung findet zwischen 08:00 und 17:00 Uhr statt; die genaue Uhrzeit teilen wir der Kundschaft einen Tag vorher per Mail mit. Wie wir Zutritt erhalten, hat sie im Formular angegeben; es steht im Fall unter «Weitere Angaben». Eine Qualitätsnachfrage geht erst hinaus, wenn die Einführung mit der festen Raumpflegerin bestätigt ist.'],
     ['Eine Kundschaft ist unzufrieden — wie weiter?',
      'Zuerst anrufen und die Ursache klären. Danach im Fall oder direkt in der Liste «Zweite Nachfrage» senden. Die alte Antwort wandert in den Verlauf, der Fall verlässt die Liste, bis die neue Antwort eintrifft.'],
+    ['Was steht im täglichen Mail?',
+     'Zuoberst vier Zahlen, dann die neuen Auftragserteilungen, die Einführungen von heute bis übermorgen mit dem Stand der Checkliste, die Reklamationen, ausstehende Zusagen und Fälle ohne feste Zuteilung. Leere Blöcke erscheinen nicht.'],
     ['Wer steht als Absender in den Mails?',
-     'Bis und mit Angebot Cristian Gambale. Ab der Auftragserteilung das Admin-Team des Putzfrauenservice mit der Hauptnummer 0844 355 355.'],
+     'Im Posteingang der Kundschaft immer «Clean Service Scaramuzzo AG». Unterschrieben ist bis und mit Angebot von Cristian Gambale, ab der Auftragserteilung vom Admin-Team.'],
     ['Ich habe etwas falsch angeklickt — ist das schlimm?',
      'Nein. Statuswechsel lassen sich im Fall unter «Weitere Möglichkeiten» korrigieren, Häkchen einfach wieder entfernen. Nur versendete Mails lassen sich nicht zurückholen.']
   ];
@@ -1556,6 +1582,13 @@ function seiteAnleitung(){
     '<div class="card"><div class="card-head"><div><h2>Die Bereiche im Menü</h2>' +
       '<p>Was wo zu finden ist</p></div></div><div class="card-body">' +
       bereiche.map(x => '<div class="anl-zeile"><strong>' + x[0] + '</strong><p>' + x[1] + '</p></div>').join('') +
+    '</div></div>' +
+
+    '<div class="card"><div class="card-head"><div><h2>Die Admin-Checkliste</h2>' +
+      '<p>Sieben Punkte je Kundschaft, im Fall abzuhaken</p></div></div><div class="card-body">' +
+      '<ul class="anl-liste">' + checkliste.map(x => '<li>' + x + '</li>').join('') + '</ul>' +
+      '<p class="cs-hint" style="margin-top:10px;">Stichtag ist der Tag vor der Einführung. Der Stand steht im Kopf der Karte, ' +
+      'im täglichen Mail und als Merkmal in den Listen.</p>' +
     '</div></div>' +
 
     '<div class="card"><div class="card-head"><div><h2>Fristen</h2>' +
