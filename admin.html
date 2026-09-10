@@ -779,6 +779,23 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
   .gruppe-hinweis{ margin-left:0; flex:1 1 100%; }
   .gruppe-inhalt{ padding:12px 12px 4px; }
 }
+
+/* ---- Farben je Person im Verlauf ---- */
+.zeit .e.p-cristian::before{ background:#2F6FD0; }
+.zeit .e.p-fiorella::before{ background:#D6438C; }
+.zeit .e.p-tayron::before{   background:#8B5E34; }
+.zeit .e.p-andere::before{   background:var(--cs-teal); }
+.zeit .e .wer-name{ font-weight:bold; }
+.zeit .e.p-cristian .wer-name{ color:#2F6FD0; }
+.zeit .e.p-fiorella .wer-name{ color:#D6438C; }
+.zeit .e.p-tayron   .wer-name{ color:#8B5E34; }
+.zeit .e.p-andere   .wer-name{ color:var(--cs-teal-dark); }
+.zeit .e.p-cristian, .zeit .e.p-fiorella, .zeit .e.p-tayron, .zeit .e.p-andere{
+  border-left:2px solid transparent; padding-left:8px; margin-left:-8px;
+}
+.zeit .e.p-cristian{ border-left-color:rgba(47,111,208,.30); }
+.zeit .e.p-fiorella{ border-left-color:rgba(214,67,140,.30); }
+.zeit .e.p-tayron{   border-left-color:rgba(139,94,52,.30); }
 </style>
 </head>
 <body>
@@ -820,7 +837,7 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
   <aside class="sidebar" id="sb">
     <div class="brand">
       <div class="mark" role="img" aria-label="Clean Service Scaramuzzo AG"></div>
-      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 17</span></div>
+      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 19</span></div>
     </div>
 
     <nav class="nav">
@@ -1604,7 +1621,11 @@ function qualitaetMerkmal(e){
 
 /* Merkmal zum Springerteam, je nach Stand */
 function terminVorgeschlagen(e){
-  return !!e.einfuehrungAm && !e.einfuehrungBestaetigt && offenerAuftrag(e);
+  /* Ein Terminvorschlag zählt auch dann, wenn der Auftrag bereits aktiv ist —
+     etwa nach einem Springerteam-Start, bei dem die feste Raumpflegerin
+     nachträglich eingeführt wird. Sonst fehlte dort die Zusage-Möglichkeit. */
+  return e.quelle === 'auftrag' && !!e.einfuehrungAm && !e.einfuehrungBestaetigt
+      && !['archiv','abgesagt'].includes(e.stufe);
 }
 function einfuehrungMerkmal(e){
   if(terminVorgeschlagen(e)) return '<span class="tag warn">Einführungstermin vorgeschlagen</span>';
@@ -2203,6 +2224,16 @@ function kartenFall(e){
     '</div></div>';
 }
 
+/* Jede Person im Admin-Team hat im Verlauf ihre eigene Farbe, damit auf
+   einen Blick erkennbar ist, wer eine Notiz erfasst hat. */
+function personFarbe(von){
+  const v = String(von || '').toLowerCase();
+  if(v.indexOf('cristian') !== -1) return 'p-cristian';
+  if(v.indexOf('fiorella') !== -1) return 'p-fiorella';
+  if(v.indexOf('tayron') !== -1)   return 'p-tayron';
+  return von ? 'p-andere' : '';
+}
+
 function kartenVerlauf(e){
   const ereignisse = [];
   const add = (am, was, sys) => { if(am) ereignisse.push({am, was, sys}); };
@@ -2237,16 +2268,18 @@ function kartenVerlauf(e){
     '<button class="btn primary-action" onclick="notizSpeichern(\'' + e.id + '\', this)">Notiz speichern</button>' +
     '<div class="zeit" style="margin-top:20px;">' +
       (ereignisse.length ? ereignisse.slice(0,4).map(x =>
-        '<div class="e' + (x.sys ? ' sys' : '') + '">' +
-          '<div class="wann">' + (x.am ? datZeit(x.am) : '') + (x.von ? ' · ' + esc(x.von) : '') + '</div>' +
+        '<div class="e' + (x.sys ? ' sys' : ' ' + personFarbe(x.von)) + '">' +
+          '<div class="wann">' + (x.am ? datZeit(x.am) : '') +
+            (x.von ? ' · <span class="wer-name">' + esc(x.von) + '</span>' : '') + '</div>' +
           '<div class="was">' + (x.sys ? '<strong>' + x.was + '</strong>' : x.was) + '</div></div>').join('')
         : '<p class="cs-hint">Noch keine Einträge.</p>') +
     '</div>' +
     (ereignisse.length > 4
       ? '<details class="mehr"><summary>Ganzer Verlauf (' + ereignisse.length + ' Einträge)</summary>' +
         '<div class="zeit" style="margin-top:12px;">' + ereignisse.slice(4).map(x =>
-          '<div class="e' + (x.sys ? ' sys' : '') + '">' +
-            '<div class="wann">' + (x.am ? datZeit(x.am) : '') + (x.von ? ' · ' + esc(x.von) : '') + '</div>' +
+          '<div class="e' + (x.sys ? ' sys' : ' ' + personFarbe(x.von)) + '">' +
+            '<div class="wann">' + (x.am ? datZeit(x.am) : '') +
+              (x.von ? ' · <span class="wer-name">' + esc(x.von) + '</span>' : '') + '</div>' +
             '<div class="was">' + (x.sys ? '<strong>' + x.was + '</strong>' : x.was) + '</div></div>').join('') +
         '</div></details>' : '') +
     '</div></div>';
