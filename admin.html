@@ -837,7 +837,7 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
   <aside class="sidebar" id="sb">
     <div class="brand">
       <div class="mark" role="img" aria-label="Clean Service Scaramuzzo AG"></div>
-      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 23</span></div>
+      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 24</span></div>
     </div>
 
     <nav class="nav">
@@ -918,6 +918,9 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
 
 let CS_TOKEN = sessionStorage.getItem('cs_token') || '';
 let CS_WER   = sessionStorage.getItem('cs_wer') || '';
+/* Öffentliche Adresse des Angebotstools — steht in jedem Kundenlink. */
+const CS_ADRESSE = 'https://angebot.clean-service.ch';
+
 let AUFTRAEGE = [], ANGEBOTE = null, LISTE = [];
 let ANSICHT = 'eingang', FALL = null, ZULETZT = [];
 let KAL_MONAT = null;   // erster Tag des angezeigten Monats
@@ -2031,8 +2034,9 @@ function linkErzeugen(){
   GEN.code = Array.from({length:6}, () => zeichen[Math.floor(Math.random() * 32)]).join('');
   const packed = [GEN.anrede, GEN.vorname, GEN.nachname, GEN.adresse, GEN.plzort,
                   GEN.angebotsnr, GEN.code, GEN.zimmer, GEN.frequenz, GEN.sprache, GEN.email].join('|');
-  const basis = window.location.origin +
-    window.location.pathname.replace(/\/[^\/]*$/, '/') + 'index.html';
+  /* Der Kundenlink trägt immer die eigene Adresse, auch wenn die Verwaltung
+     gerade über die Vercel-Adresse geöffnet ist. */
+  const basis = CS_ADRESSE + '/index.html';
   GEN.link = basis + '?t=' + b64encode(packed).replace(/=+$/, '');
   GEN.hinweis = 'Link erzeugt. Jetzt versenden oder kopieren.';
   GEN.hinweisArt = 'pos';
