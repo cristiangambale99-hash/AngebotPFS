@@ -837,7 +837,7 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
   <aside class="sidebar" id="sb">
     <div class="brand">
       <div class="mark" role="img" aria-label="Clean Service Scaramuzzo AG"></div>
-      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 22</span></div>
+      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 23</span></div>
     </div>
 
     <nav class="nav">
@@ -893,6 +893,16 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
       <button class="btn" onclick="closeChecklistEditor()">Abbrechen</button>
       <button class="btn primary-action" id="cl-speichern" onclick="saveChecklist()">Speichern</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="stamm-panel">
+  <div class="modal" style="max-width:680px;" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div><h2>Angaben bearbeiten</h2><p class="cs-hint" style="margin:2px 0 0;" id="stamm-kunde"></p></div>
+      <button class="zu" aria-label="Schliessen" onclick="modalZu()">×</button>
+    </div>
+    <div class="modal-body" id="stamm-body"></div>
   </div>
 </div>
 
@@ -2251,7 +2261,10 @@ function kartenFall(e){
   ].filter(Boolean);
   const dl = l => '<dl class="dl">' + l.map(z => '<dt>' + z[0] + '</dt><dd>' + z[1] + '</dd>').join('') + '</dl>';
   return '<div class="card"><div class="card-head"><h2>Kontakt und Objekt</h2>' +
-      '<span class="cs-mute">' + esc(e.angebotsnr ? 'Angebot ' + e.angebotsnr : String(e.code || '')) + '</span></div>' +
+      '<div class="btn-row">' +
+        '<span class="cs-mute">' + esc(e.angebotsnr ? 'Angebot ' + e.angebotsnr : String(e.code || '')) + '</span>' +
+        '<button class="btn klein secondary" onclick="angabenBearbeiten(\'' + e.id + '\')">Angaben bearbeiten</button>' +
+      '</div></div>' +
     '<div class="card-body">' + dl(wichtig) +
       (weiter.length ? '<details class="mehr"><summary>Weitere Angaben</summary>' + dl(weiter) + '</details>' : '') +
     '</div></div>';
@@ -2595,6 +2608,103 @@ async function qualitaetSenden(id, probe, btn){
 
 /* Die Bitte um eine Google-Bewertung geht sonst automatisch nach einer guten
    Rückmeldung hinaus. Hier nur als Probe an das Postfach des Putzfrauenservice. */
+/* ---------- Stammdaten nachtragen ----------
+   Anfragen kommen oft ohne Telefonnummer oder vollständige Adresse herein.
+   Die Angaben lassen sich hier jederzeit ergänzen — beim Angebot wie beim
+   Auftrag, jeweils an der passenden Schnittstelle. */
+const STAMM_FELDER = [
+  ['anrede',    'Anrede',        'auswahl', ['Herr','Frau']],
+  ['vorname',   'Vorname',       'text'],
+  ['nachname',  'Nachname',      'text'],
+  ['adresse',   'Adresse',       'text'],
+  ['plzOrt',    'PLZ und Ort',   'text'],
+  ['mail',      'E-Mail',        'text'],
+  ['mobile',    'Telefon',       'text'],
+  ['zimmer',    'Zimmer',        'text'],
+  ['frequenz',  'Rhythmus',      'auswahl', [['woechentlich','woechentlich'],['14-taeglich','14-taeglich'],['monatlich','monatlich']]],
+  ['angebotsnr','Angebotsnummer','text'],
+  ['sprache',   'Sprache',       'auswahl', [['de','Deutsch'],['en','English']]]
+];
+
+function modal(titel, inhalt){
+  document.getElementById('stamm-kunde').textContent = titel;
+  document.getElementById('stamm-body').innerHTML = inhalt;
+  csModal('stamm-panel', true);
+}
+function modalZu(){ csModal('stamm-panel', false); }
+
+function angabenBearbeiten(id){
+  const e = LISTE.find(x => String(x.id) === String(id));
+  if(!e) return;
+  const wert = f => f === 'mail' ? (e.mail || e.email || '')
+              : f === 'plzOrt' ? (e.plzOrt || e.ort || '')
+              : (e[f] || '');
+  const feld = ([f, label, art, werte]) =>
+    '<div class="feld"><label for="sd-' + f + '">' + label + '</label>' +
+    (art === 'auswahl'
+      ? '<select id="sd-' + f + '">' + opt(werte, wert(f)) + '</select>'
+      : '<input id="sd-' + f + '" type="text" value="' + esc(wert(f)) + '">') +
+    '</div>';
+
+  modal('Angaben von ' + name(e),
+    '<p class="cs-hint" style="margin:0 0 14px;">Ergänzen oder korrigieren, was bei der Anfrage gefehlt hat. ' +
+      'Die Angaben gelten ab sofort für alle Nachrichten an diese Kundschaft.</p>' +
+    '<div class="feld-reihe">' + STAMM_FELDER.slice(0, 3).map(feld).join('') + '</div>' +
+    '<div class="feld-reihe">' + STAMM_FELDER.slice(3, 6).map(feld).join('') + '</div>' +
+    '<div class="feld-reihe">' + STAMM_FELDER.slice(6, 9).map(feld).join('') + '</div>' +
+    '<div class="feld-reihe">' + STAMM_FELDER.slice(9).map(feld).join('') + '</div>' +
+    '<div class="btn-row" style="margin-top:16px;">' +
+      '<button class="btn primary-action" onclick="angabenSpeichern(\'' + e.id + '\', this)">Speichern</button>' +
+      '<button class="btn" onclick="modalZu()">Abbrechen</button>' +
+    '</div>');
+}
+
+async function angabenSpeichern(id, btn){
+  const e = LISTE.find(x => String(x.id) === String(id));
+  if(!e) return;
+  const daten = {};
+  STAMM_FELDER.forEach(([f]) => {
+    const el = document.getElementById('sd-' + f);
+    if(el) daten[f] = (el.value || '').trim();
+  });
+  if(!daten.vorname && !daten.nachname){
+    meldung('Bitte mindestens einen Namen erfassen.', 'neg'); return;
+  }
+  const text = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Wird gespeichert …';
+  try{
+    const nurAngebot = e.quelle !== 'auftrag';
+    const r = nurAngebot
+      ? await fetch('/api/offers?aktion=status', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(Object.assign({code: e.code || e.id, bearbeiter: CS_WER}, daten))
+        })
+      : await fetch('/api/orders?aktion=update', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(Object.assign({id, bearbeiter: CS_WER}, daten))
+        });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(d.error || 'Server ' + r.status);
+
+    Object.assign(e, daten);
+    if(daten.mail) e.email = daten.mail;
+    if(daten.plzOrt) e.ort = daten.plzOrt;
+    const auf = AUFTRAEGE.find(x => String(x.id) === String(id));
+    if(auf) Object.assign(auf, daten);
+    const angListe = (ANGEBOTE && ANGEBOTE.angebote) || [];
+    const ang = angListe.find(x => String(x.code || x.id) === String(e.code || id));
+    if(ang) Object.assign(ang, daten);
+
+    modalZu();
+    zeichnen();
+    meldung('Angaben gespeichert.');
+    return;
+  }catch(err){
+    meldung('Nicht gespeichert: ' + err.message, 'neg');
+  }
+  btn.disabled = false; btn.textContent = text;
+}
+
 async function terminBestaetigen(id, btn){
   const e = LISTE.find(x => String(x.id) === String(id));
   if(!e) return;
