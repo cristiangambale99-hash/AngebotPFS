@@ -94,6 +94,20 @@ async function statusAendern(req, res) {
   if (typeof erinnerungAus === 'boolean') neu.erinnerungAus = erinnerungAus;
   if (typeof notiz === 'string') neu.notiz = notiz;
 
+  /* Stammdaten nachtragen: Anfragen kommen oft ohne Telefonnummer oder
+     vollständige Adresse herein, die Angaben folgen später telefonisch. */
+  ['anrede', 'vorname', 'nachname', 'adresse', 'plzOrt', 'ort', 'mail', 'email', 'mobile',
+   'zimmer', 'frequenz', 'sprache', 'angebotsnr'].forEach(f => {
+    if (typeof req.body[f] === 'string') neu[f] = req.body[f];
+  });
+
+  /* Stammdaten nachtragen: Telefon, Adresse und Ähnliches fehlen in Anfragen
+     häufig und werden vom Admin-Team später ergänzt. */
+  ['anrede', 'vorname', 'nachname', 'adresse', 'ort', 'plzOrt', 'email', 'mail', 'mobile',
+   'zimmer', 'frequenz', 'angebotsnr', 'sprache'].forEach(f => {
+    if (typeof (req.body || {})[f] === 'string') neu[f] = (req.body || {})[f];
+  });
+
   /* Notizen werden als Liste geführt, damit der Verlauf erhalten bleibt —
      gleich wie beim Auftrag. Ältere Einzelnotizen werden übernommen. */
   if (typeof notizNeu === 'string' && notizNeu.trim()) {
