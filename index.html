@@ -2947,7 +2947,8 @@ function nurMitLink(){
   const info = document.getElementById('gate-info');
   if(info) info.style.display = 'none';
 
-  const mitgegeben = (new URLSearchParams(location.search).get('code') || '').trim().toUpperCase();
+  const q = new URLSearchParams(location.search);
+  const mitgegeben = (q.get('c') || q.get('code') || '').trim().toUpperCase();
   setTimeout(() => {
     const i = document.getElementById('gate-code');
     if(!i) return;
@@ -2994,7 +2995,7 @@ async function codeNachschlagen(){
        dieser Sprache neu geladen — mit dem Code, damit niemand ihn erneut
        eintippen muss. */
     if(a.sprache && a.sprache !== CS_SPRACHE){
-      location.replace('index.html?spr=' + a.sprache + '&code=' + encodeURIComponent(code));
+      location.replace('/?spr=' + a.sprache + '&c=' + encodeURIComponent(code));
       return;
     }
     pending = {an:a.anrede, vn:a.vorname, nn:a.nachname, adr:a.adresse, ort:a.ort,

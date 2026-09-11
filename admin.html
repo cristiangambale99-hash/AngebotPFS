@@ -837,7 +837,7 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
   <aside class="sidebar" id="sb">
     <div class="brand">
       <div class="mark" role="img" aria-label="Clean Service Scaramuzzo AG"></div>
-      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 24</span></div>
+      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 25</span></div>
     </div>
 
     <nav class="nav">
@@ -2032,12 +2032,10 @@ function linkErzeugen(){
   }
   const zeichen = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   GEN.code = Array.from({length:6}, () => zeichen[Math.floor(Math.random() * 32)]).join('');
-  const packed = [GEN.anrede, GEN.vorname, GEN.nachname, GEN.adresse, GEN.plzort,
-                  GEN.angebotsnr, GEN.code, GEN.zimmer, GEN.frequenz, GEN.sprache, GEN.email].join('|');
-  /* Der Kundenlink trägt immer die eigene Adresse, auch wenn die Verwaltung
-     gerade über die Vercel-Adresse geöffnet ist. */
-  const basis = CS_ADRESSE + '/index.html';
-  GEN.link = basis + '?t=' + b64encode(packed).replace(/=+$/, '');
+  /* Kurzer Kundenlink: nur der Zugangscode steht in der Adresse, die Angaben
+     holt die Angebotsseite über /api/angebot. Der Link trägt immer die eigene
+     Adresse, auch wenn die Verwaltung über die Vercel-Adresse geöffnet ist. */
+  GEN.link = CS_ADRESSE + '/?c=' + GEN.code;
   GEN.hinweis = 'Link erzeugt. Jetzt versenden oder kopieren.';
   GEN.hinweisArt = 'pos';
   genZeichnen();
