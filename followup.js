@@ -224,6 +224,7 @@ export default async function handler(req, res) {
         else if (auf.vorlaufMail) grund = 'Vorlaufmail bereits gesendet';
         else if (auf.vorlaufAus) grund = 'Vorlaufmail unterdrückt';
         else if (auf.springerAntwort) grund = 'Kundschaft hat bereits geantwortet';
+        else if (auf.einfuehrungAm) grund = 'Einführungstermin bereits vorgeschlagen';
         else if (!mail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) grund = 'keine gültige Adresse';
         else if (!auftragSchluessel(auf)) grund = 'Auftrag ohne Nummer';
         else if (!ab) grund = 'kein Datum des Statuswechsels';
@@ -267,8 +268,42 @@ export default async function handler(req, res) {
       bericht.fehler.push({ code: 'Vorlaufdurchgang', meldung: (e && e.message) || String(e) });
     }
 
+    /* ====== Vierter Durchgang: Qualitätsnachfrage ohne Rückmeldung ======
+       Antwortet die Kundschaft sieben Tage nach der Nachfrage nicht, gilt
+       der Fall als erledigt und wandert mit dem Merkmal «kein Feedback
+       erhalten» ins Archiv. So bleibt die Liste der aktiven Aufträge sauber.
+       ================================================================== */
+    bericht.ohneAntwort = { geprueft: 0, archiviert: 0 };
+    try {
+      const auftraege = await alleLesen(AUFTRAG_SAMMLUNG, 500);
+      bericht.ohneAntwort.geprueft = auftraege.length;
+      const grenze = Date.now() - 7 * 86400000;
+
+      for (const auf of auftraege) {
+        if (String(auf.stufe || '') !== 'aktiv') continue;
+        if (!auf.qualitaetMail || auf.qualitaetAntwort) continue;
+        const gesendet = new Date(auf.qualitaetMail).getTime();
+        if (isNaN(gesendet) || gesendet > grenze) continue;
+        const id = auftragSchluessel(auf);
+        if (!id) continue;
+
+        if (nurPruefen) { bericht.ohneAntwort.archiviert++; continue; }
+        const neuA = { ...auf };
+        delete neuA._id;
+        neuA.stufe = 'archiv';
+        neuA.qualitaetKeineAntwort = true;
+        neuA.archiviertAm = new Date().toISOString();
+        await speichern(AUFTRAG_SAMMLUNG, id, neuA);
+        bericht.ohneAntwort.archiviert++;
+      }
+    } catch (e) {
+      bericht.ohneAntwort.fehler = String(e.message || e).slice(0, 300);
+    }
+
     /* ============ Dritter Durchgang: Qualitätsnachfrage ============
-       Beim Start mit fixer Raumpflegerin wird qualitaetAm berechnet.
+       Sie gilt der festen Raumpflegerin. Beim Start mit ihr wird qualitaetAm
+       aus der ersten Reinigung berechnet; laeuft der Einsatz dagegen noch mit
+       dem Springerteam, wird nicht gefragt, bis die feste Zuteilung steht.
        Ist der Tag erreicht, geht die Nachfrage einmalig hinaus. */
     bericht.qualitaet = { geprueft: 0, gesendet: 0, uebersprungen: 0 };
     try {
@@ -280,6 +315,10 @@ export default async function handler(req, res) {
         const mail = auf.mail || auf.email || '';
         let grund = null;
         if (!auf.qualitaetAm) grund = 'kein Termin für die Qualitätsnachfrage';
+        /* Solange das Springerteam den Einsatz führt, wird nicht nach der
+           Qualitaet gefragt. Die Nachfrage gilt der festen Raumpflegerin und
+           startet erst, wenn diese uebernommen hat (festStartAm). */
+        else if (auf.springerGestartet === true && !auf.festStartAm) grund = 'läuft noch mit dem Springerteam';
         else if (auf.qualitaetMail) grund = 'bereits gesendet';
         else if (auf.qualitaetAntwort) grund = 'Kundschaft hat bereits geantwortet';
         else if (String(auf.stufe || '') === 'abgesagt') grund = 'Auftrag abgesagt';
@@ -403,7 +442,7 @@ async function sendeErinnerung(apiKey, a, stufe) {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: 'Cristian Gambale · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
+      from: 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
       to: [a.email],
       bcc: ['putzfrauenservice@clean-service.ch'],
       reply_to: 'putzfrauenservice@clean-service.ch',
@@ -458,7 +497,7 @@ async function sendeQualitaetsmail(apiKey, auf, mail) {
             ['teilweise','Teilweise zufrieden'],['nicht','Nicht zufrieden']]
   };
 
-  const basis = 'https://angebot-pfs.vercel.app/api/qualitaet?id=' + encodeURIComponent(schluessel);
+  const basis = 'https://angebot.clean-service.ch/api/qualitaet?id=' + encodeURIComponent(schluessel);
   const knopf = (text, st, i) => {
     const link = basis + '&s=' + st + '&spr=' + spr + '&sig=' + signQualitaet(schluessel, st);
     const gefuellt = i === 0;
@@ -567,7 +606,7 @@ async function sendeVorlaufmail(apiKey, auf, mail) {
 
   const schluessel = auftragSchluessel(auf);
   if (!schluessel) throw new Error('Auftrag ohne Nummer — Antwortlinks nicht möglich.');
-  const basis = 'https://angebot-pfs.vercel.app/api/antwort?id=' + encodeURIComponent(schluessel);
+  const basis = 'https://angebot.clean-service.ch/api/antwort?id=' + encodeURIComponent(schluessel);
   const linkJa   = basis + '&a=ja&spr='   + spr + '&sig=' + signieren(schluessel, 'ja');
   const linkNein = basis + '&a=nein&spr=' + spr + '&sig=' + signieren(schluessel, 'nein');
 
@@ -781,7 +820,7 @@ const CS_ROLLE = { de:'Bereichsleiter Putzfrauenservice', en:'Head of Putzfrauen
 const CS_TEAM_NAME = 'Putzfrauenservice · Admin-Team';
 const CS_TEAM_ROLLE = { de:'Clean Service Scaramuzzo AG', en:'Clean Service Scaramuzzo AG' };
 const CS_TEAM_TEL = '0844 355 355';
-const CS_ABSENDER_TEAM = 'Putzfrauenservice Admin-Team · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>';
+const CS_ABSENDER_TEAM = 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>';
 const CS_CLAIM = { de:'Putzfrauenservice<br>seit 1984', en:'Putzfrauenservice<br>since 1984' };
 
 function csSignatur(spr, wer){

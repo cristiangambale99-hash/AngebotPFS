@@ -1,412 +1,286 @@
 import crypto from 'crypto';
-// api/einfuehrung.js
+// api/pendenzen.js
 //
-//   POST { id, raumpflegerin, datum, zeit, erstReinigung }   ← aus dem Admin
-//        speichert die Angaben und schickt den Terminvorschlag an die Kundschaft
-//   GET  ?id=..&sig=..&spr=de|en                              ← Link aus der Mail
-//        zeigt die Bestaetigungsseite
-//   POST { id, sig, bestaetigen:true }                        ← Klick der Kundschaft
-//        haelt die Bestaetigung fest und meldet sie dem Putzfrauenservice
+// Taeglicher Ueberblick an putzfrauenservice@clean-service.ch.
+// Wird vom Vercel-Cron aufgerufen (siehe vercel.json).
+//
+//   GET /api/pendenzen              → verschickt den Bericht
+//   GET /api/pendenzen?pruefen=1    → zeigt ihn nur als JSON, ohne Versand
 
+const AUFTRAEGE = 'auftraege';
+const ANGEBOTE = 'angebote';
 /* Die Verwaltung bleibt unter der Vercel-Adresse erreichbar; die eigene
    Domain ist allein für die Kundschaft. */
 const VERWALTUNG = 'https://angebot-pfs.vercel.app/admin.html';
-const SAMMLUNG = 'auftraege';
 const EMPFAENGER = 'putzfrauenservice@clean-service.ch';
 const BASIS = 'https://angebot.clean-service.ch';
-
-function sigEin(id) {
-  const g = process.env.EINFUEHRUNG_SECRET || process.env.ANTWORT_SECRET
-         || process.env.CRON_SECRET || 'cs-pfs';
-  return crypto.createHmac('sha256', g).update(String(id) + '.e').digest('hex').slice(0, 20);
-}
-function sigVertrag(id) {
-  const g = process.env.VERTRAG_SECRET || process.env.ANTWORT_SECRET
-         || process.env.CRON_SECRET || 'cs-pfs';
-  return crypto.createHmac('sha256', g).update(String(id) + '.v').digest('hex').slice(0, 20);
-}
-
-const WOCHENTAG = {
-  de: ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'],
-  en: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
-};
-function langDatum(iso, en) {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
-  const tag = WOCHENTAG[en ? 'en' : 'de'][d.getDay()];
-  return tag + ', ' + d.toLocaleDateString(en ? 'en-GB' : 'de-CH',
-    { day:'2-digit', month:'long', year:'numeric' });
-}
+const VORLAUF_WERKTAGE = 7;
 
 export default async function handler(req, res) {
-  const q = req.query || {};
-  const b = req.body || {};
-
-  /* ---- Bestaetigungsseite ---- */
-  if (req.method === 'GET') {
-    const id = String(q.id || ''), sig = String(q.sig || '');
-    const spr = q.spr === 'en' ? 'en' : 'de';
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    if (!id || sig !== sigEin(id)) return res.status(400).send(seite(spr, 'fehler'));
-    let auf = null;
-    try { const f = await auftragFinden(id); auf = f && f.daten; } catch (e) {}
-    return res.status(200).send(seite(spr, 'frage', id, sig, auf));
-  }
-
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'GET, POST');
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const id = String(b.id || '');
-  if (!id) return res.status(400).json({ error: 'Keine Auftragsnummer' });
-
-  const fund = await auftragFinden(id);
-  if (!fund) return res.status(404).json({ error: 'Auftrag ' + id + ' nicht gefunden' });
-  const auf = fund.daten;
-  const key = process.env.RESEND_API_KEY;
-
-  /* ---- Bestaetigung: durch die Kundschaft per Link oder von Hand aus der
-         Verwaltung, wenn die Zusage telefonisch eingegangen ist. In beiden
-         Faellen laeuft derselbe Ablauf, damit die Kundschaft in jedem Fall
-         die Terminbestaetigung mit dem Vertrag erhaelt. ---- */
-  if (b.bestaetigen) {
-    const vonHand = String(b.sig || '') !== sigEin(id);
-    if (vonHand && sitzungPruefen(req) === null) {
+  const geheim = process.env.CRON_SECRET;
+  if (geheim) {
+    const kopf = req.headers.authorization || '';
+    const q = String((req.query && req.query.schluessel) || '');
+    if (kopf !== 'Bearer ' + geheim && q !== geheim) {
       return res.status(401).json({ error: 'Nicht berechtigt' });
     }
-    const bericht = { ok:false, gespeichert:false, gemeldet:false };
-    try {
-      const neu = { ...auf };
-      delete neu._id;
-      neu.einfuehrungBestaetigt = new Date().toISOString();
-      if (vonHand) {
-        neu.einfuehrungBestaetigtVon = String(b.bearbeiter || '').slice(0, 60);
-        neu.einfuehrungBestaetigtArt = 'telefonisch';
-      }
-      /* Mit der Zusage steht der Termin: der Auftrag laeuft und wandert auf
-         «aktiv». Einfuehrung und erste Reinigung sind derselbe Tag. */
-      neu.stufe = 'aktiv';
-      if (auf.einfuehrungAm) neu.erstReinigung = auf.einfuehrungAm;
-      /* Uebernimmt hier eine feste Raumpflegerin, laeuft ab diesem Tag die
-         Frist bis zur Qualitaetsnachfrage. Fuehrt weiterhin das Springerteam,
-         wird nicht nach der Qualitaet gefragt. */
-      if (auf.springerGestartet === true) {
-        neu.qualitaetAm = '';
-      } else if (auf.einfuehrungAm) {
-        neu.festStartAm = auf.einfuehrungAm;
-      }
-      await speichern(SAMMLUNG, fund.schluessel, neu);
-      bericht.gespeichert = true;
-      if (key) {
-        try {
-          const name = [auf.anrede, auf.vorname, auf.nachname].filter(Boolean).join(' ');
-          await senden(key, {
-            to: [EMPFAENGER], reply_to: auf.mail || auf.email || EMPFAENGER,
-            subject: 'Einführungstermin bestätigt — ' + name,
-            html: csRahmen('Einführungstermin bestätigt', `
-              <p style="margin:0 0 16px;">Die Kundschaft hat den vorgeschlagenen Einführungstermin bestätigt. Der Auftrag steht damit auf «aktiv».</p>
-              ${csTabelle([
-                ['Kunde', name],
-                ['Objekt', [auf.adresse, auf.plzOrt || auf.ort].filter(Boolean).join(', ')],
-                ['Raumpflegerin', auf.raumpflegerin || ''],
-                ['Einführung und erste Reinigung', langDatum(auf.einfuehrungAm, false) +
-                  (auf.einfuehrungZeit ? ', ' + auf.einfuehrungZeit + ' Uhr' : '')]
-              ])}
-              ${csKnopf('Im CRM bearbeiten', VERWALTUNG)}`, '', 'de'),
-            text: 'Einführungstermin bestätigt — ' + name,
-            attachments: [{ filename:'logo.png', content: CS_LOGO, content_id:'cslogo', disposition:'inline' }]
-          });
-          bericht.gemeldet = true;
-        } catch (e) { bericht.meldefehler = String(e.message || e).slice(0, 300); }
-
-        /* Bestaetigung an die Kundschaft. Liegt der unterschriebene Vertrag
-           vor, haengt er dieser einen Mail bei; fehlt er, steht stattdessen
-           der Link zum Unterschreiben darin. */
-        try {
-          const kundenMail = auf.mail || auf.email || '';
-          if (kundenMail) {
-            const EN = String(auf.sprache || 'de').toLowerCase() === 'en';
-            const spr = EN ? 'en' : 'de';
-            const nn2 = auf.nachname || '';
-            const anrede2 = EN
-              ? (auf.anrede === 'Herr' ? 'Dear Mr ' + nn2 : auf.anrede === 'Frau' ? 'Dear Mrs ' + nn2
-                : 'Dear ' + [auf.vorname, nn2].filter(Boolean).join(' '))
-              : (auf.anrede === 'Herr' ? 'Sehr geehrter Herr ' + nn2 : auf.anrede === 'Frau' ? 'Sehr geehrte Frau ' + nn2
-                : 'Guten Tag ' + [auf.vorname, nn2].filter(Boolean).join(' '));
-            const wann2 = langDatum(auf.einfuehrungAm, EN) +
-                          (auf.einfuehrungZeit ? (EN ? ', at ' : ', um ') + auf.einfuehrungZeit + (EN ? '' : ' Uhr') : '');
-            const vertragLink = BASIS + '/vertrag.html?id=' + encodeURIComponent(fund.schluessel) +
-                                '&sig=' + sigVertrag(fund.schluessel) + '&spr=' + spr;
-
-            let vertragDoc = null;
-            try { vertragDoc = await lesen('vertraege', fund.schluessel); } catch (e) { vertragDoc = null; }
-            const pdf = vertragDoc && vertragDoc.pdf ? String(vertragDoc.pdf) : '';
-
-            const K = EN ? {
-              betreff: pdf ? 'Appointment confirmed — with your signed contract' : 'Appointment confirmed',
-              titel:'Your appointment is confirmed',
-              a1:'Thank you for confirming. We have noted the appointment for the introduction and the first clean.',
-              a2: pdf ? 'Your signed cleaning contract is attached to this e-mail for your records.'
-                      : 'Your cleaning contract is still open. Please sign it online before the introduction:',
-              knopf:'View and sign contract',
-              a3:'A supervisor will attend the introduction to present your cleaner in person and to go through everything with you. You will receive the checklist and the key receipt on site.',
-              a4:'If anything changes, reply to this e-mail or call 0844 355 355.'
-            } : {
-              betreff: pdf ? 'Termin bestätigt — mit Ihrem unterschriebenen Vertrag' : 'Ihr Einführungstermin ist bestätigt',
-              titel:'Ihr Termin ist bestätigt',
-              a1:'Vielen Dank für Ihre Bestätigung. Wir haben den Termin für die Einführung und die erste Reinigung notiert.',
-              a2: pdf ? 'Ihren unterschriebenen Reinigungsvertrag finden Sie zu Ihren Unterlagen im Anhang dieser E-Mail.'
-                      : 'Ihr Reinigungsvertrag ist noch offen. Bitte unterschreiben Sie ihn vor dem Einführungstermin online:',
-              knopf:'Vertrag ansehen und unterschreiben',
-              a3:'Beim Einführungstermin ist ein Vorarbeiter anwesend, stellt Ihnen Ihre Raumpflegerin persönlich vor und geht alle Abläufe mit Ihnen durch. Die Checkliste und die Schlüsselquittung erhalten Sie vor Ort.',
-              a4:'Sollte sich etwas ändern, antworten Sie auf diese E-Mail oder rufen Sie uns unter 0844 355 355 an.'
-            };
-
-            const knopf2 = (text, link) =>
-              `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;"><tr>` +
-              `<td style="border:1px solid #D5E2E1;background:#FBFDFD;"><a href="${link}" style="display:inline-block;padding:12px 27px;` +
-              `font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:bold;color:${CS_DUNKEL};text-decoration:none;">${text}</a></td></tr></table>`;
-
-            const inhalt2 = `
-              <p style="margin:0 0 16px;">${anrede2}</p>
-              <p style="margin:0 0 16px;">${K.a1}</p>
-              ${csTabelle([
-                [EN ? 'Cleaner' : 'Raumpflegerin', auf.raumpflegerin || ''],
-                [EN ? 'Introduction and first clean' : 'Einführung und erste Reinigung', wann2],
-                [EN ? 'Property' : 'Objekt', [auf.adresse, auf.plzOrt || auf.ort].filter(Boolean).join(', ')]
-              ])}
-              <p style="margin:0 0 14px;">${K.a2}</p>
-              ${pdf ? '' : knopf2(K.knopf, vertragLink)}
-              <p style="margin:0 0 16px;">${K.a3}</p>
-              <p style="margin:0;">${K.a4}</p>`;
-
-            const anhaenge = [{ filename:'logo.png', content: CS_LOGO, content_id:'cslogo', disposition:'inline' }];
-            if (pdf) {
-              anhaenge.unshift({
-                filename: 'Reinigungsvertrag_' + (auf.angebotsnr || fund.schluessel) + '_unterschrieben.pdf',
-                content: pdf
-              });
-            }
-
-            await senden(key, {
-              to: [kundenMail], reply_to: EMPFAENGER,
-              subject: K.betreff,
-              html: csRahmen(K.titel, inhalt2, '', spr),
-              text: anrede2 + '\n\n' + K.a1 + '\n\n' + K.a2 + (pdf ? '' : '\n' + vertragLink) +
-                    '\n\n' + K.a3 + '\n\n' + K.a4 + csSignaturText(spr),
-              attachments: anhaenge
-            });
-            bericht.kundenmail = true;
-          }
-        } catch (e) { bericht.kundenmailfehler = String(e.message || e).slice(0, 300); }
-      }
-      bericht.ok = true;
-      return res.status(200).json(bericht);
-    } catch (err) {
-      return res.status(500).json({ ...bericht, error: err.message });
-    }
   }
-
-  /* ---- Terminvorschlag aus dem Admin ---- */
-  const pflegerin = String(b.raumpflegerin || '').trim();
-  const datum = String(b.datum || '').trim();
-  const zeit = String(b.zeit || '').trim();
-  // Einführung und erste Reinigung finden immer am selben Tag statt
-  const erst = String(b.datum || '').trim();
-  if (!pflegerin || !datum || !zeit) {
-    return res.status(400).json({ error: 'Raumpflegerin, Datum und Uhrzeit sind nötig.' });
-  }
-  const mail = auf.mail || auf.email || '';
-  if (!mail) return res.status(400).json({ error: 'Keine E-Mail-Adresse hinterlegt.' });
-  if (!key) return res.status(500).json({ error: 'RESEND_API_KEY fehlt.' });
 
   try {
-    const neu = { ...auf };
-    delete neu._id;
-    neu.raumpflegerin = pflegerin;
-    neu.einfuehrungAm = datum;
-    neu.einfuehrungZeit = zeit;
-    if (erst) neu.erstReinigung = erst;
-    neu.einfuehrungVorschlagAm = new Date().toISOString();
-    // Termin der Qualitätsnachfrage aus dem Rhythmus ableiten
-    const qd = new Date(datum);
-    if (!isNaN(qd.getTime())) {
-      if (String(auf.frequenz || '') === 'monatlich') qd.setMonth(qd.getMonth() + 2);
-      else if (String(auf.frequenz || '') === '14-taeglich') qd.setDate(qd.getDate() + 28);
-      else qd.setDate(qd.getDate() + 14);
-      neu.qualitaetAm = qd.toISOString().slice(0, 10);
-      neu.qualitaetMail = '';
+    const auftraege = await alleLesen(AUFTRAEGE, 500);
+    const angebote = await alleLesen(ANGEBOTE, 500).catch(() => []);
+    const g = gruppieren(auftraege, angebote);
+
+    if (req.query && req.query.pruefen === '1') {
+      return res.status(200).json({
+        neueErteilungen: g.neueErteilungen.length,
+        einfuehrungen: g.einfuehrungen.length,
+        davonUnbestaetigt: g.einfuehrungen.filter(e => !e.bestaetigt).length,
+        zusageOffen: g.zusageOffen.length,
+        ohneZuteilung: g.ohneZuteilung.length,
+        aktivieren: g.aktivieren.length,
+        reklamationen: g.reklamationen.length,
+        angeboteOffen: g.angeboteOffen
+      });
     }
-    neu.einfuehrungBestaetigt = '';
-    await speichern(SAMMLUNG, fund.schluessel, neu);
 
-    const EN = String(auf.sprache || 'de').toLowerCase() === 'en';
-    const nn = auf.nachname || '';
-    const anrede = EN
-      ? (auf.anrede === 'Herr' ? 'Dear Mr ' + nn : auf.anrede === 'Frau' ? 'Dear Mrs ' + nn
-        : 'Dear ' + [auf.vorname, nn].filter(Boolean).join(' '))
-      : (auf.anrede === 'Herr' ? 'Sehr geehrter Herr ' + nn : auf.anrede === 'Frau' ? 'Sehr geehrte Frau ' + nn
-        : 'Guten Tag ' + [auf.vorname, nn].filter(Boolean).join(' '));
-
-    const wann = langDatum(datum, EN) + (EN ? ', at ' : ', um ') + zeit + (EN ? '' : ' Uhr');
-    const linkJa = BASIS + '/api/einfuehrung?id=' + encodeURIComponent(fund.schluessel) +
-                   '&sig=' + sigEin(fund.schluessel) + '&spr=' + (EN ? 'en' : 'de');
-    const linkVertrag = BASIS + '/vertrag.html?id=' + encodeURIComponent(fund.schluessel) +
-                        '&sig=' + sigVertrag(fund.schluessel) + '&spr=' + (EN ? 'en' : 'de');
-
-    const L = EN ? {
-      betreff:'Your cleaner has been assigned — proposal for the introduction',
-      titel:'Your cleaner has been assigned',
-      a1:'We are pleased to tell you that we have found the right cleaner for you. From now on, ' + pflegerin + ' will look after your home.',
-      a2:'The introduction and the first clean take place together on ' + wann + '. A supervisor will attend to present ' + pflegerin + ' in person and to go through all the details with you. You are warmly invited to be present as well.',
-      a3:'You will find your cleaning contract here. Please return it signed before the introduction — you can sign it directly online. The checklist is handed over at the introduction, together with the key receipt.',
-      knopfVertrag:'View and sign contract',
-      a4:'We would be grateful for a short confirmation of the appointment:',
-      knopfJa:'Confirm appointment',
-      a5:'If the date does not suit you, simply reply to this e-mail or call us on 0844 355 355 — we will gladly find another time.',
-      a6:'As a small thank-you, you receive a credit of CHF 50.00 for every successful recommendation of our services.',
-      a7:'We look forward to working with you and thank you for your trust.'
-    } : {
-      betreff:'Ihre Raumpflegerin steht fest — Vorschlag für die Einführung',
-      titel:'Ihre Raumpflegerin steht fest',
-      a1:'Es freut uns, Ihnen mitteilen zu können, dass wir eine passende Raumpflegerin für Sie gefunden haben. Künftig wird ' + pflegerin + ' die Reinigung bei Ihnen übernehmen.',
-      a2:'Die Einführung und die erste Reinigung finden gemeinsam am ' + wann + ' statt. Beim Einführungstermin ist ein Vorarbeiter anwesend, um ' + pflegerin + ' persönlich vorzustellen und alle Abläufe und Details mit Ihnen zu besprechen. Gerne laden wir Sie ein, bei diesem Termin ebenfalls dabei zu sein.',
-      a3:'Ihren Reinigungsvertrag finden Sie hier. Bitte senden Sie ihn vor dem Einführungstermin unterschrieben zurück — das geht direkt online. Die Checkliste sowie die Schlüsselquittung erhalten Sie beim Einführungstermin.',
-      knopfVertrag:'Vertrag ansehen und unterschreiben',
-      a4:'Über eine kurze Bestätigung des Termins würden wir uns freuen:',
-      knopfJa:'Termin bestätigen',
-      a5:'Sollte der Termin nicht passen, antworten Sie einfach auf diese E-Mail oder rufen Sie uns unter 0844 355 355 an — wir finden gerne einen anderen Zeitpunkt.',
-      a6:'Als kleines Dankeschön erhalten Sie für jede erfolgreiche Weiterempfehlung unserer Dienstleistungen eine Gutschrift von CHF 50.00.',
-      a7:'Wir freuen uns auf die Zusammenarbeit und danken Ihnen herzlich für Ihr Vertrauen.'
-    };
-
-    const knopf = (text, link, voll) => voll
-      ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;"><tr><td style="background:${CS_FARBE};"><a href="${link}" style="display:inline-block;padding:13px 28px;font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:bold;color:#FFFFFF;text-decoration:none;">${text}</a></td></tr></table>`
-      : `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;"><tr><td style="border:1px solid #D5E2E1;background:#FBFDFD;"><a href="${link}" style="display:inline-block;padding:12px 27px;font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:bold;color:${CS_DUNKEL};text-decoration:none;">${text}</a></td></tr></table>`;
-
-    const inhalt = `
-      <p style="margin:0 0 16px;">${anrede}</p>
-      <p style="margin:0 0 16px;">${L.a1}</p>
-      <p style="margin:0 0 16px;">${L.a2}</p>
-      ${csTabelle([
-        [EN ? 'Cleaner' : 'Raumpflegerin', pflegerin],
-        [EN ? 'Introduction and first clean' : 'Einführung und erste Reinigung', wann],
-        [EN ? 'Property' : 'Objekt', [auf.adresse, auf.plzOrt || auf.ort].filter(Boolean).join(', ')]
-      ])}
-      <p style="margin:0 0 14px;">${L.a4}</p>
-      ${knopf(L.knopfJa, linkJa, true)}
-      <p style="margin:0 0 14px;">${L.a3}</p>
-      ${knopf(L.knopfVertrag, linkVertrag, false)}
-      <p style="margin:0 0 16px;">${L.a5}</p>
-      <p style="margin:0 0 16px;">${L.a6}</p>
-      <p style="margin:0;">${L.a7}</p>`;
-
-    await senden(key, {
-      // Bewusst ohne Kopie: der Putzfrauenservice erhält erst die Bestätigung
-      to: [mail], reply_to: EMPFAENGER,
-      subject: L.betreff,
-      html: csRahmen(L.titel, inhalt, '', EN ? 'en' : 'de'),
-      text: anrede + '\n\n' + L.a1 + '\n\n' + L.a2 + '\n\n' + L.a4 + '\n' + linkJa +
-            '\n\n' + L.a3 + '\n' + linkVertrag + '\n\n' + L.a5 + '\n\n' + L.a6 + '\n\n' + L.a7 +
-            csSignaturText(EN ? 'en' : 'de'),
-      attachments: [{ filename:'logo.png', content: CS_LOGO, content_id:'cslogo', disposition:'inline' }]
-    });
-
-    return res.status(200).json({ ok:true, empfaenger: mail, einfuehrung: wann });
-  } catch (err) {
-    console.error('einfuehrung.js: Fehler', err);
-    return res.status(500).json({ error: err.message });
+    const key = process.env.RESEND_API_KEY;
+    if (!key) return res.status(500).json({ error: 'RESEND_API_KEY fehlt.' });
+    const d = await senden(key, g);
+    return res.status(200).json({ ok: true, id: d && d.id, zahlen: {
+      neueErteilungen: g.neueErteilungen.length,
+      einfuehrungen: g.einfuehrungen.length,
+      zusageOffen: g.zusageOffen.length,
+      ohneZuteilung: g.ohneZuteilung.length,
+      aktivieren: g.aktivieren.length,
+      reklamationen: g.reklamationen.length } });
+  } catch (e) {
+    console.error('pendenzen.js', e);
+    return res.status(500).json({ error: e.message });
   }
 }
 
-async function senden(key, daten) {
+function werktageSeit(iso) {
+  const s = new Date(iso);
+  if (isNaN(s.getTime())) return 0;
+  const lauf = new Date(s.getFullYear(), s.getMonth(), s.getDate());
+  const h = new Date(); const ende = new Date(h.getFullYear(), h.getMonth(), h.getDate());
+  let t = 0;
+  while (lauf < ende) { lauf.setDate(lauf.getDate() + 1);
+    const w = lauf.getDay(); if (w !== 0 && w !== 6) t++; }
+  return t;
+}
+function tageSeit(iso) {
+  const s = new Date(iso);
+  if (isNaN(s.getTime())) return 0;
+  return Math.floor((Date.now() - s.getTime()) / 86400000);
+}
+const kname = a => [a.vorname, a.nachname].filter(Boolean).join(' ') || 'Unbekannt';
+const kort  = a => a.plzOrt || a.ort || '';
+
+/* Worauf warten wir bei diesem Auftrag? */
+function wartet(a) {
+  if (a.einfuehrungAm && !a.einfuehrungBestaetigt)
+    return { grund: 'Bestätigung des Einführungstermins', seit: a.einfuehrungVorschlagAm };
+  if (a.qualitaetMail && !a.qualitaetAntwort)
+    return { grund: 'Antwort auf die Qualitätsnachfrage', seit: a.qualitaetMail };
+  if (a.vorlaufMail && !a.springerAntwort)
+    return { grund: 'Antwort auf die Springerteam-Nachfrage', seit: a.vorlaufMail };
+  return null;
+}
+
+/* Punkte der Admin-Checkliste, die vor der Einführung erledigt sein müssen.
+   Muss mit der Liste CHECK_VOR im Admin-Bereich übereinstimmen. */
+const CHECK_VOR_KEYS = ['objekt','infos','planung','ablage','chat','dispo','schluessel'];
+
+function gruppieren(auftraege, angebote) {
+  const g = {
+    neueErteilungen: [],   // seit gestern eingegangen oder noch unbearbeitet
+    einfuehrungen: [],     // heute, morgen, übermorgen
+    zusageOffen: [],       // Terminvorschlag ohne Antwort
+    ohneZuteilung: [],     // wartet zu lange auf eine feste Raumpflegerin
+    aktivieren: [],        // Springerteam-Start wartet auf Aktivierung
+    reklamationen: [],     // negative Rückmeldung
+    angeboteOffen: 0
+  };
+
+  const heute = new Date(); heute.setHours(0, 0, 0, 0);
+  const tagStr = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const heuteStr = tagStr(heute);
+  const fenster = [0, 1, 2].map(n => tagStr(new Date(heute.getTime() + n * 86400000)));
+
+  const checkOffen = a => {
+    const stand = a.adminCheck || {};
+    return CHECK_VOR_KEYS.filter(k => !(stand[k] && stand[k].am)).length;
+  };
+  const beruehrt = a => !!(a.zuletztVon || a.vorlaufMail || a.einfuehrungAm ||
+    (Array.isArray(a.notizen) && a.notizen.length));
+
+  for (const a of auftraege) {
+    const st = String(a.stufe || '');
+    if (st === 'abgesagt') continue;
+
+    /* --- Einführungen der nächsten drei Tage, unabhängig von der Stufe --- */
+    const tag = a.einfuehrungAm ? String(a.einfuehrungAm).slice(0, 10) : '';
+    if (tag && fenster.indexOf(tag) !== -1) {
+      g.einfuehrungen.push({
+        a, tag,
+        wann: tag === fenster[0] ? 'heute' : tag === fenster[1] ? 'morgen' : 'übermorgen',
+        zeit: a.einfuehrungZeit || '',
+        bestaetigt: !!a.einfuehrungBestaetigt,
+        offen: checkOffen(a)
+      });
+    }
+
+    if (st === 'archiv') continue;
+
+    /* --- Reklamationen --- */
+    if (['teilweise', 'nicht'].indexOf(String(a.qualitaetAntwort || '')) !== -1) {
+      g.reklamationen.push({ a, antwort: a.qualitaetAntwort, text: a.qualitaetText || '' });
+      continue;
+    }
+
+    /* --- Neue Auftragserteilungen --- */
+    const seitEingang = a.eingegangenAm ? tageSeit(a.eingegangenAm) : null;
+    if (st !== 'aktiv' && (seitEingang !== null && seitEingang <= 1 || !beruehrt(a))) {
+      const springer = String(a.springerSofort || '').toLowerCase() === 'ja';
+      g.neueErteilungen.push({
+        a,
+        weg: springer ? 'Start mit Springerteam' : 'Wartet auf feste Raumpflegerin',
+        start: springer && a.startDatum ? String(a.startDatum).slice(0, 10) : '',
+        tage: seitEingang || 0
+      });
+      continue;
+    }
+
+    /* --- Terminvorschlag ohne Zusage --- */
+    if (a.einfuehrungAm && !a.einfuehrungBestaetigt) {
+      const seit = a.einfuehrungVorschlagAm ? tageSeit(a.einfuehrungVorschlagAm) : 0;
+      if (seit > 7) g.zusageOffen.push({ a, tage: seit, tag });
+      continue;
+    }
+
+    /* --- Springerteam-Start wartet auf Aktivierung --- */
+    if (st === 'springer_gewuenscht' || (String(a.springerSofort || '').toLowerCase() === 'ja' && st !== 'aktiv')) {
+      g.aktivieren.push({ a, start: a.startDatum ? String(a.startDatum).slice(0, 10) : '' });
+      continue;
+    }
+
+    /* --- Ohne feste Zuteilung, länger als zwei Wochen --- */
+    if (st === 'bearbeitung') {
+      const seit = tageSeit(a.bearbeitungAb || a.eingegangenAm) || 0;
+      if (seit > 14) g.ohneZuteilung.push({ a, tage: seit });
+    }
+  }
+
+  g.einfuehrungen.sort((x, y) => x.tag.localeCompare(y.tag) || String(x.zeit).localeCompare(String(y.zeit)));
+  g.neueErteilungen.sort((x, y) => (y.tage || 0) - (x.tage || 0));
+  g.zusageOffen.sort((x, y) => (y.tage || 0) - (x.tage || 0));
+  g.ohneZuteilung.sort((x, y) => (y.tage || 0) - (x.tage || 0));
+
+  g.angeboteOffen = angebote.filter(x => String(x.status || '') !== 'abgesagt' && !x.auftrag).length;
+  return g;
+}
+
+async function senden(key, g) {
+  const heute = new Date().toLocaleDateString('de-CH', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
+  const F = { rot:'#B4232C', gelb:'#B4892C', teal:'#1C7878', grau:'#767676', ink:'#0E1E1D', text:'#485655' };
+  const datum = t => new Date(t).toLocaleDateString('de-CH', { weekday:'short', day:'2-digit', month:'2-digit' });
+
+  const kachel = (zahl, text, farbe) =>
+    `<td width="25%" style="padding:0 4px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+      style="border:1px solid #E1EAE9;border-top:3px solid ${farbe};background:#FBFDFD;"><tr><td align="center" style="padding:13px 5px;">
+      <div style="font-family:Verdana,Geneva,sans-serif;font-size:25px;font-weight:bold;color:${farbe};line-height:1;">${zahl}</div>
+      <div style="font-family:Verdana,Geneva,sans-serif;font-size:10.5px;color:${F.grau};margin-top:6px;">${text}</div>
+    </td></tr></table></td>`;
+
+  const block = (titel, farbe, hinweis, zeilen) => {
+    if (!zeilen.length) return '';
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+        style="margin:0 0 16px;border:1px solid #E1EAE9;border-left:4px solid ${farbe};background:#FFFFFF;">
+      <tr><td style="padding:13px 16px;font-family:Verdana,Geneva,sans-serif;">
+        <div style="font-size:11.5px;font-weight:bold;color:${farbe};letter-spacing:.06em;">${titel.toUpperCase()} · ${zeilen.length}</div>
+        ${hinweis ? `<div style="font-size:11.5px;color:${F.grau};margin-top:4px;">${hinweis}</div>` : ''}
+        ${zeilen.map(z => `<div style="font-size:12.5px;color:${F.text};margin-top:10px;">${z}</div>`).join('')}
+      </td></tr></table>`;
+  };
+
+  const person = a => `<strong style="color:${F.ink};">${kname(a)}</strong>, ${kort(a)}`;
+
+  /* 1 Einführungen der nächsten Tage */
+  const eZeilen = g.einfuehrungen.map(e =>
+    `${datum(e.tag)}${e.zeit ? ', ' + e.zeit + ' Uhr' : ''} · ${person(e.a)}` +
+    `${e.a.raumpflegerin ? ' · ' + e.a.raumpflegerin : ''}<br>` +
+    `<span style="color:${e.bestaetigt ? F.teal : F.gelb};">${e.bestaetigt ? 'Bestätigt' : 'Zusage steht aus'}</span>` +
+    `${e.offen ? ` · <span style="color:${F.rot};">${e.offen} Punkt${e.offen === 1 ? '' : 'e'} der Checkliste offen</span>`
+               : ' · Checkliste vollständig'}`);
+
+  /* 2 Neue Auftragserteilungen */
+  const nZeilen = g.neueErteilungen.map(n =>
+    `${person(n.a)}<br><span style="color:${F.teal};">${n.weg}</span>` +
+    `${n.start ? ' · Start ' + datum(n.start) : ''}` +
+    `${n.tage ? ` · eingegangen vor ${n.tage} Tag${n.tage === 1 ? '' : 'en'}` : ' · heute eingegangen'}`);
+
+  const aZeilen = g.aktivieren.map(x =>
+    `${person(x.a)}${x.start ? '<br>Start ' + datum(x.start) : ''} · <span style="color:${F.teal};">disponieren und aktivieren</span>`);
+  const zZeilen = g.zusageOffen.map(x =>
+    `${person(x.a)}<br>Termin ${datum(x.tag)} · <span style="color:${F.rot};">seit ${x.tage} Tagen ohne Zusage — nachfassen</span>`);
+  const oZeilen = g.ohneZuteilung.map(x =>
+    `${person(x.a)}<br><span style="color:${F.rot};">seit ${x.tage} Tagen ohne feste Raumpflegerin</span>`);
+  const rZeilen = g.reklamationen.map(x =>
+    `${person(x.a)}<br><span style="color:${F.rot};">${x.antwort === 'nicht' ? 'nicht zufrieden' : 'teilweise zufrieden'}</span>` +
+    `${x.text ? ' — «' + String(x.text).slice(0, 120) + '»' : ''}`);
+
+  const nichts = !g.einfuehrungen.length && !g.neueErteilungen.length && !g.aktivieren.length &&
+                 !g.zusageOffen.length && !g.ohneZuteilung.length && !g.reklamationen.length;
+
+  const inhalt = `
+    <p style="margin:0 0 16px;">Stand ${heute}.${nichts ? ' Zurzeit ist nichts offen.' : ''}</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px;"><tr>
+      ${kachel(g.neueErteilungen.length, 'Neue Auftragserteilungen', F.teal)}
+      ${kachel(g.einfuehrungen.length, 'Einführungen in 2 Tagen', F.gelb)}
+      ${kachel(g.zusageOffen.length + g.ohneZuteilung.length, 'Nachfassen', F.rot)}
+      ${kachel(g.reklamationen.length, 'Reklamationen', F.rot)}
+    </tr></table>
+    ${block('Neue Auftragserteilungen', F.teal, 'noch nicht bearbeitet oder gestern eingegangen', nZeilen)}
+    ${block('Einführungen heute bis übermorgen', F.gelb, 'Checkliste muss am Vortag vollständig sein', eZeilen)}
+    ${block('Reklamationen', F.rot, 'zuerst anrufen, danach zweite Nachfrage senden', rZeilen)}
+    ${block('Zusage steht aus', F.rot, 'Terminvorschlag ist seit über einer Woche unbeantwortet', zZeilen)}
+    ${block('Ohne feste Raumpflegerin', F.rot, 'wartet seit mehr als zwei Wochen', oZeilen)}
+    ${block('Springerteam-Start aktivieren', F.teal, 'sobald disponiert ist', aZeilen)}
+    ${csKnopf('Im CRM öffnen', VERWALTUNG)}
+    <p style="margin:14px 0 0;font-size:12px;color:${F.grau};">Offene Angebote in der Nachfassstrecke: ${g.angeboteOffen}.</p>`;
+
+  const zeile = t => '  ' + t.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ');
+  const text = 'Pendenzen ' + heute + '\n\n' +
+    'Neue Auftragserteilungen: ' + g.neueErteilungen.length + '\n' + nZeilen.map(zeile).join('\n') +
+    '\n\nEinführungen heute bis übermorgen: ' + g.einfuehrungen.length + '\n' + eZeilen.map(zeile).join('\n') +
+    '\n\nReklamationen: ' + g.reklamationen.length +
+    '\nZusage steht aus: ' + g.zusageOffen.length +
+    '\nOhne feste Raumpflegerin: ' + g.ohneZuteilung.length +
+    '\nSpringerteam-Start aktivieren: ' + g.aktivieren.length +
+    '\n\n' + VERWALTUNG;
+
+  const betreff = 'Pendenzen ' + new Date().toLocaleDateString('de-CH') +
+    (g.neueErteilungen.length ? ' · ' + g.neueErteilungen.length + ' neu' : '') +
+    (g.einfuehrungen.length ? ' · ' + g.einfuehrungen.length + ' Einführung' + (g.einfuehrungen.length === 1 ? '' : 'en') : '') +
+    (g.reklamationen.length ? ' · ' + g.reklamationen.length + ' Reklamation' + (g.reklamationen.length === 1 ? '' : 'en') : '');
+
   const r = await fetch('https://api.resend.com/emails', {
-    method:'POST', headers:{ Authorization:'Bearer ' + key, 'Content-Type':'application/json' },
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: CS_ABSENDER_TEAM,
-      ...daten })
+      from: 'Angebotssystem PFS <putzfrauenservice@clean-service.ch>',
+      to: [EMPFAENGER],
+      subject: betreff,
+      html: csRahmen('Pendenzen im Putzfrauenservice', inhalt, '', 'de'),
+      text,
+      attachments: [{ filename:'logo.png', content: CS_LOGO, content_id:'cslogo', disposition:'inline' }]
+    })
   });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error('Resend: ' + JSON.stringify(d));
   return d;
-}
-
-async function auftragFinden(id) {
-  try { const d = await lesen(SAMMLUNG, id); if (d) return { daten:d, schluessel:id }; }
-  catch (e) { /* weiter */ }
-  const alle = await alleLesen(SAMMLUNG, 500);
-  const t = alle.find(x => String(x.id || '') === String(id) || String(x._id || '') === String(id));
-  return t ? { daten:t, schluessel:String(t._id || t.id || id) } : null;
-}
-
-function seite(spr, art, id, sig, auf) {
-  const EN = spr === 'en';
-  const wann = auf && auf.einfuehrungAm
-    ? langDatum(auf.einfuehrungAm, EN) + (auf.einfuehrungZeit ? (EN ? ', at ' : ', um ') + auf.einfuehrungZeit + (EN ? '' : ' Uhr') : '')
-    : '';
-  const T = EN ? {
-    titel:'Confirm your introduction appointment',
-    frage:(wann ? 'Planned for ' + wann + '. ' : '') + 'Please confirm that this suits you.',
-    knopf:'Confirm', dankeT:'Thank you',
-    danke:'Your confirmation has reached us. We look forward to meeting you.',
-    fehlerT:'This link is no longer valid',
-    fehler:'Please contact us: T 0844 355 355.',
-    warten:'Saving …', pech:'Something went wrong. Please contact us at T 0844 355 355.'
-  } : {
-    titel:'Einführungstermin bestätigen',
-    frage:(wann ? 'Geplant ist ' + wann + '. ' : '') + 'Bitte bestätigen Sie, dass Ihnen der Termin passt.',
-    knopf:'Termin bestätigen', dankeT:'Vielen Dank',
-    danke:'Ihre Bestätigung ist bei uns eingegangen. Wir freuen uns auf Sie.',
-    fehlerT:'Dieser Link ist nicht mehr gültig',
-    fehler:'Bitte melden Sie sich bei uns: T 0844 355 355.',
-    warten:'Wird gespeichert …', pech:'Da ist etwas schiefgelaufen. Bitte melden Sie sich unter T 0844 355 355.'
-  };
-  const kopf = `<!DOCTYPE html><html lang="${EN?'en':'de'}"><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${T.titel} – Clean Service Scaramuzzo AG</title>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Mulish:wght@400;600&display=swap" rel="stylesheet">
-<style>
-:root{--teal:#2BB6B7;--teal-deep:#1C7878;--tint:#EAF6F6;--bg:#FCFDFD;--ink:#0E1E1D;
- --body-c:#485655;--mute:#7C8C8B;--head:'Poppins',sans-serif;--body:'Mulish',sans-serif;}
-*{box-sizing:border-box;} body{margin:0;background:var(--bg);color:var(--body-c);
- font-family:var(--body);font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased;}
-.shell{max-width:560px;margin:0 auto;padding:60px 24px 90px;text-align:center;}
-h1{font-family:var(--head);font-weight:700;color:var(--ink);font-size:25px;line-height:1.3;margin:0 0 14px;}
-p{margin:0 0 22px;}
-button{font-family:var(--head);font-weight:600;font-size:15px;color:#fff;background:var(--teal);
- border:none;border-radius:100px;padding:14px 34px;cursor:pointer;}
-button:hover{background:var(--teal-deep);} button[disabled]{background:var(--mute);cursor:default;}
-.haken{width:58px;height:58px;margin:0 auto 20px;border-radius:50%;background:var(--tint);
- display:flex;align-items:center;justify-content:center;color:var(--teal-deep);font-size:26px;}
-.fuss{margin-top:34px;font-size:12px;color:var(--mute);}
-</style></head><body><div class="shell">`;
-  const fuss = `<div class="fuss">Clean Service Scaramuzzo AG · Industriestrasse 5 · 8307 Effretikon<br>T 0844 355 355</div></div></body></html>`;
-  if (art === 'fehler') return kopf + `<h1>${T.fehlerT}</h1><p>${T.fehler}</p>` + fuss;
-  return kopf + `
-<h1>${T.titel}</h1>
-<p id="frage">${T.frage}</p>
-<button id="btn" onclick="senden()">${T.knopf}</button>
-<script>
-async function senden(){
-  var b=document.getElementById('btn');
-  b.disabled=true; b.textContent=${JSON.stringify(T.warten)};
-  try{
-    var r=await fetch('/api/einfuehrung',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({id:${JSON.stringify(id)},sig:${JSON.stringify(sig)},bestaetigen:true})});
-    var d=await r.json().catch(function(){return {};});
-    if(!r.ok) throw new Error('Server '+r.status+' '+(d.error||''));
-    document.querySelector('h1').textContent=${JSON.stringify(T.dankeT)};
-    document.getElementById('frage').textContent=${JSON.stringify(T.danke)};
-    b.remove();
-    var h=document.createElement('div'); h.className='haken'; h.textContent='\\u2713';
-    document.querySelector('h1').before(h);
-  }catch(e){
-    document.getElementById('frage').textContent=${JSON.stringify(T.pech)};
-    b.remove();
-  }
-}
-</script>` + fuss;
 }
 
 
@@ -600,13 +474,6 @@ const CS_LOGO = 'iVBORw0KGgoAAAANSUhEUgAAAbgAAACVCAIAAACl7Xi4AABsOElEQVR42u29d5w
 const CS_FARBE = '#2BB6B7', CS_DUNKEL = '#12797A', CS_TEXT = '#333333', CS_GRAU = '#767676';
 
 const CS_ROLLE = { de:'Bereichsleiter Putzfrauenservice', en:'Head of Putzfrauenservice' };
-/* Ab der Auftragserteilung zeichnet das Admin-Team des Putzfrauenservice,
-   davor Cristian Gambale. */
-const CS_TEAM_NAME = 'Putzfrauenservice · Admin-Team';
-const CS_TEAM_ROLLE = 'Clean Service Scaramuzzo AG';
-const CS_TEAM_TEL = '0844 355 355';
-const CS_ABSENDER_TEAM = 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>';
-
 const CS_CLAIM = { de:'Putzfrauenservice<br>seit 1984', en:'Putzfrauenservice<br>since 1984' };
 
 function csSignatur(spr){
@@ -615,9 +482,9 @@ function csSignatur(spr){
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin-top:26px;">
     <tr><td style="padding-top:18px;border-top:2px solid ${CS_FARBE};">
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.55;color:${CS_TEXT};">
-        <strong>${CS_TEAM_NAME}</strong><br>
-        ${CS_TEAM_ROLLE}<br>
-        ${CS_TEAM_TEL}
+        <strong>Putzfrauenservice · Admin-Team</strong><br>
+        Clean Service Scaramuzzo AG<br>
+        0844 355 355
       </div>
       <div style="border-top:1px solid #D8D8D8;margin:12px 0;width:220px;"></div>
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:12px;line-height:1.55;color:${CS_GRAU};">
@@ -684,9 +551,9 @@ function csKnopf(text, link){
 function csSignaturText(spr){
   const s = spr === 'en' ? 'en' : 'de';
   return '\n\n' + (s === 'en' ? 'Kind regards' : 'Freundliche Grüsse') + '\n\n' +
-    CS_TEAM_NAME + '\n' +
-    CS_TEAM_ROLLE + '\n' +
-    CS_TEAM_TEL + '\n' +
+    'Cristian Gambale\n' +
+    CS_ROLLE[s] + '\n' +
+    'Direkt 052 557 02 08 / 076 822 00 16\n' +
     '---------------------------------\n' +
     'Clean Service Scaramuzzo AG\n' +
     'Industriestrasse 5\n' +

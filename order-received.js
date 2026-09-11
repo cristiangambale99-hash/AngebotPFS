@@ -6,6 +6,9 @@ import crypto from 'crypto';
 //      → damit stoppen die automatischen Erinnerungen sofort
 //   2. Benachrichtigt euch per E-Mail über den Eingang
 
+/* Die Verwaltung bleibt unter der Vercel-Adresse erreichbar; die eigene
+   Domain ist allein für die Kundschaft. */
+const VERWALTUNG = 'https://angebot-pfs.vercel.app/admin.html';
 const SAMMLUNG = 'angebote';
 const EMPFAENGER = 'putzfrauenservice@clean-service.ch';
 const SPEZIAL = 'spezialreinigung@clean-service.ch';
@@ -54,7 +57,7 @@ export default async function handler(req, res) {
                        || process.env.CRON_SECRET || 'cs-pfs';
     const vertragSig = crypto.createHmac('sha256', vertragGeheim)
                              .update(String(auftragId) + '.v').digest('hex').slice(0, 20);
-    const vertragLink = 'https://angebot-pfs.vercel.app/vertrag.html?id=' +
+    const vertragLink = 'https://angebot.clean-service.ch/vertrag.html?id=' +
                         encodeURIComponent(auftragId) + '&sig=' + vertragSig;
 
     const auftrag = {
@@ -78,6 +81,7 @@ export default async function handler(req, res) {
       zusatzBackofen: !!b.zusatzBackofen,
       vereinbarungen: b.vereinbarungen || '',
       startDatum: b.startDatum || '', startZeit: b.startZeit || '',
+      zutritt: b.zutritt || '',
       /* Status automatisch setzen:
          Mit Springerteam startet der Auftrag direkt in der eigenen Phase, das
          Startdatum hat die Kundschaft bereits gewaehlt. Ohne Springerteam geht
@@ -131,7 +135,8 @@ export default async function handler(req, res) {
         ['Uhrzeit', b.uhrzeit || ''],
         ['Aufwand', b.aufwandText || ''],
         ['Start', startText],
-        ['Startdatum', b.startDatum ? (new Date(b.startDatum).toLocaleDateString('de-CH') + (b.startZeit ? ', ' + b.startZeit + ' Uhr' : '')) : '']
+        ['Startdatum', b.startDatum ? new Date(b.startDatum).toLocaleDateString('de-CH') : ''],
+        ['Zutritt', b.zutritt || '']
       ].filter(([, v]) => v);
 
       const inhaltT = `
@@ -152,7 +157,7 @@ export default async function handler(req, res) {
           <div style="font-size:11px;color:#8A6A2A;letter-spacing:.06em;margin-bottom:5px;">BESONDERE WÜNSCHE</div>
           <div style="font-size:13px;color:#333333;">${b.vereinbarungen}</div>
         </div>` : ''}
-        ${csKnopf('Im CRM bearbeiten', 'https://' + (req.headers.host || 'angebot-pfs.vercel.app') + '/admin.html')}`;
+        ${csKnopf('Im CRM bearbeiten', VERWALTUNG)}`;
 
       const html = csRahmen('Neue Auftragserteilung', inhaltT);
 
@@ -202,10 +207,10 @@ export default async function handler(req, res) {
 
         const absatzStart = EN
           ? (mitSpringer
-            ? 'As requested, we are starting straight away with our relief team so that you do not have to wait. My administration team will contact you over the next few days to arrange the first visit. In parallel we will carefully organise your regular cleaner.'
+            ? 'As requested, we are starting straight away with our relief team so that you do not have to wait. Cleaning takes place between 08:00 and 17:00; we will confirm the exact time by e-mail one day before the clean. In parallel we will carefully organise your regular cleaner.'
             : 'For the introduction including the first clean we normally need a lead time of 10 to 14 working days. During this period we carefully organise the right cleaner for your needs and settle the final details with you. Should the start nevertheless be delayed, we would be glad to offer our relief team as an interim solution so that you notice no interruption.')
           : (mitSpringer
-            ? 'Wie von Ihnen gewünscht, starten wir bereits jetzt mit unserem Springerteam, damit Sie nicht warten müssen. Mein Administrationsteam meldet sich in den nächsten Tagen bei Ihnen, um den ersten Einsatz mit Ihnen zu vereinbaren. Parallel dazu organisieren wir sorgfältig Ihre feste Raumpflegerin.'
+            ? 'Wie von Ihnen gewünscht, starten wir bereits jetzt mit unserem Springerteam, damit Sie nicht warten müssen. Die Reinigung findet jeweils zwischen 08:00 und 17:00 Uhr statt; die definitive Uhrzeit teilen wir Ihnen einen Tag vor der Reinigung per E-Mail mit. Parallel dazu organisieren wir sorgfältig Ihre feste Raumpflegerin.'
             : 'Für die Einführung inklusive erster Reinigung benötigen wir in der Regel eine Vorlaufzeit von 10 bis 14 Werktagen. In dieser Zeit organisieren wir sorgfältig die passende Reinigungskraft für Ihre Bedürfnisse und stimmen mit Ihnen die letzten Details ab. Sollte sich der Start dennoch verzögern, bieten wir Ihnen als Übergangslösung gerne unser Springerteam an, damit Sie keinen Unterbruch spüren.');
 
         const L = EN
@@ -343,9 +348,9 @@ export default async function handler(req, res) {
           ['Telefon', b.mobile || ''],
           ['E-Mail', b.mail || b.email || ''],
           ['Zimmer', b.zimmer || ''],
+          ['Fläche', b.qm ? b.qm + ' m²' : 'nicht angegeben'],
           ['Stockwerk', b.stockwerk ? (b.stockwerk + (b.lift ? ' · Lift: ' + b.lift : '')) : ''],
-        ['Bodenbeläge', b.bodenbelaege || ''],
-          ['Fläche', b.qm ? b.qm + ' m²' : ''],
+          ['Bodenbeläge', b.bodenbelaege || ''],
           ['Angebot Nr.', b.angebotsnr || ''],
           ['Reinigungsrhythmus', b.frequenzText || b.frequenz || '']
         ].filter(([, v]) => v);
@@ -568,7 +573,7 @@ const CS_ROLLE = { de:'Bereichsleiter Putzfrauenservice', en:'Head of Putzfrauen
 const CS_TEAM_NAME = 'Putzfrauenservice · Admin-Team';
 const CS_TEAM_ROLLE = 'Clean Service Scaramuzzo AG';
 const CS_TEAM_TEL = '0844 355 355';
-const CS_ABSENDER_TEAM = 'Putzfrauenservice Admin-Team · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>';
+const CS_ABSENDER_TEAM = 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>';
 
 const CS_CLAIM = { de:'Putzfrauenservice<br>seit 1984', en:'Putzfrauenservice<br>since 1984' };
 
