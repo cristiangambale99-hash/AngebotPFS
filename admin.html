@@ -837,7 +837,7 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
   <aside class="sidebar" id="sb">
     <div class="brand">
       <div class="mark" role="img" aria-label="Clean Service Scaramuzzo AG"></div>
-      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 25</span></div>
+      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 26</span></div>
     </div>
 
     <nav class="nav">
@@ -2233,7 +2233,7 @@ function fallSeite(e){
         (e.qualitaetText ? ' — «' + esc(e.qualitaetText).replace(/\n/g,' ') + '»' : '') + '</div>' : '') +
     '<div class="fall-grid">' +
       '<div>' + kartenCheckliste(e) + kartenFall(e) + kartenVerlauf(e) + '</div>' +
-      '<div>' + kartenSchritte(e) + kartenLeistungen(e) + '</div>' +
+      '<div>' + kartenSchritte(e) + kartenVertrag(e) + kartenLeistungen(e) + '</div>' +
     '</div>';
 }
 
@@ -2479,6 +2479,64 @@ function qualVorschau(id){
   if(!e || !feld || !out) return;
   const q = qualitaetsDatum(feld.value, e.frequenz);
   out.textContent = q ? 'Die Qualitätsnachfrage geht danach am ' + q.toLocaleDateString('de-CH') + ' hinaus.' : '';
+}
+
+/* ---------- Vertrag ----------
+   Ab der Auftragserteilung steht der Vertrag im Fall zur Verfügung: vorher
+   als Link zum Unterschreiben, danach als abgelegtes PDF. */
+function kartenVertrag(e){
+  if(e.quelle !== 'auftrag') return '';
+  const unterschrieben = !!e.vertragSigniertAm;
+  const link = e.vertragSig
+    ? CS_ADRESSE + '/vertrag.html?id=' + encodeURIComponent(e.id) + '&sig=' + e.vertragSig +
+      (e.sprache === 'en' ? '&spr=en' : '')
+    : '';
+
+  return '<div class="card"><div class="card-head"><div><h2>Vertrag</h2>' +
+      '<p>' + (unterschrieben
+        ? 'Unterschrieben am ' + dat(e.vertragSigniertAm) + '.'
+        : 'Noch nicht unterschrieben. Der Link ging mit der Auftragsbestätigung hinaus.') + '</p></div>' +
+      '<span class="tag ' + (unterschrieben ? 'pos' : 'warn') + '">' +
+        (unterschrieben ? 'unterschrieben' : 'offen') + '</span></div>' +
+    '<div class="card-body"><div class="btn-row">' +
+      (unterschrieben
+        ? '<button class="btn primary-action" onclick="vertragPdf(\'' + e.id + '\', this)">Vertrag als PDF</button>'
+        : '') +
+      (link ? '<button class="btn secondary" onclick="window.open(\'' + link + '\', \'_blank\')">Vertragsseite öffnen</button>' +
+              '<button class="btn" onclick="linkKopieren(\'' + link + '\')">Link kopieren</button>' : '') +
+    '</div>' +
+    (unterschrieben ? '' :
+      '<p class="cs-hint" style="margin:10px 0 0;">Die Kundschaft kann den Vertrag über denselben Link jederzeit unterschreiben.</p>') +
+    '</div></div>';
+}
+
+/* Den abgelegten Vertrag holen und im Browser speichern. */
+async function vertragPdf(id, btn){
+  const e = LISTE.find(x => String(x.id) === String(id));
+  const text = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Wird geholt …';
+  try{
+    const r = await fetch('/api/vertrag-pdf?id=' + encodeURIComponent(id));
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok || !d.ok || !d.pdf){
+      throw new Error(d.grund === 'kein-vertrag'
+        ? 'Für diesen Auftrag ist kein unterschriebener Vertrag abgelegt.'
+        : (d.error || 'Server ' + r.status));
+    }
+    const roh = atob(d.pdf);
+    const bytes = new Uint8Array(roh.length);
+    for(let i = 0; i < roh.length; i++) bytes[i] = roh.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = d.dateiname || ('Reinigungsvertrag_' + (e && e.angebotsnr ? e.angebotsnr : id) + '.pdf');
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    meldung('Vertrag heruntergeladen.');
+  }catch(err){
+    meldung(err.message, 'neg');
+  }
+  btn.disabled = false; btn.textContent = text;
 }
 
 function kartenLeistungen(e){
