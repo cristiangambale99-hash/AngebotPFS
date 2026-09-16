@@ -92,7 +92,12 @@ export default async function handler(req, res) {
           offen: alle.filter(a => !a.bearbeitet).length,
           ohneNummer: alle.filter(a => !a.angebotsnr).length
         },
-        auftraege: alle
+        /* Die Signatur des Vertragslinks reist mit, damit die Verwaltung den
+           Vertrag öffnen oder den Link erneut weitergeben kann. Sie steht nur
+           angemeldeten Personen zur Verfügung. */
+        auftraege: alle.map(a => Object.assign({}, a, {
+          vertragSig: vertragSignatur(String(a._id || a.id || a.code || ''), vertragGeheimnisse()[0])
+        }))
       });
     }
 
