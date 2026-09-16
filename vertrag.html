@@ -167,9 +167,10 @@ function stunden(txt){
   return m ? m[1] : '';
 }
 
-function fehler(){
+function fehler(grund){
   document.getElementById('inhalt').innerHTML =
-    '<div class="fehler"><h1 style="text-transform:none;">' + T.fehlerT + '</h1><p>' + T.fehler + '</p></div>';
+    '<div class="fehler"><h1 style="text-transform:none;">' + T.fehlerT + '</h1>' +
+    (grund ? '<p>' + grund + '</p>' : '') + '<p>' + T.fehler + '</p></div>';
   document.querySelector('.leiste').style.display = 'none';
 }
 
@@ -273,7 +274,7 @@ const BP_SEITE = 'iVBORw0KGgoAAAANSUhEUgAAAHYAAAUDCAIAAACbEkOTAAEAAElEQVR42ux9ZZ
 
 let AUFTRAG = null;
 
-function pdfBauen(kundenSig){
+function pdfBauen(kundenSig, portalLink){
   if(!(window.jspdf && window.jspdf.jsPDF)) return null;
   const a = AUFTRAG || {};
   const doc = new window.jspdf.jsPDF({ unit:'mm', format:'a4' });
@@ -427,6 +428,41 @@ function pdfBauen(kundenSig){
   doc.text(hz, L + 6, y + 2);
   y += hz.length * 4.1 + 10;
 
+  /* ---- Zugang zum Kundenportal ----
+     Steht bewusst vor den Unterschriften: Dort schaut die Kundschaft hin, und
+     der Kasten bleibt im abgelegten Vertrag dauerhaft auffindbar. */
+  if(portalLink){
+    const pt = SPR === 'en'
+      ? 'With this contract you receive your personal access to the customer portal. There you can report appointment changes, cancellations, complaints and other matters directly — no e-mail, no password. Open the link once; your details are then stored permanently.'
+      : 'Mit diesem Vertrag erhalten Sie Ihren persönlichen Zugang zum Kundenportal. Dort melden Sie Terminverschiebungen, Absagen, Reklamationen und weitere Anliegen direkt bei uns — ohne E-Mail und ohne Passwort. Öffnen Sie den Link einmalig, danach sind Ihre Angaben dauerhaft hinterlegt.';
+    const pTitel = SPR === 'en' ? 'YOUR ACCESS TO THE CUSTOMER PORTAL' : 'IHR ZUGANG ZUM KUNDENPORTAL';
+    const pFuss  = SPR === 'en'
+      ? 'Lost the link? Enter your e-mail address on the portal page — we will send it again.'
+      : 'Link verloren? E-Mail-Adresse auf der Portalseite eingeben — wir senden ihn erneut zu.';
+
+    const pz = doc.splitTextToSize(pt, W - 12);
+    const boxH = pz.length * 4.1 + 26;
+    platz(boxH + 4);
+
+    doc.setFillColor(234, 246, 246).setDrawColor(207, 231, 231).setLineWidth(0.2);
+    doc.roundedRect(L, y - 3, W, boxH, 2, 2, 'FD');
+
+    doc.setFont('helvetica','bold').setFontSize(9.5).setTextColor(...F.dunkel);
+    doc.text(pTitel, L + 6, y + 3);
+
+    doc.setFont('helvetica','normal').setFontSize(8.5).setTextColor(...F.dunkel);
+    doc.text(pz, L + 6, y + 9);
+
+    const yl = y + 9 + pz.length * 4.1 + 3;
+    doc.setFont('helvetica','bold').setFontSize(10.5).setTextColor(...F.teal);
+    doc.text(String(portalLink).replace(/^https?:\/\//, ''), L + 6, yl + 3);
+
+    doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(...F.mute);
+    doc.text(pFuss, L + 6, yl + 8);
+
+    y += boxH + 6;
+  }
+
   /* ---- Unterschriften: drei Spalten auf einer Zeile ---- */
   window.__yVorUnterschriften = y;
   platz(33);
@@ -500,6 +536,21 @@ function sigLoeschen(){
   if(c && sigCtx){ sigCtx.clearRect(0, 0, c.width, c.height); sigLeer = true; }
 }
 
+/* ---- Portal-Zugangslink für das Vertrags-PDF ----
+   Wird vor dem PDF-Bau aufgerufen, damit der Link im Dokument stehen kann.
+   Scheitert der Aufruf, entsteht der Vertrag trotzdem — nur ohne Link. Ein
+   Portalproblem darf eine Vertragsunterschrift nie blockieren. */
+async function portalLinkHolen(){
+  try{
+    const r = await fetch('/api/portal-zugang?id=' + encodeURIComponent(P.get('id'))
+                        + '&sig=' + encodeURIComponent(P.get('sig')));
+    const d = await r.json().catch(() => ({}));
+    return (d && d.ok && d.link) ? d.link : '';
+  }catch(e){
+    return '';
+  }
+}
+
 async function vertragSenden(){
   const mld = document.getElementById('v-mld');
   const btn = document.getElementById('v-btn');
@@ -508,14 +559,18 @@ async function vertragSenden(){
   btn.disabled = true; btn.textContent = T.sendet;
   mld.style.color = 'var(--mute)'; mld.textContent = '';
   try{
+    /* Zuerst den Zugangslink holen, damit er im PDF stehen kann. */
+    const portalLink = await portalLinkHolen();
+
     const r = await fetch('/api/vertrag-signiert', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         id: P.get('id'), sig: P.get('sig'), spr: SPR,
         ort: (document.getElementById('v-ort') || {}).value || '',
         unterschrift: c.toDataURL('image/png'),
+        portalLink: portalLink,
         // Vertrag als PDF auf dem Briefpapier, im Browser erzeugt
-        pdf: pdfBauen(c.toDataURL('image/png'))
+        pdf: pdfBauen(c.toDataURL('image/png'), portalLink)
       })
     });
     const d = await r.json().catch(() => ({}));
@@ -534,11 +589,20 @@ async function vertragSenden(){
   if(!id || !sig) return fehler();
   try{
     const r = await fetch('/api/orders?id=' + encodeURIComponent(id) + '&sig=' + encodeURIComponent(sig));
-    if(!r.ok) return fehler();
+    if(!r.ok){
+      /* Unterschiedliche Ursachen, unterschiedliche Auskunft — sonst sucht
+         niemand an der richtigen Stelle. */
+      return fehler(r.status === 404
+        ? (SPR === 'en' ? 'We could not find this contract.' : 'Zu diesem Link finden wir keinen Vertrag.')
+        : (SPR === 'en' ? 'This link is no longer valid.' : 'Dieser Link ist nicht mehr gültig.'));
+    }
     const d = await r.json();
     if(!d || !d.auftrag) return fehler();
     zeichne(d.auftrag);
-  }catch(e){ fehler(); }
+  }catch(e){
+    fehler(SPR === 'en' ? 'The connection failed. Please try again.'
+                        : 'Die Verbindung ist fehlgeschlagen. Bitte versuchen Sie es erneut.');
+  }
 })();
 </script>
 </body>
