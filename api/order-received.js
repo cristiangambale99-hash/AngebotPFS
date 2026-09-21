@@ -55,7 +55,7 @@ export default async function handler(req, res) {
     const springerStart = monatlich || String(b.springerSofort || '').toLowerCase() === 'ja';
     if (monatlich) {
       b.springerSofort = 'Ja';
-      if (termine.length) { b.startDatum = termine[0].datum; b.startZeit = termine[0].zeit; }
+      if (termine.length) { b.startDatum = termine[0].datum; b.startZeit = ''; }
     }
 
     /* Link auf die Vertragsseite. Signiert, damit nur die Kundschaft
@@ -96,6 +96,7 @@ export default async function handler(req, res) {
       termineGebuchtAm: monatlich ? new Date().toISOString() : '',
       terminErinnerungAb: monatlich ? plusMonate(new Date(), 4).toISOString().slice(0, 10) : '',
       terminErinnerung: '',
+      zutritt: b.zutritt || '',
       /* Status automatisch setzen:
          Mit Springerteam startet der Auftrag direkt in der eigenen Phase, das
          Startdatum hat die Kundschaft bereits gewaehlt. Ohne Springerteam geht
@@ -153,8 +154,9 @@ export default async function handler(req, res) {
         ['Uhrzeit', b.uhrzeit || ''],
         ['Aufwand', b.aufwandText || ''],
         ['Start', startText],
-        ['Startdatum', (!monatlich && b.startDatum) ? (new Date(b.startDatum).toLocaleDateString('de-CH') + (b.startZeit ? ', ' + b.startZeit + ' Uhr' : '')) : ''],
-        ['Gebuchte Termine', termineHtml]
+        ['Startdatum', (!monatlich && b.startDatum) ? new Date(b.startDatum).toLocaleDateString('de-CH') : ''],
+        ['Gebuchte Termine', termineHtml],
+        ['Zutritt', b.zutritt || '']
       ].filter(([, v]) => v);
 
       const inhaltT = `
@@ -166,7 +168,7 @@ export default async function handler(req, res) {
             <div style="font-family:Verdana,Geneva,sans-serif;font-size:14px;font-weight:bold;color:${CS_DUNKEL};">${termine.length} Termine verbindlich gebucht</div>
             <div style="font-family:Verdana,Geneva,sans-serif;font-size:12px;color:${CS_TEXT};margin-top:6px;line-height:1.7;">${termineHtml || 'Keine gültigen Termine übermittelt — bitte mit der Kundschaft klären.'}</div>
             ${termine.length && termine.length < 6 ? `<div style="font-family:Verdana,Geneva,sans-serif;font-size:12px;color:#B45309;margin-top:6px;">Achtung: nur ${termine.length} von 6 Terminen gültig übermittelt.</div>` : ''}
-            <div style="font-family:Verdana,Geneva,sans-serif;font-size:12px;color:${CS_TEXT};margin-top:6px;">Bitte alle Termine im Einsatzplan des Springerteams eintragen.</div>
+            <div style="font-family:Verdana,Geneva,sans-serif;font-size:12px;color:${CS_TEXT};margin-top:6px;">Bitte im Reiter «Monatlich · Disponieren» ins Einsatzplan des Springerteams übernehmen. Uhrzeit legt die Disposition fest.</div>
           </td></tr>
         </table>` : mitSpringerStart ? `
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:0 0 18px;border-collapse:collapse;">
@@ -236,14 +238,14 @@ export default async function handler(req, res) {
 
         const absatzStart = monatlich
           ? (EN
-            ? 'Your six cleaning appointments are firmly booked — you will find them listed below. The work is carried out by our relief team, which works to the same standards and checklist as all our cleaners. Four months after your booking we will send you an e-mail with a link so that you can conveniently book the next six appointments.'
-            : 'Ihre sechs Reinigungstermine sind verbindlich gebucht, Sie finden sie unten aufgeführt. Die Ausführung übernimmt unser Springerteam, das nach denselben Vorgaben und derselben Checkliste arbeitet wie alle unsere Raumpflegerinnen. Vier Monate nach Ihrer Buchung erhalten Sie von uns eine E-Mail mit einem Link, über den Sie die nächsten sechs Termine bequem buchen.')
+            ? 'Your six cleaning appointments are firmly booked — you will find them listed below. The work is carried out by our relief team, which works to the same standards and checklist as all our cleaners. The cleaning takes place between 08:00 and 17:00; we confirm the exact time by e-mail the day before. Four months after your booking we will send you an e-mail with a link so that you can conveniently book the next six appointments.'
+            : 'Ihre sechs Reinigungstermine sind verbindlich gebucht, Sie finden sie unten aufgeführt. Die Ausführung übernimmt unser Springerteam, das nach denselben Vorgaben und derselben Checkliste arbeitet wie alle unsere Raumpflegerinnen. Die Reinigung findet jeweils zwischen 08:00 und 17:00 Uhr statt, die genaue Uhrzeit bestätigen wir Ihnen am Vortag per E-Mail. Vier Monate nach Ihrer Buchung erhalten Sie von uns eine E-Mail mit einem Link, über den Sie die nächsten sechs Termine bequem buchen.')
           : EN
           ? (mitSpringer
-            ? 'As requested, we are starting straight away with our relief team so that you do not have to wait. My administration team will contact you over the next few days to arrange the first visit. In parallel we will carefully organise your regular cleaner.'
+            ? 'As requested, we are starting straight away with our relief team so that you do not have to wait. Cleaning takes place between 08:00 and 17:00; we will confirm the exact time by e-mail one day before the clean. In parallel we will carefully organise your regular cleaner.'
             : 'For the introduction including the first clean we normally need a lead time of 10 to 14 working days. During this period we carefully organise the right cleaner for your needs and settle the final details with you. Should the start nevertheless be delayed, we would be glad to offer our relief team as an interim solution so that you notice no interruption.')
           : (mitSpringer
-            ? 'Wie von Ihnen gewünscht, starten wir bereits jetzt mit unserem Springerteam, damit Sie nicht warten müssen. Mein Administrationsteam meldet sich in den nächsten Tagen bei Ihnen, um den ersten Einsatz mit Ihnen zu vereinbaren. Parallel dazu organisieren wir sorgfältig Ihre feste Raumpflegerin.'
+            ? 'Wie von Ihnen gewünscht, starten wir bereits jetzt mit unserem Springerteam, damit Sie nicht warten müssen. Die Reinigung findet jeweils zwischen 08:00 und 17:00 Uhr statt; die definitive Uhrzeit teilen wir Ihnen einen Tag vor der Reinigung per E-Mail mit. Parallel dazu organisieren wir sorgfältig Ihre feste Raumpflegerin.'
             : 'Für die Einführung inklusive erster Reinigung benötigen wir in der Regel eine Vorlaufzeit von 10 bis 14 Werktagen. In dieser Zeit organisieren wir sorgfältig die passende Reinigungskraft für Ihre Bedürfnisse und stimmen mit Ihnen die letzten Details ab. Sollte sich der Start dennoch verzögern, bieten wir Ihnen als Übergangslösung gerne unser Springerteam an, damit Sie keinen Unterbruch spüren.');
 
         const L = EN
@@ -317,7 +319,7 @@ export default async function handler(req, res) {
           L.vertrag + '\n' + vertragLink + '\n\n' +
           L.schluss + '\n\n' +
           (eckdaten.length ? eckdaten.map(([k, v]) => `${k}: ${String(v).replace(/<br>/g, '; ')}`).join('\n') + '\n\n' : '') +
-          `${L.gruss}\nCristian Gambale\n${L.rolle}\n\n` +
+          `${L.gruss}\n${CS_TEAM_NAME}\n${CS_TEAM_ROLLE}\n\n` +
           'Clean Service Scaramuzzo AG · Industriestrasse 5 · 8307 Effretikon\nT 0844 355 355 · clean-service.ch';
 
         try {
@@ -325,7 +327,7 @@ export default async function handler(req, res) {
             method: 'POST',
             headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              from: 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
+              from: CS_ABSENDER_TEAM,
               to: [kundenMail],
               reply_to: 'putzfrauenservice@clean-service.ch',
               subject: L.betreff,
@@ -389,9 +391,9 @@ export default async function handler(req, res) {
           ['Telefon', b.mobile || ''],
           ['E-Mail', b.mail || b.email || ''],
           ['Zimmer', b.zimmer || ''],
+          ['Fläche', b.qm ? b.qm + ' m²' : 'nicht angegeben'],
           ['Stockwerk', b.stockwerk ? (b.stockwerk + (b.lift ? ' · Lift: ' + b.lift : '')) : ''],
-        ['Bodenbeläge', b.bodenbelaege || ''],
-          ['Fläche', b.qm ? b.qm + ' m²' : ''],
+          ['Bodenbeläge', b.bodenbelaege || ''],
           ['Angebot Nr.', b.angebotsnr || ''],
           ['Reinigungsrhythmus', b.frequenzText || b.frequenz || '']
         ].filter(([, v]) => v);
@@ -609,6 +611,13 @@ const CS_FARBE = '#2BB6B7', CS_DUNKEL = '#12797A', CS_TEXT = '#333333', CS_GRAU 
    Die Sprache kommt als Feld `sprache` aus der Auftragserteilung.
    ============================================================ */
 const CS_ROLLE = { de:'Bereichsleiter Putzfrauenservice', en:'Head of Putzfrauenservice' };
+/* Ab der Auftragserteilung zeichnet das Admin-Team des Putzfrauenservice,
+   davor Cristian Gambale. */
+const CS_TEAM_NAME = 'Putzfrauenservice · Admin-Team';
+const CS_TEAM_ROLLE = 'Clean Service Scaramuzzo AG';
+const CS_TEAM_TEL = '0844 355 355';
+const CS_ABSENDER_TEAM = 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>';
+
 const CS_CLAIM = { de:'Putzfrauenservice<br>seit 1984', en:'Putzfrauenservice<br>since 1984' };
 
 function csSignatur(spr){
@@ -617,9 +626,9 @@ function csSignatur(spr){
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin-top:26px;">
     <tr><td style="padding-top:18px;border-top:2px solid ${CS_FARBE};">
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.55;color:${CS_TEXT};">
-        <strong>Cristian Gambale</strong><br>
-        ${CS_ROLLE[s]}<br>
-        Direkt 052 557 02 08 / 076 822 00 16
+        <strong>${CS_TEAM_NAME}</strong><br>
+        ${CS_TEAM_ROLLE}<br>
+        ${CS_TEAM_TEL}
       </div>
       <div style="border-top:1px solid #D8D8D8;margin:12px 0;width:220px;"></div>
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:12px;line-height:1.55;color:${CS_GRAU};">
@@ -685,7 +694,7 @@ function csKnopf(text, link){
 
 function csSignaturText(){
   return '\n\nFreundliche Grüsse\n\n' +
-    'Cristian Gambale\n' +
+    CS_TEAM_NAME + '\n' +
     'Bereichsleiter Putzfrauenservice\n' +
     'Direkt 052 557 02 08 / 076 822 00 16\n' +
     '---------------------------------\n' +
@@ -841,19 +850,20 @@ async function reportingEintragen(bereich, satz){
 
 
 /* ==========================================================================
-   Termine der monatlichen Reinigung
-   Gleiche Regeln wie im Formular: Montag bis Freitag, 07:00–16:00 Uhr,
-   aufsteigend, mindestens 14 Tage Abstand, höchstens sechs.
+   Termine der monatlichen Reinigung (Springerteam)
+   Die Kundschaft wählt nur das Datum: Montag bis Freitag, aufsteigend,
+   mindestens 14 Tage Abstand, höchstens sechs. Die Reinigung findet
+   zwischen 08:00 und 17:00 Uhr statt, die genaue Uhrzeit legt die
+   Disposition fest und bestätigt sie am Vortag.
    Ungültige Einträge werden verworfen statt die Bestellung abzuweisen —
    die Kundschaft soll nie eine Fehlerseite sehen.
    ========================================================================== */
 function termineBereinigen(roh, abDatum) {
   const liste = Array.isArray(roh) ? roh : [];
   const sauber = liste
-    .map(t => ({ datum: String((t && t.datum) || '').slice(0, 10), zeit: String((t && t.zeit) || '').slice(0, 5) }))
-    .filter(t => /^\d{4}-\d{2}-\d{2}$/.test(t.datum) && /^\d{2}:\d{2}$/.test(t.zeit))
+    .map(t => ({ datum: String((t && (t.datum || t)) || '').slice(0, 10) }))
+    .filter(t => /^\d{4}-\d{2}-\d{2}$/.test(t.datum))
     .filter(t => { const wt = new Date(t.datum + 'T12:00:00Z').getUTCDay(); return wt >= 1 && wt <= 5; })
-    .filter(t => t.zeit >= '07:00' && t.zeit <= '16:00')
     .filter(t => !abDatum || t.datum > abDatum)
     .sort((a, b) => a.datum.localeCompare(b.datum));
   const ergebnis = [];
@@ -868,9 +878,10 @@ function termineBereinigen(roh, abDatum) {
 
 function terminText(t, en) {
   const d = new Date(t.datum + 'T12:00:00Z');
-  const wt = (en ? ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] : ['So','Mo','Di','Mi','Do','Fr','Sa'])[d.getUTCDay()];
+  const wt = (en ? ['Monday','Tuesday','Wednesday','Thursday','Friday'] : ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag'])[d.getUTCDay() - 1]
+          || (en ? ['Sunday','Saturday'] : ['Sonntag','Samstag'])[d.getUTCDay() === 0 ? 0 : 1];
   const dd = String(d.getUTCDate()).padStart(2, '0') + '.' + String(d.getUTCMonth() + 1).padStart(2, '0') + '.' + d.getUTCFullYear();
-  return wt + ', ' + dd + ', ' + t.zeit + (en ? '' : ' Uhr');
+  return wt + ', ' + dd;
 }
 
 function plusMonate(datum, n) {
