@@ -1,5 +1,4 @@
 import crypto from 'crypto';
-import { bewertungBitten } from './qualitaet.js';
 // api/followup.js
 // Läuft einmal täglich automatisch (siehe vercel.json) und sendet
 // Erinnerungen an Kundinnen und Kunden, von denen noch keine
@@ -31,71 +30,43 @@ export default async function handler(req, res) {
      den Zeitstempel. Gedacht zum Nachschauen, wie die Mail beim Kunden
      ankommt, und fuer Faelle, die keinen Aufschub dulden. */
   if (req.method === 'POST') {
+    // Nur aus dem angemeldeten Admin-Bereich
+    if (sitzungPruefen(req) === null) return res.status(401).json({ error: 'Nicht angemeldet.' });
     const id = String((req.body && req.body.id) || '');
     if (!id) return res.status(400).json({ error: 'Keine Auftragsnummer übergeben.' });
     const key = process.env.RESEND_API_KEY;
     if (!key) return res.status(500).json({ error: 'RESEND_API_KEY fehlt.' });
 
-    /* Welche Nachricht: ohne Angabe die Vorlaufmail zum Springerteam,
-       mit art:'qualitaet' die Qualitaetsnachfrage. Ist zusaetzlich eine
-       Adresse in 'an' angegeben, gilt der Versand als Probe: die Nachricht
-       geht an diese Adresse und der Zeitstempel am Auftrag bleibt
-       unveraendert, damit der automatische Lauf spaeter regulaer sendet. */
-    const art = String((req.body && req.body.art) || 'vorlauf');
-    const probeAn = String((req.body && req.body.an) || '').trim();
+    /* Terminerinnerung der monatlichen Reinigung sofort senden */
+    if (req.body && req.body.art === 'termine') {
+      try {
+        const auf = await lesen(AUFTRAG_SAMMLUNG, id);
+        if (!auf) return res.status(404).json({ error: 'Auftrag ' + id + ' nicht gefunden.' });
+        if (!auf.id) auf.id = id;
+        const mail = auf.mail || auf.email || '';
+        if (!mail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
+          return res.status(400).json({ error: 'Keine gültige E-Mail-Adresse hinterlegt.' });
+        }
+        await sendeTerminerinnerung(key, auf, mail);
+        const neu = { ...auf };
+        delete neu._id;
+        neu.terminErinnerung = new Date().toISOString();
+        await speichern(AUFTRAG_SAMMLUNG, id, neu);
+        return res.status(200).json({ ok: true, empfaenger: mail, gesendetAm: neu.terminErinnerung });
+      } catch (e) {
+        return res.status(500).json({ error: (e && e.message) || String(e) });
+      }
+    }
 
     try {
       const auf = await lesen(AUFTRAG_SAMMLUNG, id);
       if (!auf) return res.status(404).json({ error: 'Auftrag ' + id + ' nicht gefunden.' });
       if (!auf.id) auf.id = id;   // Dokumentname als Nummer übernehmen
-      const mail = probeAn || auf.mail || auf.email || '';
+      const mail = auf.mail || auf.email || '';
       if (!mail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
         return res.status(400).json({ error: 'Keine gültige E-Mail-Adresse hinterlegt.' });
       }
-
-      if (art === 'bewertung') {
-        /* Bitte um die Google-Bewertung. Geht im Regelfall automatisch nach
-           einer guten Rueckmeldung hinaus; hier nur zum Ansehen. */
-        await bewertungBitten(auf, probeAn || undefined);
-        return res.status(200).json({ ok: true, probe: !!probeAn, empfaenger: mail });
-      }
-
-      if (art === 'qualitaet') {
-        await sendeQualitaetsmail(key, auf, mail);
-        if (probeAn) {
-          return res.status(200).json({ ok: true, probe: true, empfaenger: mail });
-        }
-        const neuQ = { ...auf };
-        delete neuQ._id;
-        neuQ.qualitaetMail = new Date().toISOString();
-
-        /* Zweite Nachfrage nach einer Reklamation: die bisherige Antwort
-           wandert in den Verlauf, damit die neue sauber erfasst wird und
-           der Fall so lange nicht mehr als unzufrieden gilt. */
-        if (req.body && req.body.erneut) {
-          const verlauf = Array.isArray(auf.qualitaetVerlauf) ? auf.qualitaetVerlauf.slice() : [];
-          if (auf.qualitaetAntwort) {
-            verlauf.push({
-              antwort: auf.qualitaetAntwort,
-              text: auf.qualitaetText || '',
-              am: auf.qualitaetAntwortAm || ''
-            });
-          }
-          neuQ.qualitaetVerlauf = verlauf;
-          neuQ.qualitaetAntwort = '';
-          neuQ.qualitaetText = '';
-          neuQ.qualitaetAntwortAm = '';
-          neuQ.qualitaetRunde = verlauf.length + 1;
-        }
-
-        await speichern(AUFTRAG_SAMMLUNG, id, neuQ);
-        return res.status(200).json({ ok: true, empfaenger: mail, gesendetAm: neuQ.qualitaetMail });
-      }
-
       await sendeVorlaufmail(key, auf, mail);
-      if (probeAn) {
-        return res.status(200).json({ ok: true, probe: true, empfaenger: mail });
-      }
       const neu = { ...auf };
       delete neu._id;
       neu.vorlaufMail = new Date().toISOString();
@@ -224,7 +195,6 @@ export default async function handler(req, res) {
         else if (auf.vorlaufMail) grund = 'Vorlaufmail bereits gesendet';
         else if (auf.vorlaufAus) grund = 'Vorlaufmail unterdrückt';
         else if (auf.springerAntwort) grund = 'Kundschaft hat bereits geantwortet';
-        else if (auf.einfuehrungAm) grund = 'Einführungstermin bereits vorgeschlagen';
         else if (!mail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) grund = 'keine gültige Adresse';
         else if (!auftragSchluessel(auf)) grund = 'Auftrag ohne Nummer';
         else if (!ab) grund = 'kein Datum des Statuswechsels';
@@ -268,42 +238,8 @@ export default async function handler(req, res) {
       bericht.fehler.push({ code: 'Vorlaufdurchgang', meldung: (e && e.message) || String(e) });
     }
 
-    /* ====== Vierter Durchgang: Qualitätsnachfrage ohne Rückmeldung ======
-       Antwortet die Kundschaft sieben Tage nach der Nachfrage nicht, gilt
-       der Fall als erledigt und wandert mit dem Merkmal «kein Feedback
-       erhalten» ins Archiv. So bleibt die Liste der aktiven Aufträge sauber.
-       ================================================================== */
-    bericht.ohneAntwort = { geprueft: 0, archiviert: 0 };
-    try {
-      const auftraege = await alleLesen(AUFTRAG_SAMMLUNG, 500);
-      bericht.ohneAntwort.geprueft = auftraege.length;
-      const grenze = Date.now() - 7 * 86400000;
-
-      for (const auf of auftraege) {
-        if (String(auf.stufe || '') !== 'aktiv') continue;
-        if (!auf.qualitaetMail || auf.qualitaetAntwort) continue;
-        const gesendet = new Date(auf.qualitaetMail).getTime();
-        if (isNaN(gesendet) || gesendet > grenze) continue;
-        const id = auftragSchluessel(auf);
-        if (!id) continue;
-
-        if (nurPruefen) { bericht.ohneAntwort.archiviert++; continue; }
-        const neuA = { ...auf };
-        delete neuA._id;
-        neuA.stufe = 'archiv';
-        neuA.qualitaetKeineAntwort = true;
-        neuA.archiviertAm = new Date().toISOString();
-        await speichern(AUFTRAG_SAMMLUNG, id, neuA);
-        bericht.ohneAntwort.archiviert++;
-      }
-    } catch (e) {
-      bericht.ohneAntwort.fehler = String(e.message || e).slice(0, 300);
-    }
-
     /* ============ Dritter Durchgang: Qualitätsnachfrage ============
-       Sie gilt der festen Raumpflegerin. Beim Start mit ihr wird qualitaetAm
-       aus der ersten Reinigung berechnet; laeuft der Einsatz dagegen noch mit
-       dem Springerteam, wird nicht gefragt, bis die feste Zuteilung steht.
+       Beim Start mit fixer Raumpflegerin wird qualitaetAm berechnet.
        Ist der Tag erreicht, geht die Nachfrage einmalig hinaus. */
     bericht.qualitaet = { geprueft: 0, gesendet: 0, uebersprungen: 0 };
     try {
@@ -315,10 +251,6 @@ export default async function handler(req, res) {
         const mail = auf.mail || auf.email || '';
         let grund = null;
         if (!auf.qualitaetAm) grund = 'kein Termin für die Qualitätsnachfrage';
-        /* Solange das Springerteam den Einsatz führt, wird nicht nach der
-           Qualitaet gefragt. Die Nachfrage gilt der festen Raumpflegerin und
-           startet erst, wenn diese uebernommen hat (festStartAm). */
-        else if (auf.springerGestartet === true && !auf.festStartAm) grund = 'läuft noch mit dem Springerteam';
         else if (auf.qualitaetMail) grund = 'bereits gesendet';
         else if (auf.qualitaetAntwort) grund = 'Kundschaft hat bereits geantwortet';
         else if (String(auf.stufe || '') === 'abgesagt') grund = 'Auftrag abgesagt';
@@ -345,10 +277,121 @@ export default async function handler(req, res) {
       bericht.fehler.push({ code: 'Qualitätsdurchgang', meldung: (e && e.message) || String(e) });
     }
 
+    /* ======== Vierter Durchgang: Terminerinnerung monatlich ========
+       Vier Monate nach der letzten Buchung (terminErinnerungAb) erhält die
+       Kundschaft einmalig eine Mail mit dem Link zur Nachbuchung der
+       nächsten sechs Termine. Bucht sie nicht, erscheint der Fall nach
+       14 Tagen in der Tagesmail (api/pendenzen.js). */
+    bericht.termine = { geprueft: 0, gesendet: 0, uebersprungen: 0 };
+    try {
+      const auftraege3 = await alleLesen(AUFTRAG_SAMMLUNG, 500);
+      const heute = new Date().toISOString().slice(0, 10);
+      bericht.termine.geprueft = auftraege3.length;
+      for (const auf of auftraege3) {
+        const mail = auf.mail || auf.email || '';
+        let grund = null;
+        if (String(auf.frequenz || '') !== 'monatlich') grund = 'nicht monatlich';
+        else if (String(auf.stufe || '') === 'abgesagt') grund = 'Auftrag abgesagt';
+        else if (!auf.terminErinnerungAb) grund = 'kein Erinnerungsdatum';
+        else if (auf.terminErinnerung) grund = 'bereits erinnert';
+        else if (auf.terminErinnerungAus) grund = 'Erinnerung abgeschaltet';
+        else if (String(auf.terminErinnerungAb).slice(0, 10) > heute) grund = 'Termin noch nicht erreicht';
+        else if (!mail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) grund = 'keine gültige Adresse';
+        else if (!auftragSchluessel(auf)) grund = 'Auftrag ohne Nummer';
+        if (grund) { bericht.termine.uebersprungen++; continue; }
+        if (nurPruefen) { bericht.termine.gesendet++; continue; }
+        try {
+          await sendeTerminerinnerung(apiKey, auf, mail);
+          const neu = { ...auf };
+          delete neu._id;
+          neu.terminErinnerung = new Date().toISOString();
+          await speichern(AUFTRAG_SAMMLUNG, auftragSchluessel(auf), neu);
+          bericht.termine.gesendet++;
+        } catch (e) {
+          bericht.fehler.push({ code: 'Termine ' + auftragSchluessel(auf), empfaenger: mail,
+                                meldung: String(e && e.message || e).slice(0, 300) });
+        }
+      }
+    } catch (e) {
+      bericht.fehler.push({ code: 'Termindurchgang', meldung: (e && e.message) || String(e) });
+    }
+
     return res.status(200).json({ ok: true, probelauf: !!nurPruefen, ...bericht });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
+}
+
+/* Signatur des Nachbuchungslinks — muss mit api/termine.js übereinstimmen */
+function sigTermine(id) {
+  const geheim = process.env.TERMINE_SECRET || process.env.ANTWORT_SECRET
+              || process.env.CRON_SECRET || 'cs-pfs';
+  return crypto.createHmac('sha256', geheim).update(String(id) + '.t').digest('hex').slice(0, 20);
+}
+
+async function sendeTerminerinnerung(apiKey, auf, mail) {
+  const EN = String(auf.sprache || 'de').toLowerCase() === 'en';
+  const spr = EN ? 'en' : 'de';
+  const nn = auf.nachname || '';
+  const anrede = EN
+    ? (auf.anrede === 'Herr' ? 'Dear Mr ' + nn : auf.anrede === 'Frau' ? 'Dear Mrs ' + nn
+      : 'Dear ' + [auf.vorname, nn].filter(Boolean).join(' '))
+    : (auf.anrede === 'Herr' ? 'Sehr geehrter Herr ' + nn : auf.anrede === 'Frau' ? 'Sehr geehrte Frau ' + nn
+      : 'Guten Tag ' + [auf.vorname, nn].filter(Boolean).join(' '));
+  const id = auftragSchluessel(auf);
+  if (!id) throw new Error('Auftrag ohne Nummer — Link nicht möglich.');
+  const link = 'https://angebot-pfs.vercel.app/termine.html?id=' + encodeURIComponent(id)
+             + '&sig=' + sigTermine(id) + (EN ? '&spr=en' : '');
+
+  const heute = new Date().toISOString().slice(0, 10);
+  const offen = (Array.isArray(auf.termine) ? auf.termine : []).filter(t => t && t.datum >= heute);
+
+  const L = EN ? {
+    betreff: 'Book your next cleaning appointments',
+    titel: 'Time to book your next appointments',
+    a1: 'We hope you are enjoying your monthly cleaning. Your current series of appointments will soon come to an end, so that your cleaning continues without interruption we would like to invite you to book your next six appointments now.',
+    a2: 'It only takes a minute: choose your preferred dates and times, and they are firmly booked for you.',
+    offen: 'YOUR REMAINING APPOINTMENTS',
+    knopf: 'Book next appointments',
+    a3: 'If you have any questions or wish to change anything, simply reply to this e-mail.'
+  } : {
+    betreff: 'Buchen Sie Ihre nächsten Reinigungstermine',
+    titel: 'Zeit für Ihre nächsten Termine',
+    a1: 'Wir hoffen, Sie sind mit Ihrer monatlichen Reinigung rundum zufrieden. Ihre aktuelle Terminserie neigt sich dem Ende zu. Damit Ihre Reinigung ohne Unterbruch weiterläuft, laden wir Sie ein, bereits jetzt Ihre nächsten sechs Termine zu buchen.',
+    a2: 'Das dauert nur einen Moment: Wählen Sie Ihre Wunschdaten und Uhrzeiten, und die Termine sind fest für Sie reserviert.',
+    offen: 'IHRE VERBLEIBENDEN TERMINE',
+    knopf: 'Nächste Termine buchen',
+    a3: 'Bei Fragen oder Änderungswünschen antworten Sie einfach auf diese E-Mail.'
+  };
+  const zeilen = offen.map((t, i) => [(i + 1) + '.', terminText(t, EN)]);
+  const inhalt = `
+    <p style="margin:0 0 14px;">${anrede}</p>
+    <p style="margin:0 0 14px;">${L.a1}</p>
+    ${zeilen.length ? `<div style="font-family:Verdana,Geneva,sans-serif;font-size:11px;color:#767676;letter-spacing:.08em;margin:18px 0 2px;">${L.offen}</div>${csTabelle(zeilen)}` : ''}
+    <p style="margin:0 0 6px;">${L.a2}</p>
+    ${csKnopf(L.knopf, link)}
+    <p style="margin:0;">${L.a3}</p>`;
+  const text = anrede + '\n\n' + L.a1 + '\n\n' +
+    (zeilen.length ? zeilen.map(([k, v]) => k + ' ' + v).join('\n') + '\n\n' : '') +
+    L.a2 + '\n' + link + '\n\n' + L.a3 + csSignaturText(spr);
+
+  const r = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
+      to: [mail],
+      bcc: ['putzfrauenservice@clean-service.ch'],
+      reply_to: 'putzfrauenservice@clean-service.ch',
+      subject: L.betreff,
+      html: csRahmen(L.titel, inhalt, '', spr),
+      text,
+      attachments: [{ filename:'logo.png', content: CS_LOGO, content_id:'cslogo', disposition:'inline' }]
+    })
+  });
+  const daten = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(JSON.stringify(daten));
+  return daten;
 }
 
 async function sendeErinnerung(apiKey, a, stufe) {
@@ -518,17 +561,17 @@ async function sendeQualitaetsmail(apiKey, auf, mail) {
   const klartext = anrede + '\n\n' + L.a1 + '\n\n' + L.a2 + '\n\n' +
     L.stufen.map(([st, tx]) => tx + ':\n' + basis + '&s=' + st + '&spr=' + spr +
                  '&sig=' + signQualitaet(schluessel, st)).join('\n\n') +
-    '\n\n' + L.a3 + csSignaturText(spr, 'team');
+    '\n\n' + L.a3 + csSignaturText(spr);
 
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: CS_ABSENDER_TEAM,
+      from: 'Cristian Gambale · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
       to: [mail], bcc: ['putzfrauenservice@clean-service.ch'],
       reply_to: 'putzfrauenservice@clean-service.ch',
       subject: L.betreff,
-      html: csRahmen(L.titel, inhalt, '', spr, 'team'),
+      html: csRahmen(L.titel, inhalt, '', spr),
       text: klartext,
       attachments: [{ filename:'logo.png', content: CS_LOGO, content_id:'cslogo', disposition:'inline' }]
     })
@@ -624,19 +667,19 @@ async function sendeVorlaufmail(apiKey, auf, mail) {
     </table>
     <p style="margin:0;">${L.a4}</p>`;
 
-  const html = csRahmen(L.titel, inhalt, '', spr, 'team');
+  const html = csRahmen(L.titel, inhalt, '', spr);
 
   const klartext = anrede + '\n\n' + L.a1 + '\n\n' + L.a2 + '\n\n' +
                    L.a3 + '\n\n' +
                    L.knopfJa + ':\n' + linkJa + '\n\n' +
                    L.knopfNein + ':\n' + linkNein + '\n\n' +
-                   L.a4 + csSignaturText(spr, 'team');
+                   L.a4 + csSignaturText(spr);
 
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: CS_ABSENDER_TEAM,
+      from: 'Cristian Gambale · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
       to: [mail],
       bcc: ['putzfrauenservice@clean-service.ch'],
       reply_to: 'putzfrauenservice@clean-service.ch',
@@ -815,24 +858,17 @@ const CS_LOGO = 'iVBORw0KGgoAAAANSUhEUgAAAbgAAACVCAIAAACl7Xi4AABsOElEQVR42u29d5w
 const CS_FARBE = '#2BB6B7', CS_DUNKEL = '#12797A', CS_TEXT = '#333333', CS_GRAU = '#767676';
 
 const CS_ROLLE = { de:'Bereichsleiter Putzfrauenservice', en:'Head of Putzfrauenservice' };
-/* Bis und mit Angebot zeichnet Cristian Gambale, ab der Auftragserteilung
-   das Admin-Team des Putzfrauenservice. */
-const CS_TEAM_NAME = 'Putzfrauenservice · Admin-Team';
-const CS_TEAM_ROLLE = { de:'Clean Service Scaramuzzo AG', en:'Clean Service Scaramuzzo AG' };
-const CS_TEAM_TEL = '0844 355 355';
-const CS_ABSENDER_TEAM = 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>';
 const CS_CLAIM = { de:'Putzfrauenservice<br>seit 1984', en:'Putzfrauenservice<br>since 1984' };
 
-function csSignatur(spr, wer){
+function csSignatur(spr){
   const s = spr === 'en' ? 'en' : 'de';
-  const team = wer === 'team';
   return `
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin-top:26px;">
     <tr><td style="padding-top:18px;border-top:2px solid ${CS_FARBE};">
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.55;color:${CS_TEXT};">
-        <strong>${team ? CS_TEAM_NAME : 'Cristian Gambale'}</strong><br>
-        ${team ? CS_TEAM_ROLLE[s] : CS_ROLLE[s]}<br>
-        ${team ? CS_TEAM_TEL : 'Direkt 052 557 02 08 / 076 822 00 16'}
+        <strong>Cristian Gambale</strong><br>
+        ${CS_ROLLE[s]}<br>
+        Direkt 052 557 02 08 / 076 822 00 16
       </div>
       <div style="border-top:1px solid #D8D8D8;margin:12px 0;width:220px;"></div>
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:12px;line-height:1.55;color:${CS_GRAU};">
@@ -846,7 +882,7 @@ function csSignatur(spr, wer){
   </table>`;
 }
 
-function csRahmen(titel, inhalt, hinweis, spr, wer){
+function csRahmen(titel, inhalt, hinweis, spr){
   const s = spr === 'en' ? 'en' : 'de';
   return `
 <div style="background:#F2F4F4;padding:24px 12px;font-family:Verdana,Geneva,sans-serif;">
@@ -871,7 +907,7 @@ function csRahmen(titel, inhalt, hinweis, spr, wer){
     </td></tr>
     <tr><td style="padding:12px 36px 30px;font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.7;color:${CS_TEXT};">
       ${inhalt}
-      ${csSignatur(s, wer)}
+      ${csSignatur(s)}
     </td></tr>
     ${hinweis ? `<tr><td style="padding:16px 36px;background:#F7F9F9;border-top:1px solid #E5E9E8;font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};line-height:1.6;">${hinweis}</td></tr>` : ''}
   </table>
@@ -896,17 +932,81 @@ function csKnopf(text, link){
   </table>`;
 }
 
-function csSignaturText(spr, wer){
+function csSignaturText(spr){
   const s = spr === 'en' ? 'en' : 'de';
-  const team = wer === 'team';
   return '\n\n' + (s === 'en' ? 'Kind regards' : 'Freundliche Grüsse') + '\n\n' +
-    (team ? CS_TEAM_NAME : 'Cristian Gambale') + '\n' +
-    (team ? CS_TEAM_ROLLE[s] : CS_ROLLE[s]) + '\n' +
-    (team ? CS_TEAM_TEL : 'Direkt 052 557 02 08 / 076 822 00 16') + '\n' +
+    'Cristian Gambale\n' +
+    CS_ROLLE[s] + '\n' +
+    'Direkt 052 557 02 08 / 076 822 00 16\n' +
     '---------------------------------\n' +
     'Clean Service Scaramuzzo AG\n' +
     'Industriestrasse 5\n' +
     '8307 Effretikon\n' +
     '0844 355 355\n' +
     'clean-service.ch';
+}
+
+function sitzungPruefen(req){
+  try{
+    const geheim = process.env.SESSION_SECRET;
+    if(!geheim) return 'nicht-eingerichtet';       // Schutz noch nicht aktiv
+    let token = '';
+    const kopf = req.headers.authorization || '';
+    if(kopf.startsWith('Bearer ')) token = kopf.slice(7);
+    if(!token){
+      const c = req.headers.cookie || '';
+      const m = c.match(/cs_session=([^;]+)/);
+      if(m) token = decodeURIComponent(m[1]);
+    }
+    if(!token) return null;
+
+    const [nutz, sig] = token.split('.');
+    if(!nutz || !sig) return null;
+    const erwartet = Buffer.from(crypto.createHmac('sha256', geheim).update(nutz).digest())
+      .toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    const a = Buffer.from(sig), b = Buffer.from(erwartet);
+    if(a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    const d = JSON.parse(Buffer.from(nutz.replace(/-/g,'+').replace(/_/g,'/'), 'base64').toString());
+    if(!d.exp || d.exp < Date.now()) return null;
+    return d.u || null;
+  }catch(e){ return null; }
+}
+
+/* ==========================================================================
+   Termine der monatlichen Reinigung
+   Gleiche Regeln wie im Formular: Montag bis Freitag, 07:00–16:00 Uhr,
+   aufsteigend, mindestens 14 Tage Abstand, höchstens sechs.
+   Ungültige Einträge werden verworfen statt die Bestellung abzuweisen —
+   die Kundschaft soll nie eine Fehlerseite sehen.
+   ========================================================================== */
+function termineBereinigen(roh, abDatum) {
+  const liste = Array.isArray(roh) ? roh : [];
+  const sauber = liste
+    .map(t => ({ datum: String((t && t.datum) || '').slice(0, 10), zeit: String((t && t.zeit) || '').slice(0, 5) }))
+    .filter(t => /^\d{4}-\d{2}-\d{2}$/.test(t.datum) && /^\d{2}:\d{2}$/.test(t.zeit))
+    .filter(t => { const wt = new Date(t.datum + 'T12:00:00Z').getUTCDay(); return wt >= 1 && wt <= 5; })
+    .filter(t => t.zeit >= '07:00' && t.zeit <= '16:00')
+    .filter(t => !abDatum || t.datum > abDatum)
+    .sort((a, b) => a.datum.localeCompare(b.datum));
+  const ergebnis = [];
+  for (const t of sauber) {
+    const vorher = ergebnis[ergebnis.length - 1];
+    if (vorher && (new Date(t.datum) - new Date(vorher.datum)) / 86400000 < 14) continue;
+    ergebnis.push(t);
+    if (ergebnis.length === 6) break;
+  }
+  return ergebnis;
+}
+
+function terminText(t, en) {
+  const d = new Date(t.datum + 'T12:00:00Z');
+  const wt = (en ? ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] : ['So','Mo','Di','Mi','Do','Fr','Sa'])[d.getUTCDay()];
+  const dd = String(d.getUTCDate()).padStart(2, '0') + '.' + String(d.getUTCMonth() + 1).padStart(2, '0') + '.' + d.getUTCFullYear();
+  return wt + ', ' + dd + ', ' + t.zeit + (en ? '' : ' Uhr');
+}
+
+function plusMonate(datum, n) {
+  const d = new Date(datum);
+  d.setMonth(d.getMonth() + n);
+  return d;
 }

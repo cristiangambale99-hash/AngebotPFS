@@ -8,68 +8,36 @@ import crypto from 'crypto';
 
 const SAMMLUNG = 'auftraege';
 
-/* Ein Vertragslink bleibt gültig, auch wenn später ein anderes Geheimnis
-   gesetzt wird: Es zählt, ob die Signatur zu irgendeinem der hinterlegten
-   Werte passt. Sonst brechen alle bereits versendeten Links, sobald eine
-   Umgebungsvariable dazukommt oder geändert wird. */
-function vertragGeheimnisse() {
-  return [process.env.VERTRAG_SECRET, process.env.ANTWORT_SECRET,
-          process.env.CRON_SECRET, 'cs-pfs'].filter(Boolean);
-}
-function vertragSignatur(id, geheim) {
-  return crypto.createHmac('sha256', geheim).update(String(id) + '.v')
-               .digest('hex').slice(0, 20);
-}
-function vertragSigGueltig(id, sig) {
-  const s = String(sig || '');
-  return vertragGeheimnisse().some(g => vertragSignatur(id, g) === s);
-}
-
 export default async function handler(req, res) {
-  try {
-    /* Einzelabruf für die Vertragsseite: nur mit gültiger Signatur, aber ohne
-       Anmeldung — die Kundschaft öffnet ihren Vertrag aus dem Mail heraus und
-       hat keine Sitzung. Diese Prüfung steht deshalb vor der Anmeldung. */
-    if (req.method === 'GET' && req.query && req.query.id && req.query.sig) {
-      const id = String(req.query.id);
-      if (!vertragSigGueltig(id, req.query.sig)) {
-        return res.status(401).json({ error: 'Nicht berechtigt' });
-      }
-      let auf = null;
-      try { auf = await lesen(SAMMLUNG, id); } catch (e) {}
-      if (!auf) {
-        const alleA = await alleLesen(SAMMLUNG, 500);
-        auf = alleA.find(x => String(x.id || '') === id || String(x._id || '') === id
-                           || String(x.code || '') === id) || null;
-      }
-      if (!auf) return res.status(404).json({ error: 'Auftrag nicht gefunden' });
-      return res.status(200).json({ auftrag: auf });
+  /* Signierter Einzelabruf der Vertragsseite: die Kundschaft ist nicht
+     angemeldet, deshalb wird dieser Fall VOR der Sitzungsprüfung behandelt.
+     Geschützt ist er durch die HMAC-Signatur. */
+  const signiert = req.method === 'GET' && req.query && req.query.id && req.query.sig;
+  if (!signiert) {
+    const nutzer = sitzungPruefen(req);
+    if (nutzer === null) {
+      return res.status(401).json({ error: 'Nicht angemeldet.' });
     }
-  } catch (err) {
-    return res.status(500).json({ error: err.message || 'Unbekannter Fehler' });
-  }
-
-  const nutzer = sitzungPruefen(req);
-  if (nutzer === null) {
-    return res.status(401).json({ error: 'Nicht angemeldet.' });
   }
 
   try {
     if (req.method === 'GET') {
-      /* Alter Pfad, bleibt für angemeldete Aufrufe bestehen. */
+      /* Einzelabruf für die Vertragsseite: nur mit gültiger Signatur.
+         Liefert genau einen Auftrag, nicht die ganze Liste. */
       if (req.query && req.query.id && req.query.sig) {
         const id = String(req.query.id);
-        if (!vertragSigGueltig(id, req.query.sig)) {
+        const geheim = process.env.VERTRAG_SECRET || process.env.ANTWORT_SECRET
+                    || process.env.CRON_SECRET || 'cs-pfs';
+        const soll = crypto.createHmac('sha256', geheim)
+                           .update(id + '.v').digest('hex').slice(0, 20);
+        if (String(req.query.sig) !== soll) {
           return res.status(401).json({ error: 'Nicht berechtigt' });
         }
         let auf = null;
         try { auf = await lesen(SAMMLUNG, id); } catch (e) {}
         if (!auf) {
-          /* Auch nach Auftragsnummer und Zugangscode suchen: ältere Aufträge
-             liegen unter abweichenden Schlüsseln. */
           const alleA = await alleLesen(SAMMLUNG, 500);
-          auf = alleA.find(x => String(x.id || '') === id || String(x._id || '') === id
-                             || String(x.code || '') === id) || null;
+          auf = alleA.find(x => String(x.id || '') === id || String(x._id || '') === id) || null;
         }
         if (!auf) return res.status(404).json({ error: 'Auftrag nicht gefunden' });
         return res.status(200).json({ auftrag: auf });
@@ -92,12 +60,7 @@ export default async function handler(req, res) {
           offen: alle.filter(a => !a.bearbeitet).length,
           ohneNummer: alle.filter(a => !a.angebotsnr).length
         },
-        /* Die Signatur des Vertragslinks reist mit, damit die Verwaltung den
-           Vertrag öffnen oder den Link erneut weitergeben kann. Sie steht nur
-           angemeldeten Personen zur Verfügung. */
-        auftraege: alle.map(a => Object.assign({}, a, {
-          vertragSig: vertragSignatur(String(a._id || a.id || a.code || ''), vertragGeheimnisse()[0])
-        }))
+        auftraege: alle
       });
     }
 
@@ -133,14 +96,17 @@ export default async function handler(req, res) {
         neu.notizen = bisher.slice(-60);
       }
       if (Array.isArray(b.checklistOverride)) neu.checklistOverride = b.checklistOverride;
-      /* Stammdaten dürfen aus der Verwaltung nachgetragen werden — Anfragen
-         kommen oft ohne Telefonnummer oder vollständige Adresse herein. */
-      ['anrede', 'vorname', 'nachname', 'adresse', 'plzOrt', 'ort', 'mail', 'email', 'mobile',
-       'zimmer', 'frequenz', 'sprache', 'zutritt',
-       'angebotsnr', 'notiz', 'vereinbarungen', 'stufe', 'checkliste', 'vorlaufAus', 'vorlaufMail', 'bearbeitungAb', 'springerAntwort', 'springerAntwortAm', 'erstReinigung', 'qualitaetAm', 'qualitaetMail', 'qualitaetAntwort', 'vertragSigniertAm', 'vertragOrt', 'raumpflegerin', 'einfuehrungAm', 'einfuehrungZeit', 'einfuehrungBestaetigt', 'einfuehrungVorschlagAm'].forEach(f => {
+      ['angebotsnr', 'notiz', 'vereinbarungen', 'stufe', 'checkliste', 'vorlaufAus', 'vorlaufMail', 'bearbeitungAb', 'springerAntwort', 'springerAntwortAm', 'erstReinigung', 'qualitaetAm', 'qualitaetMail', 'qualitaetAntwort', 'vertragSigniertAm', 'vertragOrt', 'raumpflegerin', 'einfuehrungAm', 'einfuehrungZeit', 'einfuehrungBestaetigt', 'einfuehrungVorschlagAm'].forEach(f => {
         if (typeof b[f] === 'string') neu[f] = b[f];
       });
       if (typeof b.bearbeitet === 'boolean') neu.bearbeitet = b.bearbeitet;
+      // Schalter werden aus dem Admin als Wahrheitswert gesendet
+      ['vorlaufAus', 'terminErinnerungAus'].forEach(f => {
+        if (typeof b[f] === 'boolean') neu[f] = b[f];
+      });
+      // Disposition der monatlichen Reinigung
+      if (typeof b.disponiertAm === 'string') neu.disponiertAm = b.disponiertAm;
+      if (Number.isInteger(b.disponiertRunde) && b.disponiertRunde >= 0) neu.disponiertRunde = b.disponiertRunde;
 
       const gespeichert = await speichern(SAMMLUNG, b.id, neu);
       return res.status(200).json({ ok: true, auftrag: gespeichert });

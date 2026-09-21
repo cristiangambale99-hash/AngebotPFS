@@ -30,13 +30,8 @@ export default async function handler(req, res) {
 
     if (req.query && req.query.pruefen === '1') {
       return res.status(200).json({
-        neueErteilungen: g.neueErteilungen.length,
-        einfuehrungen: g.einfuehrungen.length,
-        davonUnbestaetigt: g.einfuehrungen.filter(e => !e.bestaetigt).length,
-        zusageOffen: g.zusageOffen.length,
-        ohneZuteilung: g.ohneZuteilung.length,
-        aktivieren: g.aktivieren.length,
-        reklamationen: g.reklamationen.length,
+        ueberfaellig: g.ueberfaellig.length, heute: g.heute.length,
+        wartend: g.wartend.length, neu: g.neu.length,
         angeboteOffen: g.angeboteOffen
       });
     }
@@ -45,12 +40,8 @@ export default async function handler(req, res) {
     if (!key) return res.status(500).json({ error: 'RESEND_API_KEY fehlt.' });
     const d = await senden(key, g);
     return res.status(200).json({ ok: true, id: d && d.id, zahlen: {
-      neueErteilungen: g.neueErteilungen.length,
-      einfuehrungen: g.einfuehrungen.length,
-      zusageOffen: g.zusageOffen.length,
-      ohneZuteilung: g.ohneZuteilung.length,
-      aktivieren: g.aktivieren.length,
-      reklamationen: g.reklamationen.length } });
+      ueberfaellig: g.ueberfaellig.length, heute: g.heute.length,
+      wartend: g.wartend.length, neu: g.neu.length } });
   } catch (e) {
     console.error('pendenzen.js', e);
     return res.status(500).json({ error: e.message });
@@ -86,182 +77,104 @@ function wartet(a) {
   return null;
 }
 
-/* Punkte der Admin-Checkliste, die vor der Einführung erledigt sein müssen.
-   Muss mit der Liste CHECK_VOR im Admin-Bereich übereinstimmen. */
-const CHECK_VOR_KEYS = ['objekt','infos','planung','ablage','chat','dispo','schluessel'];
-
 function gruppieren(auftraege, angebote) {
-  const g = {
-    neueErteilungen: [],   // seit gestern eingegangen oder noch unbearbeitet
-    einfuehrungen: [],     // heute, morgen, übermorgen
-    zusageOffen: [],       // Terminvorschlag ohne Antwort
-    ohneZuteilung: [],     // wartet zu lange auf eine feste Raumpflegerin
-    aktivieren: [],        // Springerteam-Start wartet auf Aktivierung
-    reklamationen: [],     // negative Rückmeldung
-    angeboteOffen: 0
-  };
-
-  const heute = new Date(); heute.setHours(0, 0, 0, 0);
-  const tagStr = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-  const heuteStr = tagStr(heute);
-  const fenster = [0, 1, 2].map(n => tagStr(new Date(heute.getTime() + n * 86400000)));
-
-  const checkOffen = a => {
-    const stand = a.adminCheck || {};
-    return CHECK_VOR_KEYS.filter(k => !(stand[k] && stand[k].am)).length;
-  };
-  const beruehrt = a => !!(a.zuletztVon || a.vorlaufMail || a.einfuehrungAm ||
-    (Array.isArray(a.notizen) && a.notizen.length));
+  const g = { ueberfaellig: [], heute: [], wartend: [], neu: [], angeboteOffen: 0 };
+  const heuteStr = new Date().toISOString().slice(0, 10);
 
   for (const a of auftraege) {
     const st = String(a.stufe || '');
-    if (st === 'abgesagt') continue;
 
-    /* --- Einführungen der nächsten drei Tage, unabhängig von der Stufe --- */
-    const tag = a.einfuehrungAm ? String(a.einfuehrungAm).slice(0, 10) : '';
-    if (tag && fenster.indexOf(tag) !== -1) {
-      g.einfuehrungen.push({
-        a, tag,
-        wann: tag === fenster[0] ? 'heute' : tag === fenster[1] ? 'morgen' : 'übermorgen',
-        zeit: a.einfuehrungZeit || '',
-        bestaetigt: !!a.einfuehrungBestaetigt,
-        offen: checkOffen(a)
-      });
-    }
-
-    if (st === 'archiv') continue;
-
-    /* --- Reklamationen --- */
-    if (['teilweise', 'nicht'].indexOf(String(a.qualitaetAntwort || '')) !== -1) {
-      g.reklamationen.push({ a, antwort: a.qualitaetAntwort, text: a.qualitaetText || '' });
+    /* Monatliche Reinigung: Erinnerung zur Nachbuchung ist raus, aber noch
+       nichts gebucht. Gilt auch für aktive und archivierte Aufträge.
+       Nach dem Nachbuchen setzt api/termine.js terminErinnerung zurück. */
+    if (st !== 'abgesagt' && String(a.frequenz || '') === 'monatlich'
+        && a.terminErinnerung && !a.terminErinnerungAus) {
+      const tage = tageSeit(a.terminErinnerung);
+      if (tage >= 14) g.ueberfaellig.push({ a, text: 'Seit ' + tage + ' Tagen keine Nachbuchung der monatlichen Termine — bitte anrufen', tage });
+      else g.wartend.push({ a, text: 'Nachbuchung der nächsten sechs Termine', tage });
       continue;
     }
 
-    /* --- Neue Auftragserteilungen --- */
-    const seitEingang = a.eingegangenAm ? tageSeit(a.eingegangenAm) : null;
-    if (st !== 'aktiv' && (seitEingang !== null && seitEingang <= 1 || !beruehrt(a))) {
-      const springer = String(a.springerSofort || '').toLowerCase() === 'ja';
-      g.neueErteilungen.push({
-        a,
-        weg: springer ? 'Start mit Springerteam' : 'Wartet auf feste Raumpflegerin',
-        start: springer && a.startDatum ? String(a.startDatum).slice(0, 10) : '',
-        tage: seitEingang || 0
-      });
+    if (st === 'aktiv' || st === 'abgesagt' || st === 'archiv') continue;
+
+    const w = wartet(a);
+    if (w) {
+      const tage = w.seit ? tageSeit(w.seit) : 0;
+      const eintrag = { a, text: w.grund, tage };
+      if (tage > 7) g.ueberfaellig.push({ ...eintrag, text: 'Seit ' + tage + ' Tagen keine Antwort: ' + w.grund });
+      else g.wartend.push(eintrag);
       continue;
     }
-
-    /* --- Terminvorschlag ohne Zusage --- */
-    if (a.einfuehrungAm && !a.einfuehrungBestaetigt) {
-      const seit = a.einfuehrungVorschlagAm ? tageSeit(a.einfuehrungVorschlagAm) : 0;
-      if (seit > 7) g.zusageOffen.push({ a, tage: seit, tag });
+    if (st === 'bearbeitung' && a.bearbeitungAb && !a.vorlaufMail && !a.vorlaufAus) {
+      const rest = VORLAUF_WERKTAGE - werktageSeit(a.bearbeitungAb);
+      if (rest <= 0) { g.ueberfaellig.push({ a, text: 'Nachfrage überfällig', tage: -rest }); continue; }
+      if (rest <= 2) { g.heute.push({ a, text: 'Nachfrage geht in ' + rest + ' Werktag' + (rest === 1 ? '' : 'en') + ' hinaus', tage: 0 }); continue; }
+    }
+    if (a.einfuehrungAm && String(a.einfuehrungAm).slice(0, 10) === heuteStr) {
+      g.heute.push({ a, text: 'Einführung heute' + (a.einfuehrungZeit ? ' um ' + a.einfuehrungZeit + ' Uhr' : ''), tage: 0 });
       continue;
     }
-
-    /* --- Springerteam-Start wartet auf Aktivierung --- */
-    if (st === 'springer_gewuenscht' || (String(a.springerSofort || '').toLowerCase() === 'ja' && st !== 'aktiv')) {
-      g.aktivieren.push({ a, start: a.startDatum ? String(a.startDatum).slice(0, 10) : '' });
+    if (st === 'auftrag') {
+      const tage = a.eingegangenAm ? werktageSeit(a.eingegangenAm) : 0;
+      if (tage >= 3) g.ueberfaellig.push({ a, text: 'Seit ' + tage + ' Werktagen nicht bearbeitet', tage });
+      else g.neu.push({ a, text: 'Neu eingegangen', tage });
       continue;
     }
-
-    /* --- Ohne feste Zuteilung, länger als zwei Wochen --- */
-    if (st === 'bearbeitung') {
-      const seit = tageSeit(a.bearbeitungAb || a.eingegangenAm) || 0;
-      if (seit > 14) g.ohneZuteilung.push({ a, tage: seit });
-    }
+    g.neu.push({ a, text: 'In Arbeit', tage: 0 });
   }
 
-  g.einfuehrungen.sort((x, y) => x.tag.localeCompare(y.tag) || String(x.zeit).localeCompare(String(y.zeit)));
-  g.neueErteilungen.sort((x, y) => (y.tage || 0) - (x.tage || 0));
-  g.zusageOffen.sort((x, y) => (y.tage || 0) - (x.tage || 0));
-  g.ohneZuteilung.sort((x, y) => (y.tage || 0) - (x.tage || 0));
-
   g.angeboteOffen = angebote.filter(x => String(x.status || '') !== 'abgesagt' && !x.auftrag).length;
+  const sort = (x, y) => (y.tage || 0) - (x.tage || 0);
+  g.ueberfaellig.sort(sort); g.wartend.sort(sort); g.heute.sort(sort); g.neu.sort(sort);
   return g;
 }
 
 async function senden(key, g) {
   const heute = new Date().toLocaleDateString('de-CH', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
-  const F = { rot:'#B4232C', gelb:'#B4892C', teal:'#1C7878', grau:'#767676', ink:'#0E1E1D', text:'#485655' };
-  const datum = t => new Date(t).toLocaleDateString('de-CH', { weekday:'short', day:'2-digit', month:'2-digit' });
+  const gesamt = g.ueberfaellig.length + g.heute.length + g.wartend.length + g.neu.length;
 
   const kachel = (zahl, text, farbe) =>
-    `<td width="25%" style="padding:0 4px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-      style="border:1px solid #E1EAE9;border-top:3px solid ${farbe};background:#FBFDFD;"><tr><td align="center" style="padding:13px 5px;">
-      <div style="font-family:Verdana,Geneva,sans-serif;font-size:25px;font-weight:bold;color:${farbe};line-height:1;">${zahl}</div>
-      <div style="font-family:Verdana,Geneva,sans-serif;font-size:10.5px;color:${F.grau};margin-top:6px;">${text}</div>
+    `<td width="25%" style="padding:0 5px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #E1EAE9;border-top:3px solid ${farbe};background:#FBFDFD;"><tr><td align="center" style="padding:14px 6px;">
+      <div style="font-family:Verdana,Geneva,sans-serif;font-size:26px;font-weight:bold;color:${farbe};line-height:1;">${zahl}</div>
+      <div style="font-family:Verdana,Geneva,sans-serif;font-size:10.5px;color:#767676;margin-top:6px;">${text}</div>
     </td></tr></table></td>`;
 
-  const block = (titel, farbe, hinweis, zeilen) => {
-    if (!zeilen.length) return '';
-    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-        style="margin:0 0 16px;border:1px solid #E1EAE9;border-left:4px solid ${farbe};background:#FFFFFF;">
-      <tr><td style="padding:13px 16px;font-family:Verdana,Geneva,sans-serif;">
-        <div style="font-size:11.5px;font-weight:bold;color:${farbe};letter-spacing:.06em;">${titel.toUpperCase()} · ${zeilen.length}</div>
-        ${hinweis ? `<div style="font-size:11.5px;color:${F.grau};margin-top:4px;">${hinweis}</div>` : ''}
-        ${zeilen.map(z => `<div style="font-size:12.5px;color:${F.text};margin-top:10px;">${z}</div>`).join('')}
-      </td></tr></table>`;
+  const liste = (titel, farbe, eintraege) => {
+    if (!eintraege.length) return '';
+    return `<div style="font-family:Verdana,Geneva,sans-serif;font-size:12px;font-weight:bold;color:${farbe};letter-spacing:.06em;margin:24px 0 8px;">${titel.toUpperCase()} · ${eintraege.length}</div>` +
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">` +
+      eintraege.slice(0, 15).map(x => `<tr>
+        <td style="padding:9px 0;border-bottom:1px solid #EDEFEF;">
+          <div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:bold;color:#0E1E1D;">${kname(x.a)}</div>
+          <div style="font-family:Verdana,Geneva,sans-serif;font-size:11.5px;color:#767676;">${kort(x.a)}</div>
+          <div style="font-family:Verdana,Geneva,sans-serif;font-size:12px;color:${farbe};margin-top:3px;">${x.text}</div>
+        </td></tr>`).join('') +
+      (eintraege.length > 15 ? `<tr><td style="padding:8px 0;font-family:Verdana,Geneva,sans-serif;font-size:11.5px;color:#767676;">… und ${eintraege.length - 15} weitere</td></tr>` : '') +
+      `</table>`;
   };
 
-  const person = a => `<strong style="color:${F.ink};">${kname(a)}</strong>, ${kort(a)}`;
-
-  /* 1 Einführungen der nächsten Tage */
-  const eZeilen = g.einfuehrungen.map(e =>
-    `${datum(e.tag)}${e.zeit ? ', ' + e.zeit + ' Uhr' : ''} · ${person(e.a)}` +
-    `${e.a.raumpflegerin ? ' · ' + e.a.raumpflegerin : ''}<br>` +
-    `<span style="color:${e.bestaetigt ? F.teal : F.gelb};">${e.bestaetigt ? 'Bestätigt' : 'Zusage steht aus'}</span>` +
-    `${e.offen ? ` · <span style="color:${F.rot};">${e.offen} Punkt${e.offen === 1 ? '' : 'e'} der Checkliste offen</span>`
-               : ' · Checkliste vollständig'}`);
-
-  /* 2 Neue Auftragserteilungen */
-  const nZeilen = g.neueErteilungen.map(n =>
-    `${person(n.a)}<br><span style="color:${F.teal};">${n.weg}</span>` +
-    `${n.start ? ' · Start ' + datum(n.start) : ''}` +
-    `${n.tage ? ` · eingegangen vor ${n.tage} Tag${n.tage === 1 ? '' : 'en'}` : ' · heute eingegangen'}`);
-
-  const aZeilen = g.aktivieren.map(x =>
-    `${person(x.a)}${x.start ? '<br>Start ' + datum(x.start) : ''} · <span style="color:${F.teal};">disponieren und aktivieren</span>`);
-  const zZeilen = g.zusageOffen.map(x =>
-    `${person(x.a)}<br>Termin ${datum(x.tag)} · <span style="color:${F.rot};">seit ${x.tage} Tagen ohne Zusage — nachfassen</span>`);
-  const oZeilen = g.ohneZuteilung.map(x =>
-    `${person(x.a)}<br><span style="color:${F.rot};">seit ${x.tage} Tagen ohne feste Raumpflegerin</span>`);
-  const rZeilen = g.reklamationen.map(x =>
-    `${person(x.a)}<br><span style="color:${F.rot};">${x.antwort === 'nicht' ? 'nicht zufrieden' : 'teilweise zufrieden'}</span>` +
-    `${x.text ? ' — «' + String(x.text).slice(0, 120) + '»' : ''}`);
-
-  const nichts = !g.einfuehrungen.length && !g.neueErteilungen.length && !g.aktivieren.length &&
-                 !g.zusageOffen.length && !g.ohneZuteilung.length && !g.reklamationen.length;
-
   const inhalt = `
-    <p style="margin:0 0 16px;">Stand ${heute}.${nichts ? ' Zurzeit ist nichts offen.' : ''}</p>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px;"><tr>
-      ${kachel(g.neueErteilungen.length, 'Neue Auftragserteilungen', F.teal)}
-      ${kachel(g.einfuehrungen.length, 'Einführungen in 2 Tagen', F.gelb)}
-      ${kachel(g.zusageOffen.length + g.ohneZuteilung.length, 'Nachfassen', F.rot)}
-      ${kachel(g.reklamationen.length, 'Reklamationen', F.rot)}
+    <p style="margin:0 0 6px;">Stand ${heute}.</p>
+    <p style="margin:0 0 18px;">${gesamt === 0
+      ? 'Es sind derzeit keine Pendenzen offen.'
+      : 'Offen sind aktuell <strong>' + gesamt + '</strong> Pendenzen. Die dringendsten zuerst.'}</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 6px;"><tr>
+      ${kachel(g.ueberfaellig.length, 'Überfällig', '#B4232C')}
+      ${kachel(g.heute.length, 'Heute fällig', '#B4232C'.replace('#B4232C', '#B4892C'))}
+      ${kachel(g.wartend.length, 'Wartet auf Kundschaft', '#4F8FA6')}
+      ${kachel(g.neu.length, 'Neu und in Arbeit', '#1C7878')}
     </tr></table>
-    ${block('Neue Auftragserteilungen', F.teal, 'noch nicht bearbeitet oder gestern eingegangen', nZeilen)}
-    ${block('Einführungen heute bis übermorgen', F.gelb, 'Checkliste muss am Vortag vollständig sein', eZeilen)}
-    ${block('Reklamationen', F.rot, 'zuerst anrufen, danach zweite Nachfrage senden', rZeilen)}
-    ${block('Zusage steht aus', F.rot, 'Terminvorschlag ist seit über einer Woche unbeantwortet', zZeilen)}
-    ${block('Ohne feste Raumpflegerin', F.rot, 'wartet seit mehr als zwei Wochen', oZeilen)}
-    ${block('Springerteam-Start aktivieren', F.teal, 'sobald disponiert ist', aZeilen)}
+    ${liste('Überfällig', '#B4232C', g.ueberfaellig)}
+    ${liste('Heute fällig', '#B4892C', g.heute)}
+    ${liste('Neu und in Arbeit', '#1C7878', g.neu)}
+    ${liste('Wartet auf die Kundschaft', '#4F8FA6', g.wartend)}
     ${csKnopf('Im CRM öffnen', BASIS + '/admin.html')}
-    <p style="margin:14px 0 0;font-size:12px;color:${F.grau};">Offene Angebote in der Nachfassstrecke: ${g.angeboteOffen}.</p>`;
+    <p style="margin:14px 0 0;font-size:12px;color:#767676;">Offene Angebote in der Nachfassstrecke: ${g.angeboteOffen}.</p>`;
 
-  const zeile = t => '  ' + t.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ');
   const text = 'Pendenzen ' + heute + '\n\n' +
-    'Neue Auftragserteilungen: ' + g.neueErteilungen.length + '\n' + nZeilen.map(zeile).join('\n') +
-    '\n\nEinführungen heute bis übermorgen: ' + g.einfuehrungen.length + '\n' + eZeilen.map(zeile).join('\n') +
-    '\n\nReklamationen: ' + g.reklamationen.length +
-    '\nZusage steht aus: ' + g.zusageOffen.length +
-    '\nOhne feste Raumpflegerin: ' + g.ohneZuteilung.length +
-    '\nSpringerteam-Start aktivieren: ' + g.aktivieren.length +
+    'Überfällig: ' + g.ueberfaellig.length + '\nHeute fällig: ' + g.heute.length +
+    '\nWartet auf Kundschaft: ' + g.wartend.length + '\nNeu und in Arbeit: ' + g.neu.length +
     '\n\n' + BASIS + '/admin.html';
-
-  const betreff = 'Pendenzen ' + new Date().toLocaleDateString('de-CH') +
-    (g.neueErteilungen.length ? ' · ' + g.neueErteilungen.length + ' neu' : '') +
-    (g.einfuehrungen.length ? ' · ' + g.einfuehrungen.length + ' Einführung' + (g.einfuehrungen.length === 1 ? '' : 'en') : '') +
-    (g.reklamationen.length ? ' · ' + g.reklamationen.length + ' Reklamation' + (g.reklamationen.length === 1 ? '' : 'en') : '');
 
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -269,7 +182,8 @@ async function senden(key, g) {
     body: JSON.stringify({
       from: 'Angebotssystem PFS <putzfrauenservice@clean-service.ch>',
       to: [EMPFAENGER],
-      subject: betreff,
+      subject: 'Pendenzen ' + new Date().toLocaleDateString('de-CH') +
+               (g.ueberfaellig.length ? ' · ' + g.ueberfaellig.length + ' überfällig' : ''),
       html: csRahmen('Pendenzen im Putzfrauenservice', inhalt, '', 'de'),
       text,
       attachments: [{ filename:'logo.png', content: CS_LOGO, content_id:'cslogo', disposition:'inline' }]
@@ -479,9 +393,9 @@ function csSignatur(spr){
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin-top:26px;">
     <tr><td style="padding-top:18px;border-top:2px solid ${CS_FARBE};">
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.55;color:${CS_TEXT};">
-        <strong>Putzfrauenservice · Admin-Team</strong><br>
-        Clean Service Scaramuzzo AG<br>
-        0844 355 355
+        <strong>Cristian Gambale</strong><br>
+        ${CS_ROLLE[s]}<br>
+        Direkt 052 557 02 08 / 076 822 00 16
       </div>
       <div style="border-top:1px solid #D8D8D8;margin:12px 0;width:220px;"></div>
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:12px;line-height:1.55;color:${CS_GRAU};">

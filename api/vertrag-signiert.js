@@ -8,27 +8,14 @@ import crypto from 'crypto';
 // Speichert die Unterschrift beim Auftrag, meldet den Eingang an den
 // Putzfrauenservice und bestaetigt der Kundschaft den Empfang.
 
-/* Die Verwaltung bleibt unter der Vercel-Adresse erreichbar; die eigene
-   Domain ist allein für die Kundschaft. */
-const VERWALTUNG = 'https://angebot-pfs.vercel.app/admin.html';
 const SAMMLUNG = 'auftraege';
 const EMPFAENGER = 'putzfrauenservice@clean-service.ch';
 
-/* Ein Vertragslink bleibt gültig, auch wenn später ein anderes Geheimnis
-   gesetzt wird: Es zählt, ob die Signatur zu irgendeinem der hinterlegten
-   Werte passt. Sonst brechen alle bereits versendeten Links, sobald eine
-   Umgebungsvariable dazukommt oder geändert wird. */
-function vertragGeheimnisse() {
-  return [process.env.VERTRAG_SECRET, process.env.ANTWORT_SECRET,
-          process.env.CRON_SECRET, 'cs-pfs'].filter(Boolean);
-}
-function vertragSignatur(id, geheim) {
+function signatur(id) {
+  const geheim = process.env.VERTRAG_SECRET || process.env.ANTWORT_SECRET
+              || process.env.CRON_SECRET || 'cs-pfs';
   return crypto.createHmac('sha256', geheim).update(String(id) + '.v')
                .digest('hex').slice(0, 20);
-}
-function vertragSigGueltig(id, sig) {
-  const s = String(sig || '');
-  return vertragGeheimnisse().some(g => vertragSignatur(id, g) === s);
 }
 
 export default async function handler(req, res) {
@@ -40,7 +27,7 @@ export default async function handler(req, res) {
   const b = req.body || {};
   const id = String(b.id || '');
   const sig = String(b.sig || '');
-  if (!id || !vertragSigGueltig(id, sig)) {
+  if (!id || sig !== signatur(id)) {
     return res.status(401).json({ error: 'Nicht berechtigt' });
   }
 
@@ -69,30 +56,6 @@ export default async function handler(req, res) {
     await speichern(SAMMLUNG, fund.schluessel, neu);
     bericht.gespeichert = true;
 
-    /* Der unterschriebene Vertrag wird in einer eigenen Sammlung abgelegt,
-       damit die Terminbestätigung ihn beilegen kann. Eigene Sammlung, weil
-       ein Firestore-Dokument nur rund ein Megabyte fasst. */
-    if (pdfRoh && pdfRoh.length < 900000) {
-      try {
-        await speichern('vertraege', fund.schluessel, {
-          pdf: pdfRoh,
-          dateiname: 'Reinigungsvertrag_' + (auf.angebotsnr || fund.schluessel) + '_unterschrieben.pdf',
-          am: neu.vertragSigniertAm
-        });
-        bericht.vertragAbgelegt = true;
-      } catch (e) {
-        bericht.ablagefehler = String(e.message || e).slice(0, 300);
-      }
-    }
-
-    /* Portalzugang: der Link wurde bereits von vertrag.html geholt (damit er
-       im PDF stehen kann) und mitgeschickt. Fehlt er, faellt der Abschnitt in
-       der Bestaetigungsmail einfach weg - der Vertrag bleibt gueltig. */
-    const portal = (b.portalLink)
-      ? { status: 'ok', link: String(b.portalLink) }
-      : { status: 'kein-link' };
-    bericht.portal = portal.status;
-
     const key = process.env.RESEND_API_KEY;
     if (key) {
       const name = [auf.anrede, auf.vorname, auf.nachname].filter(Boolean).join(' ') || 'Unbekannt';
@@ -120,7 +83,7 @@ export default async function handler(req, res) {
               ['Ort', neu.vertragOrt],
               ['Unterschrieben am', new Date(neu.vertragSigniertAm).toLocaleString('de-CH')]
             ])}
-            ${csKnopf('Im CRM bearbeiten', VERWALTUNG)}`, '', 'de'),
+            ${csKnopf('Im CRM bearbeiten', 'https://angebot-pfs.vercel.app/admin.html')}`, '', 'de'),
           text: 'Vertrag unterschrieben — ' + name + '\nOrt: ' + neu.vertragOrt,
           attachments: anhang.concat([
             { filename:'logo.png', content: CS_LOGO, content_id:'cslogo', disposition:'inline' }
@@ -145,30 +108,14 @@ export default async function handler(req, res) {
         const L = EN ? {
           betreff:'Your signed cleaning contract', titel:'Your signed contract',
           a1:'Thank you — we have received your signed cleaning contract. You will find it attached to this message as a PDF.',
-          a2:'If you have any questions, we are here for you at any time.',
-          pTitel:'Your customer portal is ready',
-          pText:'From now on you can report appointment changes, cancellations and other matters directly — no email needed, no password required. Simply save the link as a bookmark.',
-          pKnopf:'Open customer portal',
+          a2:'If you have any questions, you can reach me directly at any time.',
           gruss:'Kind regards', rolle:'Head of Putzfrauenservice'
         } : {
           betreff:'Ihr unterschriebener Reinigungsvertrag', titel:'Ihr unterschriebener Vertrag',
           a1:'Vielen Dank — Ihr unterschriebener Reinigungsvertrag ist bei uns eingegangen. Sie finden ihn als PDF im Anhang dieser Nachricht.',
-          a2:'Für Rückfragen sind wir jederzeit für Sie da.',
-          pTitel:'Ihr Kundenportal ist bereit',
-          pText:'Ab sofort melden Sie Terminverschiebungen, Absagen und andere Anliegen direkt bei uns — ohne E-Mail und ohne Passwort. Speichern Sie den Link einfach als Lesezeichen.',
-          pKnopf:'Kundenportal öffnen',
+          a2:'Für Rückfragen erreichen Sie mich jederzeit direkt.',
           gruss:'Freundliche Grüsse', rolle:'Bereichsleiter Putzfrauenservice'
         };
-
-        /* Der Portalzugang wird direkt in die Vertragsbestaetigung eingebettet -
-           so bekommt die Kundschaft nur eine Nachricht statt zwei. */
-        const portalBlock = portal.status === 'ok' && portal.link ? `
-              <div style="margin:26px 0 6px;padding:20px 22px;background:#F2F9F9;border:1px solid #CDE6E6;">
-                <div style="font-family:Verdana,Geneva,sans-serif;font-size:14px;font-weight:bold;color:${CS_TEXT};margin-bottom:8px;">${L.pTitel}</div>
-                <div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.7;color:${CS_TEXT};">${L.pText}</div>
-                ${csKnopf(L.pKnopf, portal.link)}
-                <div style="font-family:Verdana,Geneva,sans-serif;font-size:11px;color:${CS_GRAU};word-break:break-all;">${portal.link}</div>
-              </div>` : '';
         try {
           await senden(key, {
             // Ohne Kopie: der Putzfrauenservice erhält die eigene Meldung mit dem PDF
@@ -183,7 +130,6 @@ export default async function handler(req, res) {
                 [EN ? 'Signed on' : 'Unterschrieben am',
                  new Date(neu.vertragSigniertAm).toLocaleDateString(EN ? 'en-GB' : 'de-CH')]
               ])}
-              ${portalBlock}
               <p style="margin:0;">${L.a2}</p>`, '', EN ? 'en' : 'de'),
             text: anrede + '\n\n' + L.a1 + '\n\n' + L.a2 + csSignaturText(EN ? 'en' : 'de'),
             attachments: anhang.concat([{ filename:'logo.png', content: CS_LOGO,
@@ -210,7 +156,7 @@ async function senden(key, daten) {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: CS_ABSENDER_TEAM,
+      from: 'Cristian Gambale · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
       ...daten
     })
   });
@@ -226,7 +172,6 @@ async function auftragFinden(id) {
   const t = alle.find(x => String(x.id || '') === String(id) || String(x._id || '') === String(id));
   return t ? { daten:t, schluessel:String(t._id || t.id || id) } : null;
 }
-
 
 
 
@@ -421,12 +366,6 @@ const CS_LOGO = 'iVBORw0KGgoAAAANSUhEUgAAAbgAAACVCAIAAACl7Xi4AABsOElEQVR42u29d5w
 const CS_FARBE = '#2BB6B7', CS_DUNKEL = '#12797A', CS_TEXT = '#333333', CS_GRAU = '#767676';
 
 const CS_ROLLE = { de:'Bereichsleiter Putzfrauenservice', en:'Head of Putzfrauenservice' };
-/* Ab der Auftragserteilung zeichnet das Admin-Team des Putzfrauenservice. */
-const CS_TEAM_NAME = 'Putzfrauenservice · Admin-Team';
-const CS_TEAM_ROLLE = 'Clean Service Scaramuzzo AG';
-const CS_TEAM_TEL = '0844 355 355';
-const CS_ABSENDER_TEAM = 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>';
-
 const CS_CLAIM = { de:'Putzfrauenservice<br>seit 1984', en:'Putzfrauenservice<br>since 1984' };
 
 function csSignatur(spr){
@@ -435,9 +374,9 @@ function csSignatur(spr){
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin-top:26px;">
     <tr><td style="padding-top:18px;border-top:2px solid ${CS_FARBE};">
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.55;color:${CS_TEXT};">
-        <strong>${CS_TEAM_NAME}</strong><br>
-        ${CS_TEAM_ROLLE}<br>
-        ${CS_TEAM_TEL}
+        <strong>Cristian Gambale</strong><br>
+        ${CS_ROLLE[s]}<br>
+        Direkt 052 557 02 08 / 076 822 00 16
       </div>
       <div style="border-top:1px solid #D8D8D8;margin:12px 0;width:220px;"></div>
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:12px;line-height:1.55;color:${CS_GRAU};">
@@ -504,9 +443,9 @@ function csKnopf(text, link){
 function csSignaturText(spr){
   const s = spr === 'en' ? 'en' : 'de';
   return '\n\n' + (s === 'en' ? 'Kind regards' : 'Freundliche Grüsse') + '\n\n' +
-    CS_TEAM_NAME + '\n' +
-    CS_TEAM_ROLLE + '\n' +
-    CS_TEAM_TEL + '\n' +
+    'Cristian Gambale\n' +
+    CS_ROLLE[s] + '\n' +
+    'Direkt 052 557 02 08 / 076 822 00 16\n' +
     '---------------------------------\n' +
     'Clean Service Scaramuzzo AG\n' +
     'Industriestrasse 5\n' +

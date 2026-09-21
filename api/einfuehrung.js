@@ -63,36 +63,14 @@ export default async function handler(req, res) {
   const auf = fund.daten;
   const key = process.env.RESEND_API_KEY;
 
-  /* ---- Bestaetigung: durch die Kundschaft per Link oder von Hand aus der
-         Verwaltung, wenn die Zusage telefonisch eingegangen ist. In beiden
-         Faellen laeuft derselbe Ablauf, damit die Kundschaft in jedem Fall
-         die Terminbestaetigung mit dem Vertrag erhaelt. ---- */
+  /* ---- Bestaetigung durch die Kundschaft ---- */
   if (b.bestaetigen) {
-    const vonHand = String(b.sig || '') !== sigEin(id);
-    if (vonHand && sitzungPruefen(req) === null) {
-      return res.status(401).json({ error: 'Nicht berechtigt' });
-    }
+    if (String(b.sig || '') !== sigEin(id)) return res.status(401).json({ error: 'Nicht berechtigt' });
     const bericht = { ok:false, gespeichert:false, gemeldet:false };
     try {
       const neu = { ...auf };
       delete neu._id;
       neu.einfuehrungBestaetigt = new Date().toISOString();
-      if (vonHand) {
-        neu.einfuehrungBestaetigtVon = String(b.bearbeiter || '').slice(0, 60);
-        neu.einfuehrungBestaetigtArt = 'telefonisch';
-      }
-      /* Mit der Zusage steht der Termin: der Auftrag laeuft und wandert auf
-         «aktiv». Einfuehrung und erste Reinigung sind derselbe Tag. */
-      neu.stufe = 'aktiv';
-      if (auf.einfuehrungAm) neu.erstReinigung = auf.einfuehrungAm;
-      /* Uebernimmt hier eine feste Raumpflegerin, laeuft ab diesem Tag die
-         Frist bis zur Qualitaetsnachfrage. Fuehrt weiterhin das Springerteam,
-         wird nicht nach der Qualitaet gefragt. */
-      if (auf.springerGestartet === true) {
-        neu.qualitaetAm = '';
-      } else if (auf.einfuehrungAm) {
-        neu.festStartAm = auf.einfuehrungAm;
-      }
       await speichern(SAMMLUNG, fund.schluessel, neu);
       bericht.gespeichert = true;
       if (key) {
@@ -102,7 +80,7 @@ export default async function handler(req, res) {
             to: [EMPFAENGER], reply_to: auf.mail || auf.email || EMPFAENGER,
             subject: 'Einführungstermin bestätigt — ' + name,
             html: csRahmen('Einführungstermin bestätigt', `
-              <p style="margin:0 0 16px;">Die Kundschaft hat den vorgeschlagenen Einführungstermin bestätigt. Der Auftrag steht damit auf «aktiv».</p>
+              <p style="margin:0 0 16px;">Die Kundschaft hat den vorgeschlagenen Einführungstermin bestätigt.</p>
               ${csTabelle([
                 ['Kunde', name],
                 ['Objekt', [auf.adresse, auf.plzOrt || auf.ort].filter(Boolean).join(', ')],
@@ -116,87 +94,6 @@ export default async function handler(req, res) {
           });
           bericht.gemeldet = true;
         } catch (e) { bericht.meldefehler = String(e.message || e).slice(0, 300); }
-
-        /* Bestaetigung an die Kundschaft. Liegt der unterschriebene Vertrag
-           vor, haengt er dieser einen Mail bei; fehlt er, steht stattdessen
-           der Link zum Unterschreiben darin. */
-        try {
-          const kundenMail = auf.mail || auf.email || '';
-          if (kundenMail) {
-            const EN = String(auf.sprache || 'de').toLowerCase() === 'en';
-            const spr = EN ? 'en' : 'de';
-            const nn2 = auf.nachname || '';
-            const anrede2 = EN
-              ? (auf.anrede === 'Herr' ? 'Dear Mr ' + nn2 : auf.anrede === 'Frau' ? 'Dear Mrs ' + nn2
-                : 'Dear ' + [auf.vorname, nn2].filter(Boolean).join(' '))
-              : (auf.anrede === 'Herr' ? 'Sehr geehrter Herr ' + nn2 : auf.anrede === 'Frau' ? 'Sehr geehrte Frau ' + nn2
-                : 'Guten Tag ' + [auf.vorname, nn2].filter(Boolean).join(' '));
-            const wann2 = langDatum(auf.einfuehrungAm, EN) +
-                          (auf.einfuehrungZeit ? (EN ? ', at ' : ', um ') + auf.einfuehrungZeit + (EN ? '' : ' Uhr') : '');
-            const vertragLink = BASIS + '/vertrag.html?id=' + encodeURIComponent(fund.schluessel) +
-                                '&sig=' + sigVertrag(fund.schluessel) + '&spr=' + spr;
-
-            let vertragDoc = null;
-            try { vertragDoc = await lesen('vertraege', fund.schluessel); } catch (e) { vertragDoc = null; }
-            const pdf = vertragDoc && vertragDoc.pdf ? String(vertragDoc.pdf) : '';
-
-            const K = EN ? {
-              betreff: pdf ? 'Appointment confirmed — with your signed contract' : 'Appointment confirmed',
-              titel:'Your appointment is confirmed',
-              a1:'Thank you for confirming. We have noted the appointment for the introduction and the first clean.',
-              a2: pdf ? 'Your signed cleaning contract is attached to this e-mail for your records.'
-                      : 'Your cleaning contract is still open. Please sign it online before the introduction:',
-              knopf:'View and sign contract',
-              a3:'A supervisor will attend the introduction to present your cleaner in person and to go through everything with you. You will receive the checklist and the key receipt on site.',
-              a4:'If anything changes, reply to this e-mail or call 0844 355 355.'
-            } : {
-              betreff: pdf ? 'Termin bestätigt — mit Ihrem unterschriebenen Vertrag' : 'Ihr Einführungstermin ist bestätigt',
-              titel:'Ihr Termin ist bestätigt',
-              a1:'Vielen Dank für Ihre Bestätigung. Wir haben den Termin für die Einführung und die erste Reinigung notiert.',
-              a2: pdf ? 'Ihren unterschriebenen Reinigungsvertrag finden Sie zu Ihren Unterlagen im Anhang dieser E-Mail.'
-                      : 'Ihr Reinigungsvertrag ist noch offen. Bitte unterschreiben Sie ihn vor dem Einführungstermin online:',
-              knopf:'Vertrag ansehen und unterschreiben',
-              a3:'Beim Einführungstermin ist ein Vorarbeiter anwesend, stellt Ihnen Ihre Raumpflegerin persönlich vor und geht alle Abläufe mit Ihnen durch. Die Checkliste und die Schlüsselquittung erhalten Sie vor Ort.',
-              a4:'Sollte sich etwas ändern, antworten Sie auf diese E-Mail oder rufen Sie uns unter 0844 355 355 an.'
-            };
-
-            const knopf2 = (text, link) =>
-              `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;"><tr>` +
-              `<td style="border:1px solid #D5E2E1;background:#FBFDFD;"><a href="${link}" style="display:inline-block;padding:12px 27px;` +
-              `font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:bold;color:${CS_DUNKEL};text-decoration:none;">${text}</a></td></tr></table>`;
-
-            const inhalt2 = `
-              <p style="margin:0 0 16px;">${anrede2}</p>
-              <p style="margin:0 0 16px;">${K.a1}</p>
-              ${csTabelle([
-                [EN ? 'Cleaner' : 'Raumpflegerin', auf.raumpflegerin || ''],
-                [EN ? 'Introduction and first clean' : 'Einführung und erste Reinigung', wann2],
-                [EN ? 'Property' : 'Objekt', [auf.adresse, auf.plzOrt || auf.ort].filter(Boolean).join(', ')]
-              ])}
-              <p style="margin:0 0 14px;">${K.a2}</p>
-              ${pdf ? '' : knopf2(K.knopf, vertragLink)}
-              <p style="margin:0 0 16px;">${K.a3}</p>
-              <p style="margin:0;">${K.a4}</p>`;
-
-            const anhaenge = [{ filename:'logo.png', content: CS_LOGO, content_id:'cslogo', disposition:'inline' }];
-            if (pdf) {
-              anhaenge.unshift({
-                filename: 'Reinigungsvertrag_' + (auf.angebotsnr || fund.schluessel) + '_unterschrieben.pdf',
-                content: pdf
-              });
-            }
-
-            await senden(key, {
-              to: [kundenMail], reply_to: EMPFAENGER,
-              subject: K.betreff,
-              html: csRahmen(K.titel, inhalt2, '', spr),
-              text: anrede2 + '\n\n' + K.a1 + '\n\n' + K.a2 + (pdf ? '' : '\n' + vertragLink) +
-                    '\n\n' + K.a3 + '\n\n' + K.a4 + csSignaturText(spr),
-              attachments: anhaenge
-            });
-            bericht.kundenmail = true;
-          }
-        } catch (e) { bericht.kundenmailfehler = String(e.message || e).slice(0, 300); }
       }
       bericht.ok = true;
       return res.status(200).json(bericht);
@@ -321,7 +218,7 @@ async function senden(key, daten) {
   const r = await fetch('https://api.resend.com/emails', {
     method:'POST', headers:{ Authorization:'Bearer ' + key, 'Content-Type':'application/json' },
     body: JSON.stringify({
-      from: CS_ABSENDER_TEAM,
+      from:'Cristian Gambale · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
       ...daten })
   });
   const d = await r.json().catch(() => ({}));
@@ -597,13 +494,6 @@ const CS_LOGO = 'iVBORw0KGgoAAAANSUhEUgAAAbgAAACVCAIAAACl7Xi4AABsOElEQVR42u29d5w
 const CS_FARBE = '#2BB6B7', CS_DUNKEL = '#12797A', CS_TEXT = '#333333', CS_GRAU = '#767676';
 
 const CS_ROLLE = { de:'Bereichsleiter Putzfrauenservice', en:'Head of Putzfrauenservice' };
-/* Ab der Auftragserteilung zeichnet das Admin-Team des Putzfrauenservice,
-   davor Cristian Gambale. */
-const CS_TEAM_NAME = 'Putzfrauenservice · Admin-Team';
-const CS_TEAM_ROLLE = 'Clean Service Scaramuzzo AG';
-const CS_TEAM_TEL = '0844 355 355';
-const CS_ABSENDER_TEAM = 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>';
-
 const CS_CLAIM = { de:'Putzfrauenservice<br>seit 1984', en:'Putzfrauenservice<br>since 1984' };
 
 function csSignatur(spr){
@@ -612,9 +502,9 @@ function csSignatur(spr){
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin-top:26px;">
     <tr><td style="padding-top:18px;border-top:2px solid ${CS_FARBE};">
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.55;color:${CS_TEXT};">
-        <strong>${CS_TEAM_NAME}</strong><br>
-        ${CS_TEAM_ROLLE}<br>
-        ${CS_TEAM_TEL}
+        <strong>Cristian Gambale</strong><br>
+        ${CS_ROLLE[s]}<br>
+        Direkt 052 557 02 08 / 076 822 00 16
       </div>
       <div style="border-top:1px solid #D8D8D8;margin:12px 0;width:220px;"></div>
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:12px;line-height:1.55;color:${CS_GRAU};">
@@ -681,9 +571,9 @@ function csKnopf(text, link){
 function csSignaturText(spr){
   const s = spr === 'en' ? 'en' : 'de';
   return '\n\n' + (s === 'en' ? 'Kind regards' : 'Freundliche Grüsse') + '\n\n' +
-    CS_TEAM_NAME + '\n' +
-    CS_TEAM_ROLLE + '\n' +
-    CS_TEAM_TEL + '\n' +
+    'Cristian Gambale\n' +
+    CS_ROLLE[s] + '\n' +
+    'Direkt 052 557 02 08 / 076 822 00 16\n' +
     '---------------------------------\n' +
     'Clean Service Scaramuzzo AG\n' +
     'Industriestrasse 5\n' +

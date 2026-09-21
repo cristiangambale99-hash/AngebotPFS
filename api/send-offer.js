@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 // api/send-offer.js
 // Vercel Serverless Function – versendet das persönliche Reinigungskonzept per E-Mail
 // über Resend (https://resend.com), abgesendet von putzfrauenservice@clean-service.ch.
@@ -16,6 +17,11 @@
 // Danach ruft admin.html diesen Endpunkt unter /api/send-offer per POST auf.
 
 export default async function handler(req, res) {
+  /* Nur angemeldete Admin-Nutzer dürfen über diese Funktion Mails versenden,
+     sonst könnte jeder mit der Adresse Mails im Namen der Firma verschicken. */
+  if (sitzungPruefen(req) === null) {
+    return res.status(401).json({ error: 'Nicht angemeldet.' });
+  }
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
@@ -151,7 +157,7 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
+        from: 'Cristian Gambale · Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>',
         reply_to: 'putzfrauenservice@clean-service.ch',
         to: [to],
         subject,
@@ -271,4 +277,30 @@ function csSignaturText(spr){
     '8307 Effretikon\n' +
     '0844 355 355\n' +
     'clean-service.ch';
+}
+
+function sitzungPruefen(req){
+  try{
+    const geheim = process.env.SESSION_SECRET;
+    if(!geheim) return 'nicht-eingerichtet';       // Schutz noch nicht aktiv
+    let token = '';
+    const kopf = req.headers.authorization || '';
+    if(kopf.startsWith('Bearer ')) token = kopf.slice(7);
+    if(!token){
+      const c = req.headers.cookie || '';
+      const m = c.match(/cs_session=([^;]+)/);
+      if(m) token = decodeURIComponent(m[1]);
+    }
+    if(!token) return null;
+
+    const [nutz, sig] = token.split('.');
+    if(!nutz || !sig) return null;
+    const erwartet = Buffer.from(crypto.createHmac('sha256', geheim).update(nutz).digest())
+      .toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    const a = Buffer.from(sig), b = Buffer.from(erwartet);
+    if(a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    const d = JSON.parse(Buffer.from(nutz.replace(/-/g,'+').replace(/_/g,'/'), 'base64').toString());
+    if(!d.exp || d.exp < Date.now()) return null;
+    return d.u || null;
+  }catch(e){ return null; }
 }

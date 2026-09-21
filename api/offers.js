@@ -79,7 +79,7 @@ async function anlegen(req, res) {
 
 /* ---- Status ändern ---- */
 async function statusAendern(req, res) {
-  const { code, status, erinnerungAus, notiz, notizNeu, bearbeiter } = req.body || {};
+  const { code, status, erinnerungAus, notiz } = req.body || {};
   if (!code) return res.status(400).json({ error: 'Zugangscode fehlt.' });
 
   const vorhanden = await lesen(SAMMLUNG, code);
@@ -93,37 +93,6 @@ async function statusAendern(req, res) {
   }
   if (typeof erinnerungAus === 'boolean') neu.erinnerungAus = erinnerungAus;
   if (typeof notiz === 'string') neu.notiz = notiz;
-
-  /* Stammdaten nachtragen: Anfragen kommen oft ohne Telefonnummer oder
-     vollständige Adresse herein, die Angaben folgen später telefonisch. */
-  ['anrede', 'vorname', 'nachname', 'adresse', 'plzOrt', 'ort', 'mail', 'email', 'mobile',
-   'zimmer', 'frequenz', 'sprache', 'angebotsnr'].forEach(f => {
-    if (typeof req.body[f] === 'string') neu[f] = req.body[f];
-  });
-
-  /* Stammdaten nachtragen: Telefon, Adresse und Ähnliches fehlen in Anfragen
-     häufig und werden vom Admin-Team später ergänzt. */
-  ['anrede', 'vorname', 'nachname', 'adresse', 'ort', 'plzOrt', 'email', 'mail', 'mobile',
-   'zimmer', 'frequenz', 'angebotsnr', 'sprache'].forEach(f => {
-    if (typeof (req.body || {})[f] === 'string') neu[f] = (req.body || {})[f];
-  });
-
-  /* Notizen werden als Liste geführt, damit der Verlauf erhalten bleibt —
-     gleich wie beim Auftrag. Ältere Einzelnotizen werden übernommen. */
-  if (typeof notizNeu === 'string' && notizNeu.trim()) {
-    const bisher = Array.isArray(neu.notizen) ? neu.notizen.slice()
-      : (neu.notiz ? [{ text: neu.notiz, von: neu.zuletztVon || '', am: neu.zuletztAm || '' }] : []);
-    bisher.push({
-      text: notizNeu.trim().slice(0, 2000),
-      von: String(bearbeiter || '').slice(0, 60),
-      am: new Date().toISOString()
-    });
-    neu.notizen = bisher;
-  }
-  if (bearbeiter) {
-    neu.zuletztVon = String(bearbeiter).slice(0, 60);
-    neu.zuletztAm = new Date().toISOString();
-  }
 
   const gespeichert = await speichern(SAMMLUNG, code, neu);
   return res.status(200).json({ ok: true, angebot: gespeichert });
