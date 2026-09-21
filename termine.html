@@ -50,28 +50,36 @@ h1,h2,h3{font-family:var(--head);color:var(--ink);margin:0;line-height:1.2;lette
 .intro p{margin:0;font-size:14.5px;max-width:60ch;}
 
 /* Fortschritt */
-.steps{display:flex;gap:7px;margin-bottom:18px;}
-.steps div{flex:1;height:4px;border-radius:4px;background:var(--border);transition:background .4s var(--ease);}
-.steps div.on{background:linear-gradient(90deg,var(--cd-haupt),#60BEB3);}
+.steps{display:flex;gap:10px;margin-bottom:26px;}
+.steps div{flex:1;}
+.steps div::before{content:'';display:block;height:4px;border-radius:4px;background:var(--border);
+  transition:background .4s var(--ease);margin-bottom:6px;}
+.steps div.on::before{background:linear-gradient(90deg,var(--cd-haupt),#60BEB3);}
+.steps span{font-size:11.5px;color:var(--mute);}
+.steps div.on span{color:var(--teal-deep);font-weight:600;}
+@media (max-width:560px){ .steps span{font-size:10.5px;} }
 
-/* Abschnitte */
+/* Abschnitte — ein Block je Thema, ohne Kasten im Kasten */
 .card{
-  background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;
-  padding:20px;margin-bottom:12px;box-shadow:0 1px 3px rgba(14,30,29,.04);
+  background:var(--surface);border:none;border-radius:0;
+  padding:26px 0 22px;margin:0;border-bottom:1px solid var(--border-soft);box-shadow:none;
 }
+.card:last-of-type{border-bottom:none;}
+#orderForm{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;
+  padding:6px 26px 22px;box-shadow:0 1px 3px rgba(14,30,29,.04);}
+@media (max-width:560px){ #orderForm{padding:2px 16px 18px;border-radius:12px;} }
 .card > h2{
-  font-size:15.5px;display:flex;align-items:center;gap:10px;margin-bottom:5px;
+  font-size:17px;display:flex;align-items:baseline;gap:9px;margin-bottom:3px;
 }
 .card > h2 .n{
-  width:26px;height:26px;border-radius:50%;background:var(--tint);border:1px solid #CFE6EA;
-  color:var(--teal-deep);font-size:12px;font-weight:700;flex:none;
-  display:flex;align-items:center;justify-content:center;
+  color:var(--teal);font-size:13px;font-weight:700;flex:none;
 }
-.card > .hint{font-size:12.5px;color:var(--mute);margin:0 0 14px 37px;}
-@media (max-width:560px){.card{padding:17px 16px;} .card > .hint{margin-left:0;}}
+.card > .hint{font-size:13px;color:var(--mute);margin:0 0 16px 0;}
+@media (max-width:560px){.card{padding:22px 0 18px;}}
 
 /* Felder */
-.row{display:grid;gap:10px;margin-bottom:10px;}
+.row{display:grid;gap:12px;margin-bottom:14px;}
+.row:last-child{margin-bottom:0;}
 .row.two{grid-template-columns:1fr 1fr;}
 .row.three{grid-template-columns:1fr 1fr 1fr;}
 .row.anrede{grid-template-columns:110px 1fr 1fr;}
@@ -79,10 +87,10 @@ h1,h2,h3{font-family:var(--head);color:var(--ink);margin:0;line-height:1.2;lette
   .row.two,.row.three{grid-template-columns:1fr;}
   .row.anrede{grid-template-columns:1fr;}
 }
-label.fl{display:block;font-size:11.5px;font-weight:600;color:var(--mute);margin-bottom:5px;}
-input[type=text],input[type=tel],input[type=email],input[type=number],input[type=date],input[type=time],select,textarea{
-  width:100%;font-family:var(--body);font-size:14.5px;padding:10px 13px;
-  border:1.5px solid var(--border);border-radius:10px;background:#fff;color:var(--ink);
+label.fl{display:block;font-size:12px;font-weight:600;color:var(--body-c);margin-bottom:5px;}
+input[type=text],input[type=tel],input[type=email],input[type=number],input[type=date],select,textarea{
+  width:100%;font-family:var(--body);font-size:14.5px;padding:10px 12px;
+  border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--ink);
   transition:border-color .2s var(--ease),box-shadow .2s var(--ease);
 }
 input:focus,select:focus,textarea:focus{
@@ -96,7 +104,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 .opts{display:flex;flex-wrap:wrap;gap:7px;}
 .opt{
   display:inline-flex;align-items:center;gap:8px;cursor:pointer;
-  border:1.5px solid var(--border);border-radius:9px;padding:9px 13px;
+  border:1px solid var(--border);border-radius:8px;padding:9px 13px;min-height:42px;
   background:#fff;font-size:13.5px;color:var(--body-c);
   transition:all .2s var(--ease);
 }
@@ -118,6 +126,19 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 .note strong{color:var(--ink);}
 .note p{margin:0 0 8px;}
 .note p:last-child{margin:0;}
+.note-zeit{
+  background:var(--tint);border:1px solid #CFE6EA;border-left:3px solid var(--teal);
+  color:var(--body-c);font-weight:400;
+}
+.note-zeit strong{ color:var(--ink);font-weight:700; }
+.note-zeit .zeile{ display:block; }
+.note-zeit .zeile + .zeile{ margin-top:6px; }
+
+/* Auswahl mit Zusatzzeile: Text oben, Erläuterung darunter */
+.opt.zwei{ align-items:flex-start; padding:11px 13px; }
+.opt.zwei > span{ display:block; }
+.opt.zwei .sub{ display:block;margin:2px 0 0;font-size:11.5px;color:var(--mute); }
+.zutritt-frage{ margin-top:18px; }
 .note-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px;}
 .note-head strong{font-family:var(--head);font-size:14px;}
 .note-tag{font-size:11.5px;font-weight:700;color:var(--teal-deep);background:#fff;
@@ -190,15 +211,15 @@ const P = new URLSearchParams(location.search);
 const ID = P.get('id') || '', SIG = P.get('sig') || '';
 let SPR = (P.get('spr') === 'en') ? 'en' : 'de';
 const EN = () => SPR === 'en';
-const ANZAHL = 6, ABSTAND = 14, ZEIT_VON = '07:00', ZEIT_BIS = '16:00';
+const ANZAHL = 6, ABSTAND = 14;
 let AB = '';   // frühestes Datum für den ersten neuen Termin (vom Server)
 
 const T = {
   de: { kicker:'Monatliche Reinigung', titel:'Ihre nächsten Termine',
         intro:'Buchen Sie hier Ihre nächsten sechs Reinigungstermine. Die Ausführung übernimmt wie gewohnt unser Springerteam.',
         laden:'Einen Moment …', bisher:'Ihre bisherigen Termine', neu:'Ihre nächsten sechs Termine',
-        hinweis:'Bitte wählen Sie für jeden Monat einen Termin von Montag bis Freitag zwischen 07:00 und 16:00 Uhr. Zwischen zwei Terminen liegen mindestens 14 Tage. Mit dem Absenden sind die Termine verbindlich gebucht.',
-        termin:'Termin', zeit:'Uhrzeit', knopf:'Termine verbindlich buchen', sendet:'Wird gebucht …',
+        hinweis:'Bitte wählen Sie für jeden Monat ein Datum von Montag bis Freitag. Zwischen zwei Terminen liegen mindestens 14 Tage. Die Reinigung findet zwischen 08:00 und 17:00 Uhr statt, die genaue Uhrzeit bestätigen wir Ihnen am Vortag per E-Mail. Mit dem Absenden sind die Termine verbindlich gebucht.',
+        termin:'Termin', knopf:'Termine verbindlich buchen', sendet:'Wird gebucht …',
         ungueltig:'Dieser Link ist nicht gültig oder abgelaufen. Bitte melden Sie sich bei uns: 0844 355 355 oder putzfrauenservice@clean-service.ch.',
         fertigTitel:'Vielen Dank, Ihre Termine sind gebucht.',
         fertig:'Sie erhalten in wenigen Minuten eine Bestätigung per E-Mail. Vier Monate nach dieser Buchung erinnern wir Sie wieder an die nächsten Termine.',
@@ -207,8 +228,8 @@ const T = {
   en: { kicker:'Monthly cleaning', titel:'Your next appointments',
         intro:'Book your next six cleaning appointments here. As before, the work is carried out by our relief team.',
         laden:'One moment …', bisher:'Your previous appointments', neu:'Your next six appointments',
-        hinweis:'Please choose one appointment per month, Monday to Friday between 07:00 and 16:00. There must be at least 14 days between two appointments. Once you submit, the appointments are firmly booked.',
-        termin:'Appointment', zeit:'Time', knopf:'Book appointments', sendet:'Booking …',
+        hinweis:'Please choose one date per month, Monday to Friday, with at least 14 days between two dates. Cleaning takes place between 08:00 and 17:00; we confirm the exact time by e-mail the day before. Once you submit, the dates are firmly booked.',
+        termin:'Date', knopf:'Book appointments', sendet:'Booking …',
         ungueltig:'This link is not valid or has expired. Please contact us: 0844 355 355 or putzfrauenservice@clean-service.ch.',
         fertigTitel:'Thank you, your appointments are booked.',
         fertig:'You will receive a confirmation by e-mail in a few minutes. Four months after this booking we will remind you again about the next appointments.',
@@ -220,7 +241,7 @@ const t = k => T[SPR][k];
 function isoPlus(iso, n){ const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
 function terminText(x){
   const d = new Date(x.datum + 'T12:00:00');
-  return t('wt')[d.getDay()] + ', ' + d.toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit', year:'numeric'}) + ', ' + x.zeit + t('uhr');
+  return t('wt')[d.getDay()] + ', ' + d.toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit', year:'numeric'});
 }
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]); }
 function texteSetzen(){
@@ -260,12 +281,10 @@ function formularZeigen(d){
   }
   h += '<form id="f" class="card" novalidate><h2>' + t('neu') + '</h2>' +
        '<div class="note" style="margin:8px 0 16px;">' + t('hinweis') + '</div>';
-  for(let i = 0; i < ANZAHL; i++){
-    h += '<div class="row two" style="margin-bottom:10px;">' +
-      '<div><label class="fl" for="d' + i + '">' + (i + 1) + '. ' + t('termin') + '</label>' +
-      '<input type="date" id="d' + i + '" class="t-datum" min="' + AB + '"></div>' +
-      '<div><label class="fl" for="z' + i + '">' + t('zeit') + '</label>' +
-      '<input type="time" id="z' + i + '" step="900" min="' + ZEIT_VON + '" max="' + ZEIT_BIS + '" value="' + esc((bisher[bisher.length - 1] || {}).zeit || '08:00') + '"></div></div>';
+  for(let i = 0; i < ANZAHL; i += 2){
+    h += '<div class="row two" style="margin-bottom:10px;">' + [i, i + 1].map(k =>
+      '<div><label class="fl" for="d' + k + '">' + (k + 1) + '. ' + t('termin') + '</label>' +
+      '<input type="date" id="d' + k + '" class="t-datum" min="' + AB + '"></div>').join('') + '</div>';
   }
   h += '<div style="height:8px;"></div><button type="submit" class="btn" id="knopf">' + t('knopf') + '</button></form>';
   document.getElementById('bereich').innerHTML = h;
@@ -285,16 +304,14 @@ function formularZeigen(d){
 function pruefen(){
   const liste = [];
   for(let i = 0; i < ANZAHL; i++){
-    const d = document.getElementById('d' + i), z = document.getElementById('z' + i);
+    const d = document.getElementById('d' + i);
     const nr = (i + 1) + '. ' + t('termin');
-    if(!d.value) return { feld:d, fehler: EN() ? 'Please choose a date for appointment ' + (i+1) + '.' : 'Bitte wählen Sie ein Datum für den ' + nr + '.' };
-    if(!z.value) return { feld:z, fehler: EN() ? 'Please choose a time for appointment ' + (i+1) + '.' : 'Bitte wählen Sie eine Uhrzeit für den ' + nr + '.' };
+    if(!d.value) return { feld:d, fehler: EN() ? 'Please choose date ' + (i+1) + '.' : 'Bitte wählen Sie ein Datum für den ' + nr + '.' };
     const wt = new Date(d.value + 'T12:00:00').getDay();
-    if(wt === 0 || wt === 6) return { feld:d, fehler: EN() ? 'Appointment ' + (i+1) + ' falls on a weekend. Please choose Monday to Friday.' : 'Der ' + nr + ' fällt auf ein Wochenende. Bitte wählen Sie Montag bis Freitag.' };
-    if(z.value < ZEIT_VON || z.value > ZEIT_BIS) return { feld:z, fehler: EN() ? 'Please choose a time between 07:00 and 16:00.' : 'Bitte wählen Sie eine Startzeit zwischen 07:00 und 16:00 Uhr.' };
-    if(d.value < AB) return { feld:d, fehler: EN() ? 'Appointment ' + (i+1) + ' must be on or after ' + new Date(AB + 'T12:00:00').toLocaleDateString('en-GB') + '.' : 'Der ' + nr + ' muss am oder nach dem ' + new Date(AB + 'T12:00:00').toLocaleDateString('de-CH') + ' liegen.' };
-    if(i > 0 && d.value < isoPlus(liste[i-1].datum, ABSTAND)) return { feld:d, fehler: EN() ? 'Please leave at least 14 days between appointments ' + i + ' and ' + (i+1) + '.' : 'Zwischen dem ' + i + '. und dem ' + nr + ' müssen mindestens 14 Tage liegen.' };
-    liste.push({ datum:d.value, zeit:z.value });
+    if(wt === 0 || wt === 6) return { feld:d, fehler: EN() ? 'Date ' + (i+1) + ' falls on a weekend. Please choose Monday to Friday.' : 'Der ' + nr + ' fällt auf ein Wochenende. Bitte wählen Sie Montag bis Freitag.' };
+    if(d.value < AB) return { feld:d, fehler: EN() ? 'Date ' + (i+1) + ' must be on or after ' + new Date(AB + 'T12:00:00').toLocaleDateString('en-GB') + '.' : 'Der ' + nr + ' muss am oder nach dem ' + new Date(AB + 'T12:00:00').toLocaleDateString('de-CH') + ' liegen.' };
+    if(i > 0 && d.value < isoPlus(liste[i-1].datum, ABSTAND)) return { feld:d, fehler: EN() ? 'Please leave at least 14 days between dates ' + i + ' and ' + (i+1) + '.' : 'Zwischen dem ' + i + '. und dem ' + nr + ' müssen mindestens 14 Tage liegen.' };
+    liste.push({ datum:d.value });
   }
   return { termine: liste };
 }

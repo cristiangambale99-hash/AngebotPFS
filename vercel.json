@@ -1,6 +1,34 @@
 {
   "crons": [
-    { "path": "/api/pendenzen", "schedule": "0 5 * * 1-5" },
-    { "path": "/api/followup",  "schedule": "0 6 * * *" }
+    {
+      "path": "/api/pendenzen",
+      "schedule": "0 5 * * 1-5"
+    },
+    {
+      "path": "/api/followup",
+      "schedule": "0 6 * * *"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/antwort",
+      "destination": "/api/kunde?fn=antwort"
+    },
+    {
+      "source": "/api/qualitaet",
+      "destination": "/api/kunde?fn=qualitaet"
+    },
+    {
+      "source": "/api/einfuehrung",
+      "destination": "/api/kunde?fn=einfuehrung"
+    },
+    {
+      "source": "/api/vertrag-signiert",
+      "destination": "/api/kunde?fn=vertrag-signiert"
+    },
+    {
+      "source": "/api/termine",
+      "destination": "/api/kunde?fn=termine"
+    }
   ]
 }

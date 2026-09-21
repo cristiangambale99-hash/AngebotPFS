@@ -50,28 +50,36 @@ h1,h2,h3{font-family:var(--head);color:var(--ink);margin:0;line-height:1.2;lette
 .intro p{margin:0;font-size:14.5px;max-width:60ch;}
 
 /* Fortschritt */
-.steps{display:flex;gap:7px;margin-bottom:18px;}
-.steps div{flex:1;height:4px;border-radius:4px;background:var(--border);transition:background .4s var(--ease);}
-.steps div.on{background:linear-gradient(90deg,var(--cd-haupt),#60BEB3);}
+.steps{display:flex;gap:10px;margin-bottom:26px;}
+.steps div{flex:1;}
+.steps div::before{content:'';display:block;height:4px;border-radius:4px;background:var(--border);
+  transition:background .4s var(--ease);margin-bottom:6px;}
+.steps div.on::before{background:linear-gradient(90deg,var(--cd-haupt),#60BEB3);}
+.steps span{font-size:11.5px;color:var(--mute);}
+.steps div.on span{color:var(--teal-deep);font-weight:600;}
+@media (max-width:560px){ .steps span{font-size:10.5px;} }
 
-/* Abschnitte */
+/* Abschnitte — ein Block je Thema, ohne Kasten im Kasten */
 .card{
-  background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;
-  padding:20px;margin-bottom:12px;box-shadow:0 1px 3px rgba(14,30,29,.04);
+  background:var(--surface);border:none;border-radius:0;
+  padding:26px 0 22px;margin:0;border-bottom:1px solid var(--border-soft);box-shadow:none;
 }
+.card:last-of-type{border-bottom:none;}
+#orderForm{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;
+  padding:6px 26px 22px;box-shadow:0 1px 3px rgba(14,30,29,.04);}
+@media (max-width:560px){ #orderForm{padding:2px 16px 18px;border-radius:12px;} }
 .card > h2{
-  font-size:15.5px;display:flex;align-items:center;gap:10px;margin-bottom:5px;
+  font-size:17px;display:flex;align-items:baseline;gap:9px;margin-bottom:3px;
 }
 .card > h2 .n{
-  width:26px;height:26px;border-radius:50%;background:var(--tint);border:1px solid #CFE6EA;
-  color:var(--teal-deep);font-size:12px;font-weight:700;flex:none;
-  display:flex;align-items:center;justify-content:center;
+  color:var(--teal);font-size:13px;font-weight:700;flex:none;
 }
-.card > .hint{font-size:12.5px;color:var(--mute);margin:0 0 14px 37px;}
-@media (max-width:560px){.card{padding:17px 16px;} .card > .hint{margin-left:0;}}
+.card > .hint{font-size:13px;color:var(--mute);margin:0 0 16px 0;}
+@media (max-width:560px){.card{padding:22px 0 18px;}}
 
 /* Felder */
-.row{display:grid;gap:10px;margin-bottom:10px;}
+.row{display:grid;gap:12px;margin-bottom:14px;}
+.row:last-child{margin-bottom:0;}
 .row.two{grid-template-columns:1fr 1fr;}
 .row.three{grid-template-columns:1fr 1fr 1fr;}
 .row.anrede{grid-template-columns:110px 1fr 1fr;}
@@ -79,10 +87,10 @@ h1,h2,h3{font-family:var(--head);color:var(--ink);margin:0;line-height:1.2;lette
   .row.two,.row.three{grid-template-columns:1fr;}
   .row.anrede{grid-template-columns:1fr;}
 }
-label.fl{display:block;font-size:11.5px;font-weight:600;color:var(--mute);margin-bottom:5px;}
-input[type=text],input[type=tel],input[type=email],input[type=number],input[type=date],input[type=time],select,textarea{
-  width:100%;font-family:var(--body);font-size:14.5px;padding:10px 13px;
-  border:1.5px solid var(--border);border-radius:10px;background:#fff;color:var(--ink);
+label.fl{display:block;font-size:12px;font-weight:600;color:var(--body-c);margin-bottom:5px;}
+input[type=text],input[type=tel],input[type=email],input[type=number],input[type=date],select,textarea{
+  width:100%;font-family:var(--body);font-size:14.5px;padding:10px 12px;
+  border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--ink);
   transition:border-color .2s var(--ease),box-shadow .2s var(--ease);
 }
 input:focus,select:focus,textarea:focus{
@@ -96,7 +104,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 .opts{display:flex;flex-wrap:wrap;gap:7px;}
 .opt{
   display:inline-flex;align-items:center;gap:8px;cursor:pointer;
-  border:1.5px solid var(--border);border-radius:9px;padding:9px 13px;
+  border:1px solid var(--border);border-radius:8px;padding:9px 13px;min-height:42px;
   background:#fff;font-size:13.5px;color:var(--body-c);
   transition:all .2s var(--ease);
 }
@@ -118,6 +126,19 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 .note strong{color:var(--ink);}
 .note p{margin:0 0 8px;}
 .note p:last-child{margin:0;}
+.note-zeit{
+  background:var(--tint);border:1px solid #CFE6EA;border-left:3px solid var(--teal);
+  color:var(--body-c);font-weight:400;
+}
+.note-zeit strong{ color:var(--ink);font-weight:700; }
+.note-zeit .zeile{ display:block; }
+.note-zeit .zeile + .zeile{ margin-top:6px; }
+
+/* Auswahl mit Zusatzzeile: Text oben, Erläuterung darunter */
+.opt.zwei{ align-items:flex-start; padding:11px 13px; }
+.opt.zwei > span{ display:block; }
+.opt.zwei .sub{ display:block;margin:2px 0 0;font-size:11.5px;color:var(--mute); }
+.zutritt-frage{ margin-top:18px; }
 .note-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px;}
 .note-head strong{font-family:var(--head);font-size:14px;}
 .note-tag{font-size:11.5px;font-weight:700;color:var(--teal-deep);background:#fff;
@@ -166,7 +187,7 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
   </div>
 
   <div class="steps" id="steps">
-    <div class="on"></div><div></div><div></div>
+    <div class="on"><span>Angaben</span></div><div><span>Wohnung und Termin</span></div><div><span>Absenden</span></div>
   </div>
 
   <form id="orderForm" onsubmit="return submitOrder(event)">
@@ -266,8 +287,8 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
       <p data-i18n="a33" class="hint">Wir richten uns nach Möglichkeit danach.</p>
 
       <div id="monat-termine" style="display:none;">
-        <label data-i18n="a80" class="fl">Ihre Reinigungstermine für die nächsten sechs Monate</label>
-        <div data-i18n="a81" class="note" style="margin:0 0 16px;">Wählen Sie für jeden Monat einen Termin von Montag bis Freitag. Mit dem Absenden sind die Termine verbindlich gebucht, ausgeführt werden sie von unserem Springerteam. Der erste Termin liegt frühestens sieben Tage in der Zukunft, zwischen zwei Terminen liegen mindestens 14 Tage. Vier Monate nach Ihrer Buchung erinnern wir Sie per E-Mail daran, die nächsten sechs Termine zu buchen.</div>
+        <label data-i18n="a90" class="fl">Ihre Reinigungstermine für die nächsten sechs Monate</label>
+        <div data-i18n="a91" class="note" style="margin:0 0 16px;">Wählen Sie für jeden Monat ein Datum von Montag bis Freitag. Mit dem Absenden sind die Termine verbindlich gebucht, ausgeführt werden sie von unserem Springerteam. Die Reinigung findet zwischen 08:00 und 17:00 Uhr statt, die genaue Uhrzeit bestätigen wir Ihnen jeweils am Vortag per E-Mail. Der erste Termin liegt frühestens sieben Tage in der Zukunft, zwischen zwei Terminen liegen mindestens 14 Tage. Vier Monate nach Ihrer Buchung erinnern wir Sie per E-Mail an die nächsten sechs Termine.</div>
         <div id="termin-liste"></div>
       </div>
 
@@ -323,7 +344,7 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
 
     <!-- 5 Zusatzleistungen -->
     <div class="card">
-      <h2 data-i18n="a52"><span class="n">5</span> Zusatzleistungen und Start</h2>
+      <h2 data-i18n="a52"><span class="n">5</span> Zusatzleistungen</h2>
       <p data-i18n="a53" class="hint">Frei wählbar, jederzeit anpassbar. Verrechnet wird nur der zusätzliche Aufwand.</p>
 
       <div data-i18n="a54" class="opts">
@@ -345,9 +366,9 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
 
     <!-- 6 Start und Fenster -->
     <div class="card">
-      <h2 data-i18n="a59"><span class="n">6</span> Start und Weiteres</h2>
+      <h2 data-i18n="a59"><span class="n">6</span> Start der Reinigung</h2>
+      <p data-i18n="a84" class="hint">Wann sollen wir beginnen?</p>
 
-      <div id="start-block">
       <label data-i18n="a60" class="fl">Start mit unserem Springerteam?</label>
       <div data-i18n="a61" class="opts">
         <label class="opt"><input type="radio" name="f-springer" value="Nein" checked onchange="toggleStart()">Auf feste Raumpflegerin warten <span class="sub">10–14 Werktage</span></label>
@@ -355,16 +376,26 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
       </div>
 
       <div class="folds hidden" id="start-feld">
-        <div class="row two" style="margin-bottom:0;">
+        <div class="row" style="margin-bottom:14px;">
           <div><label data-i18n="a74" class="fl" for="f-startdatum">Gewünschtes Startdatum</label>
-            <input type="date" id="f-startdatum"></div>
-          <div><label data-i18n="a76" class="fl" for="f-startzeit">Gewünschte Uhrzeit</label>
-            <input type="time" id="f-startzeit" step="900" value="08:00"></div>
+            <input type="date" id="f-startdatum" onchange="startInfo()"></div>
         </div>
-        <div data-i18n="a75" class="note">Damit wir Ihr Team einplanen und alle Unterlagen vorbereiten können, liegt der früheste Termin sieben Tage in der Zukunft. Wir bestätigen Ihnen dieses Datum schriftlich.</div>
+
+        <div class="note note-zeit" id="springer-info"></div>
+
+        <label data-i18n="a80" class="fl zutritt-frage" id="zutritt-frage">Wie erhalten wir Zutritt zu Ihrer Wohnung?</label>
+        <div data-i18n="a81" class="opts" id="zutritt-opts">
+          <label class="opt wide zwei"><input type="radio" name="f-zutritt" value="Vor Ort"><span>Ich bin vor Ort und öffne die Tür</span></label>
+          <label class="opt wide zwei"><input type="radio" name="f-zutritt" value="Milchkasten, Schlüssel bleibt bei uns"><span>Schlüssel im Milchkasten<span class="sub">Sie dürfen ihn behalten</span></span></label>
+          <label class="opt wide zwei"><input type="radio" name="f-zutritt" value="Milchkasten, Schlüssel zurücklegen"><span>Schlüssel im Milchkasten<span class="sub">bitte nach jeder Reinigung zurücklegen</span></span></label>
+          <label class="opt wide zwei"><input type="radio" name="f-zutritt" value="Schlüssel wird übergeben"><span>Ich händige Ihnen einen Schlüssel aus</span></label>
+        </div>
       </div>
-      <div style="height:18px;"></div>
-      </div>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="a82"><span class="n">7</span> Weitere Wünsche</h2>
+      <p data-i18n="a83" class="hint">Freiwillig — beides lässt sich später jederzeit ergänzen.</p>
 
       <label data-i18n="a62" class="fl">Unverbindliche Fensterreinigungsofferte gewünscht?</label>
       <div data-i18n="a63" class="opts">
@@ -373,6 +404,7 @@ footer{padding:30px 0 20px;border-top:1px solid var(--border);margin-top:26px;
       </div>
       <div data-i18n="a64" class="note" id="fenster-note" style="display:none;">
         Unsere <strong>Spezialreinigungsabteilung</strong> meldet sich für ein separates, unverbindliches Angebot bei Ihnen.
+        Damit die Offerte stimmt, brauchen wir die Wohnungsfläche in Quadratmetern — bitte im Abschnitt «Ihre Wohnung» ergänzen.
       </div>
 
       <div class="row" style="margin-top:16px;margin-bottom:0;">
@@ -414,6 +446,28 @@ var CS_SPRACHE = 'de';
   if(s === 'en' || s === 'de') CS_SPRACHE = s;
   document.documentElement.lang = CS_SPRACHE;
 })();
+/* Die englischen Textbausteine ersetzen ganze Blöcke samt der darin
+   gesetzten Ereignisse. Diese Funktion hängt sie danach wieder an — und
+   ist auch für die deutsche Fassung unschädlich, weil doppelte Aufrufe
+   der Umschaltfunktionen nichts verändern. */
+function ereignisseSetzen(){
+  var paare = [
+    ['input[name="f-springer"]', 'change', function(){ toggleStart(); }],
+    ['#f-startdatum',            'change', function(){ startInfo(); }],
+    ['input[name="f-fenster"]',  'change', function(){ toggleFenster(); }],
+    ['#f-alarm',                 'change', function(){ toggleAlarm(); }],
+    ['.f-tier',                  'change', function(){ tierAndere(); tierKeine(); }],
+    ['#f-boden-andere',          'change', function(){ bodenAndere(); }]
+  ];
+  paare.forEach(function(p){
+    document.querySelectorAll(p[0]).forEach(function(el){
+      if(el.dataset.csGebunden === p[1]) return;
+      el.dataset.csGebunden = p[1];
+      el.addEventListener(p[1], p[2]);
+    });
+  });
+}
+
 function EN(){ return CS_SPRACHE === 'en'; }
 
 const I18N_EN = {
@@ -466,19 +520,19 @@ const I18N_EN = {
 "a49": "Pets in the household",
 "a50": "\n        <label class=\"opt\"><input type=\"checkbox\" id=\"f-tier-keine\" value=\"Keine\" onchange=\"tierKeine()\">None</label>\n        <label class=\"opt\"><input type=\"checkbox\" class=\"f-tier\" value=\"Katze\" onchange=\"tierAndere()\">Cat</label>\n        <label class=\"opt\"><input type=\"checkbox\" class=\"f-tier\" value=\"Hund\" onchange=\"tierAndere()\">Dog</label>\n        <label class=\"opt\"><input type=\"checkbox\" class=\"f-tier\" id=\"f-tier-andere\" value=\"Andere\" onchange=\"tierAndere()\">Other</label>\n      ",
 "a51": "\n        <label class=\"fl\" for=\"f-tier-text\">Which animals?</label>\n        <input type=\"text\" id=\"f-tier-text\" placeholder=\"z. B. Kaninchen, Vogel\">\n      ",
-"a52": "<span class=\"n\">5</span> Additional services and start",
+"a52": "<span class=\"n\">5</span> Additional services",
 "a53": "Freely selectable and adjustable at any time. Only the additional time is charged.",
 "a54": "\n        <label class=\"opt\"><input type=\"checkbox\" id=\"f-z-bettbezuege\">Changing bed linen <span class=\"sub\">+30 min.</span></label>\n        <label class=\"opt\"><input type=\"checkbox\" id=\"f-z-waesche\">Laundry &amp; tumble drying <span class=\"sub\">+30 min.</span></label>\n        <label class=\"opt\"><input type=\"checkbox\" id=\"f-z-geschirrspueler\">Dishwasher <span class=\"sub\">+15 min.</span></label>\n        <label class=\"opt\"><input type=\"checkbox\" id=\"f-z-backofen\">Oven cleaning service <span class=\"sub\">CHF 50/mth</span></label>\n      ",
 "a55": "Ironing service",
 "a56": "No ironing service",
 "a57": "30 minutes per visit",
 "a58": "1 hour per visit",
-"a59": "<span class=\"n\">6</span> Start and further details",
+"a59": "<span class=\"n\">6</span> Start of cleaning",
 "a60": "Start with our relief team?",
 "a61": "\n        <label class=\"opt\"><input type=\"radio\" name=\"f-springer\" value=\"Nein\" checked>Wait for a regular cleaner <span class=\"sub\">10–14 working days</span></label>\n        <label class=\"opt\"><input type=\"radio\" name=\"f-springer\" value=\"Ja\">Start immediately with the relief team</label>\n      ",
 "a62": "Would you like a non-binding window cleaning quotation?",
 "a63": "\n        <label class=\"opt\"><input type=\"radio\" name=\"f-fenster\" value=\"Nein\" checked>No</label>\n        <label class=\"opt\"><input type=\"radio\" name=\"f-fenster\" value=\"Ja\" onchange=\"toggleFenster()\">Yes, please</label>\n      ",
-"a64": "\n        Our <strong>specialist cleaning department</strong> will contact you with a separate, non-binding offer.\n      ",
+"a64": "\n        Our <strong>specialist cleaning department</strong> will contact you with a separate, non-binding offer.\n        So that the quote is accurate, we need the area of your home in square metres — please add it in the section «Your home».\n      ",
 "a65": "<label class=\"fl\" for=\"f-vereinbarungen\">Special arrangements</label>\n          <textarea id=\"f-vereinbarungen\" placeholder=\"e.g. delicate surfaces, access via neighbours\"></textarea>\n          <div class=\"note\">These details are recorded as a special arrangement on your cleaner's checklist.</div>",
 "a66": "\n        <input type=\"checkbox\" id=\"f-agb\" required>\n        <span>I hereby place a binding order and accept the <a href=\"agb.html\" target=\"_blank\" rel=\"noopener\">general terms and conditions</a>.</span>\n      ",
 "a67": "Place binding order",
@@ -503,9 +557,14 @@ const I18N_EN = {
 "s9": "Several floors",
 "a74": "Preferred start date",
 "a75": "So that we can schedule your team and prepare all the documents, the earliest possible date is seven days from today. We will confirm this date in writing.",
-"a76": "Preferred time",
-"a80": "Your cleaning appointments for the next six months",
-"a81": "Please choose one appointment per month, Monday to Friday. Once you submit, the appointments are firmly booked and carried out by our relief team. The first appointment is at least seven days from today, and there are at least 14 days between two appointments. Four months after your booking we will remind you by e-mail to book the next six appointments."
+"a76": "Cleaning by our relief team takes place between 08:00 and 17:00. We will confirm the exact time by e-mail one day before the clean.",
+"a80": "How do we get access to your home?",
+"a81": "\n          <label class=\"opt wide zwei\"><input type=\"radio\" name=\"f-zutritt\" value=\"Vor Ort\"><span>I will be there and open the door</span></label>\n          <label class=\"opt wide zwei\"><input type=\"radio\" name=\"f-zutritt\" value=\"Milchkasten, Schl\u00fcssel bleibt bei uns\"><span>Key in the milk box<span class=\"sub\">you may keep it</span></span></label>\n          <label class=\"opt wide zwei\"><input type=\"radio\" name=\"f-zutritt\" value=\"Milchkasten, Schl\u00fcssel zur\u00fccklegen\"><span>Key in the milk box<span class=\"sub\">please put it back after each clean</span></span></label>\n          <label class=\"opt wide zwei\"><input type=\"radio\" name=\"f-zutritt\" value=\"Schl\u00fcssel wird \u00fcbergeben\"><span>I will hand you a key</span></label>\n        ",
+"a82": "<span class=\"n\">7</span> Further requests",
+"a83": "Optional \u2014 both can be added at any time later.",
+"a84": "When would you like us to start?",
+"a90": "Your cleaning dates for the next six months",
+"a91": "Please choose one date per month, Monday to Friday. Once you submit, the dates are firmly booked and carried out by our relief team. Cleaning takes place between 08:00 and 17:00; we confirm the exact time by e-mail the day before. The first date is at least seven days from today, with at least 14 days between two dates. Four months after your booking we will remind you by e-mail to book the next six dates."
 };
 const I18N_ATTR_EN = [["#f-boden", "placeholder", "e.g. parquet, tiles"], ["#f-boden-text", "placeholder", "e.g. cork, vinyl"], ["#f-alarmcode", "placeholder", "Treated confidentially"], ["#f-tier-text", "placeholder", "e.g. rabbit, bird"], ["#f-vereinbarungen", "placeholder", "e.g. delicate surfaces, access via neighbours"]];
 
@@ -520,6 +579,7 @@ const I18N_ATTR_EN = [["#f-boden", "placeholder", "e.g. parquet, tiles"], ["#f-b
   I18N_ATTR_EN.forEach(function(a){
     document.querySelectorAll(a[0]).forEach(function(el){ el.setAttribute(a[1], a[2]); });
   });
+  ereignisseSetzen();
   var t = document.querySelector('title[data-i18n]');
   if(t) document.title = t.textContent;
   // Sprache an interne Links weitergeben, damit die Folgeseiten
@@ -588,112 +648,36 @@ function updateAufwand(){
 document.getElementById('f-zimmer').addEventListener('input', updateAufwand);
 document.getElementById('f-frequenz').addEventListener('change', updateAufwand);
 
-/* ---- Monatliche Reinigung: sechs feste Termine ----
-   Bei monatlichem Rhythmus arbeitet immer das Springerteam. Statt der
-   Wunschtage und der Springer-Frage bucht die Kundschaft sechs Termine. */
-const TERMIN_ANZAHL = 6;
-const TERMIN_ABSTAND_MIN = 14;      // Tage zwischen zwei Terminen
-const TERMIN_VORLAUF = 7;           // frühester erster Termin ab heute
-const TERMIN_ZEIT_VON = '07:00', TERMIN_ZEIT_BIS = '16:00';
-const WT_DE = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
-
-function isoPlus(iso, tage){
-  const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + tage);
-  return d.toISOString().slice(0, 10);
+/* ---- Text des Infobalkens beim Sofortstart ---- */
+function startInfo(){
+  const box = document.getElementById('springer-info');
+  const feld = document.getElementById('f-startdatum');
+  if(!box || !feld) return;
+  const en = EN();
+  const d = feld.value ? new Date(feld.value) : null;
+  const datum = d && !isNaN(d)
+    ? d.toLocaleDateString(en ? 'en-GB' : 'de-CH', { weekday:'long', day:'2-digit', month:'long', year:'numeric' })
+    : '';
+  const satz1 = datum
+    ? (en ? 'Your first clean with our relief team takes place on <strong>' + datum + '</strong>.'
+          : 'Ihre erste Reinigung mit unserem Springerteam findet am <strong>' + datum + '</strong> statt.')
+    : (en ? 'Please choose your preferred start date.' : 'Bitte wählen Sie Ihr gewünschtes Startdatum.');
+  const satz2 = en
+    ? 'While the relief team carries out the cleaning we cannot guarantee a fixed time. Cleaning takes place between 08:00 and 17:00; you will receive the exact time by e-mail one day beforehand.'
+    : 'Solange wir die Reinigung mit dem Springerteam ausführen, können wir Ihnen keine fixe Uhrzeit garantieren. Die Reinigung findet zwischen 08:00 und 17:00 Uhr statt, einen Tag vorher erhalten Sie die Zeitmitteilung per E-Mail.';
+  box.innerHTML = '<span class="zeile">' + satz1 + '</span><span class="zeile">' + satz2 + '</span>';
 }
-function heuteIso(){
-  const d = new Date(); d.setHours(12, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
-}
-function istMonatlich(){ return document.getElementById('f-frequenz').value === 'monatlich'; }
-
-function terminZeilenBauen(){
-  const liste = document.getElementById('termin-liste');
-  if(!liste || liste.children.length) return;
-  const min = isoPlus(heuteIso(), TERMIN_VORLAUF);
-  for(let i = 0; i < TERMIN_ANZAHL; i++){
-    const z = document.createElement('div');
-    z.className = 'row two termin-zeile';
-    z.style.marginBottom = '10px';
-    z.innerHTML =
-      '<div><label class="fl" for="t-datum-' + i + '">' + (i + 1) + '. ' + (EN() ? 'Appointment' : 'Termin') + '</label>' +
-      '<input type="date" id="t-datum-' + i + '" class="t-datum" min="' + min + '"></div>' +
-      '<div><label class="fl" for="t-zeit-' + i + '">' + (EN() ? 'Time' : 'Uhrzeit') + '</label>' +
-      '<input type="time" id="t-zeit-' + i + '" class="t-zeit" step="900" min="' + TERMIN_ZEIT_VON + '" max="' + TERMIN_ZEIT_BIS + '" value="' + (i === 0 ? '08:00' : '') + '"></div>';
-    liste.appendChild(z);
-  }
-  /* Komfort: Wer einen Termin setzt, erhält für den nächsten leeren
-     einen Vorschlag vier Wochen später am selben Wochentag. Frei änderbar. */
-  liste.addEventListener('change', function(e){
-    const t = e.target;
-    const i = parseInt((t.id || '').split('-').pop(), 10);
-    if(isNaN(i)) return;
-    if(t.classList.contains('t-datum') && t.value && i + 1 < TERMIN_ANZAHL){
-      const n = document.getElementById('t-datum-' + (i + 1));
-      if(n && !n.value){ n.value = isoPlus(t.value, 28); n.min = isoPlus(t.value, TERMIN_ABSTAND_MIN); }
-    }
-    if(t.classList.contains('t-datum') || t.classList.contains('t-zeit')){
-      const zeit = document.getElementById('t-zeit-' + i).value;
-      for(let k = i + 1; k < TERMIN_ANZAHL; k++){
-        const zf = document.getElementById('t-zeit-' + k);
-        if(zf && !zf.value && zeit) zf.value = zeit;
-      }
-    }
-    updateSteps();
-  });
-}
-
-/* Prüft die sechs Termine. Gibt { termine } oder { fehler, feld } zurück. */
-function termineLesen(){
-  const termine = [];
-  const frueh = isoPlus(heuteIso(), TERMIN_VORLAUF);
-  const spaet = isoPlus(heuteIso(), 300);
-  for(let i = 0; i < TERMIN_ANZAHL; i++){
-    const df = document.getElementById('t-datum-' + i), zf = document.getElementById('t-zeit-' + i);
-    const nr = (i + 1) + '. ' + (EN() ? 'appointment' : 'Termin');
-    if(!df || !df.value) return { feld: df, fehler: EN() ? 'Please choose a date for the ' + nr + '.' : 'Bitte wählen Sie ein Datum für den ' + nr + '.' };
-    if(!zf || !zf.value) return { feld: zf, fehler: EN() ? 'Please choose a time for the ' + nr + '.' : 'Bitte wählen Sie eine Uhrzeit für den ' + nr + '.' };
-    const wt = new Date(df.value + 'T12:00:00').getDay();
-    if(wt === 0 || wt === 6) return { feld: df, fehler: EN() ? 'The ' + nr + ' falls on a weekend. Please choose Monday to Friday.' : 'Der ' + nr + ' fällt auf ein Wochenende. Bitte wählen Sie Montag bis Freitag.' };
-    if(zf.value < TERMIN_ZEIT_VON || zf.value > TERMIN_ZEIT_BIS) return { feld: zf, fehler: EN() ? 'Please choose a start time between ' + TERMIN_ZEIT_VON + ' and ' + TERMIN_ZEIT_BIS + '.' : 'Bitte wählen Sie eine Startzeit zwischen ' + TERMIN_ZEIT_VON + ' und ' + TERMIN_ZEIT_BIS + ' Uhr.' };
-    if(i === 0 && df.value < frueh) return { feld: df, fehler: EN() ? 'The first appointment must be at least seven days from today.' : 'Der erste Termin muss mindestens sieben Tage in der Zukunft liegen.' };
-    if(df.value > spaet) return { feld: df, fehler: EN() ? 'The ' + nr + ' is too far in the future.' : 'Der ' + nr + ' liegt zu weit in der Zukunft.' };
-    if(i > 0 && df.value < isoPlus(termine[i - 1].datum, TERMIN_ABSTAND_MIN))
-      return { feld: df, fehler: EN() ? 'Please leave at least 14 days between the ' + i + '. and the ' + nr + '.' : 'Zwischen dem ' + i + '. und dem ' + nr + ' müssen mindestens 14 Tage liegen.' };
-    termine.push({ datum: df.value, zeit: zf.value });
-  }
-  return { termine };
-}
-
-function monatModus(){
-  const m = istMonatlich();
-  if(m) terminZeilenBauen();
-  const mt = document.getElementById('monat-termine'); if(mt) mt.style.display = m ? 'block' : 'none';
-  const wb = document.getElementById('wunsch-block'); if(wb) wb.style.display = m ? 'none' : '';
-  const sb = document.getElementById('start-block'); if(sb) sb.style.display = m ? 'none' : '';
-  const hint = document.querySelector('[data-i18n="a33"]');
-  if(hint){
-    if(!hint.dataset.orig) hint.dataset.orig = hint.innerHTML;
-    hint.innerHTML = m ? (EN() ? 'Your appointments are firmly booked on submission.' : 'Ihre Termine sind mit dem Absenden verbindlich gebucht.') : hint.dataset.orig;
-  }
-  updateSteps();
-}
-document.getElementById('f-frequenz').addEventListener('change', monatModus);
-
-/* Die englische Fassung ersetzt den Auswahlblock samt onchange-Attribut.
-   Deshalb hier zusätzlich per Ereignis, damit es in beiden Sprachen greift. */
-document.addEventListener('change', function(e){
-  if(e.target && e.target.name === 'f-springer') toggleStart();
-});
 
 /* ---- Startdatum bei Sofortstart ---- */
 function toggleStart(){
   const ja = (document.querySelector('input[name="f-springer"]:checked') || {}).value === 'Ja';
   const box = document.getElementById('start-feld');
   const feld = document.getElementById('f-startdatum');
-  if(box) box.classList.toggle('hidden', !ja);
+  const monat = istMonatlich();
+  if(box) box.classList.toggle('hidden', !ja && !monat);
+  monatAnzeige();
   if(feld){
-    feld.required = ja;
+    feld.required = ja && !monat;
     if(!feld.min){
       // Fruehester Termin: sieben Tage in der Zukunft
       const d = new Date(); d.setDate(d.getDate() + 7);
@@ -701,8 +685,95 @@ function toggleStart(){
       feld.value = feld.min;
     }
   }
+  startInfo();
   updateSteps();
 }
+
+/* ---- Monatliche Reinigung: sechs feste Termine ----
+   Bei monatlichem Rhythmus arbeitet immer das Springerteam. Statt der
+   Wunschtage, der Springer-Frage und des Startdatums bucht die Kundschaft
+   sechs Daten. Die Zutrittsfrage bleibt, das Springerteam braucht sie. */
+const TERMIN_ANZAHL = 6, TERMIN_ABSTAND_MIN = 14, TERMIN_VORLAUF = 7;
+const WT_DE = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+function isoPlus(iso, tage){
+  const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + tage);
+  return d.toISOString().slice(0, 10);
+}
+function heuteIso(){ const d = new Date(); d.setHours(12, 0, 0, 0); return d.toISOString().slice(0, 10); }
+function istMonatlich(){ const f = document.getElementById('f-frequenz'); return !!f && f.value === 'monatlich'; }
+
+function terminZeilenBauen(){
+  const liste = document.getElementById('termin-liste');
+  if(!liste || liste.children.length) return;
+  const min = isoPlus(heuteIso(), TERMIN_VORLAUF);
+  for(let i = 0; i < TERMIN_ANZAHL; i += 2){
+    const z = document.createElement('div');
+    z.className = 'row two';
+    z.style.marginBottom = '10px';
+    z.innerHTML = [i, i + 1].map(k =>
+      '<div><label class="fl" for="t-datum-' + k + '">' + (k + 1) + '. ' + (EN() ? 'Date' : 'Termin') + '</label>' +
+      '<input type="date" id="t-datum-' + k + '" class="t-datum" min="' + min + '"></div>').join('');
+    liste.appendChild(z);
+  }
+  /* Komfort: Wer ein Datum setzt, erhält für das nächste leere einen
+     Vorschlag vier Wochen später am selben Wochentag. Frei änderbar. */
+  liste.addEventListener('change', function(e){
+    const t = e.target;
+    const i = parseInt((t.id || '').split('-').pop(), 10);
+    if(!isNaN(i) && t.value && i + 1 < TERMIN_ANZAHL){
+      const n = document.getElementById('t-datum-' + (i + 1));
+      if(n && !n.value) n.value = isoPlus(t.value, 28);
+    }
+    updateSteps();
+  });
+}
+
+/* Prüft die sechs Daten. Gibt { termine } oder { fehler, feld } zurück. */
+function termineLesen(){
+  const termine = [];
+  const frueh = isoPlus(heuteIso(), TERMIN_VORLAUF);
+  const spaet = isoPlus(heuteIso(), 300);
+  for(let i = 0; i < TERMIN_ANZAHL; i++){
+    const df = document.getElementById('t-datum-' + i);
+    const nr = (i + 1) + '. ' + (EN() ? 'date' : 'Termin');
+    if(!df || !df.value) return { feld: df, fehler: EN() ? 'Please choose the ' + nr + '.' : 'Bitte wählen Sie ein Datum für den ' + nr + '.' };
+    const wt = new Date(df.value + 'T12:00:00').getDay();
+    if(wt === 0 || wt === 6) return { feld: df, fehler: EN() ? 'The ' + nr + ' falls on a weekend. Please choose Monday to Friday.' : 'Der ' + nr + ' fällt auf ein Wochenende. Bitte wählen Sie Montag bis Freitag.' };
+    if(i === 0 && df.value < frueh) return { feld: df, fehler: EN() ? 'The first date must be at least seven days from today.' : 'Der erste Termin muss mindestens sieben Tage in der Zukunft liegen.' };
+    if(df.value > spaet) return { feld: df, fehler: EN() ? 'The ' + nr + ' is too far in the future.' : 'Der ' + nr + ' liegt zu weit in der Zukunft.' };
+    if(i > 0 && df.value < isoPlus(termine[i - 1].datum, TERMIN_ABSTAND_MIN))
+      return { feld: df, fehler: EN() ? 'Please leave at least 14 days between date ' + i + ' and date ' + (i + 1) + '.' : 'Zwischen dem ' + i + '. und dem ' + nr + ' müssen mindestens 14 Tage liegen.' };
+    termine.push({ datum: df.value });
+  }
+  return { termine };
+}
+
+/* Nur Sichtbarkeit — wird von toggleStart und monatModus aufgerufen */
+function monatAnzeige(){
+  const m = istMonatlich();
+  const zeig = (el, an) => { if(el) el.style.display = an ? '' : 'none'; };
+  zeig(document.querySelector('[data-i18n="a60"]'), !m);
+  zeig(document.querySelector('[data-i18n="a61"]'), !m);
+  const sd = document.getElementById('f-startdatum'); zeig(sd && sd.closest('.row'), !m);
+  zeig(document.getElementById('springer-info'), !m);
+  const mt = document.getElementById('monat-termine'); if(mt) mt.style.display = m ? 'block' : 'none';
+  zeig(document.getElementById('wunsch-block'), !m);
+  const hint = document.querySelector('[data-i18n="a33"]');
+  if(hint){
+    if(!hint.dataset.orig) hint.dataset.orig = hint.innerHTML;
+    hint.innerHTML = m ? (EN() ? 'Your dates are firmly booked on submission.' : 'Ihre Termine sind mit dem Absenden verbindlich gebucht.') : hint.dataset.orig;
+  }
+  const h6 = document.querySelector('[data-i18n="a84"]');
+  if(h6){
+    if(!h6.dataset.orig) h6.dataset.orig = h6.innerHTML;
+    h6.innerHTML = m ? (EN() ? 'How does our relief team get into your home?' : 'Wie gelangt unser Springerteam in Ihre Wohnung?') : h6.dataset.orig;
+  }
+}
+function monatModus(){
+  if(istMonatlich()) terminZeilenBauen();
+  toggleStart();          // blendet ein/aus und ruft monatAnzeige()
+}
+document.getElementById('f-frequenz').addEventListener('change', monatModus);
 
 /* ---- Ein- und ausklappen ---- */
 function toggleAlarm(){
@@ -739,7 +810,7 @@ function updateSteps(){
   const felder = ['f-vorname','f-nachname','f-adresse','f-plzort','f-mobile','f-mail'];
   const kontakt = felder.every(id => (document.getElementById(id).value || '').trim());
   const objekt = !!parseFloat(document.getElementById('f-zimmer').value);
-  const termin = (document.getElementById('f-frequenz').value === 'monatlich')
+  const termin = istMonatlich()
     ? [...document.querySelectorAll('.t-datum')].filter(x => x.value).length === 6
     : [...document.querySelectorAll('.f-tag:checked')].length > 0;
   const agb = document.getElementById('f-agb').checked;
@@ -788,6 +859,12 @@ function submitOrder(e){
     const t = termineLesen();
     if(t.fehler){ alert(t.fehler); if(t.feld) t.feld.focus(); return false; }
     termine = t.termine;
+    if(!document.querySelector('input[name="f-zutritt"]:checked')){
+      alert(EN() ? 'Please tell us how we can access your home.'
+                 : 'Bitte geben Sie an, wie uns der Zutritt gewährleistet ist.');
+      document.getElementById('zutritt-frage').scrollIntoView({behavior:'smooth', block:'center'});
+      return false;
+    }
   }
   const tage = monatlich
     ? [...new Set(termine.map(t => WT_DE[new Date(t.datum + 'T12:00:00').getDay()]))]
@@ -797,10 +874,11 @@ function submitOrder(e){
   if(springerJa){
     const frueh = new Date(); frueh.setDate(frueh.getDate() + 7);
     const grenze = frueh.toISOString().slice(0, 10);
-    const zeitFeld = document.getElementById('f-startzeit');
-    if(springerJa && !zeitFeld.value){
-      alert(EN() ? 'Please choose a start time.' : 'Bitte wählen Sie eine Uhrzeit für den Start.');
-      zeitFeld.focus();
+    const zutritt = document.querySelector('input[name="f-zutritt"]:checked');
+    if(!zutritt){
+      alert(EN() ? 'Please tell us how we can access your home.'
+                 : 'Bitte geben Sie an, wie uns der Zutritt gewährleistet ist.');
+      document.getElementById('zutritt-frage').scrollIntoView({behavior:'smooth', block:'center'});
       return false;
     }
     if(!startFeld.value || startFeld.value < grenze){
@@ -813,6 +891,16 @@ function submitOrder(e){
   if(!tage.length){
     alert(EN() ? 'Please select at least one possible cleaning day.'
                : 'Bitte wählen Sie mindestens einen möglichen Reinigungstag.');
+    return false;
+  }
+  /* Für die Fensterreinigungsofferte braucht die Spezialreinigung die Fläche. */
+  const fensterJa = document.querySelector('input[name="f-fenster"]:checked').value === 'Ja';
+  const qmFeld = document.getElementById('f-qm');
+  if(fensterJa && !parseFloat(qmFeld.value)){
+    alert(EN() ? 'For the window cleaning quote please enter the area of your home in square metres.'
+               : 'Für die Fensterreinigungsofferte brauchen wir die Wohnungsfläche in Quadratmetern.');
+    qmFeld.focus();
+    qmFeld.scrollIntoView({behavior:'smooth', block:'center'});
     return false;
   }
 
@@ -847,7 +935,7 @@ function submitOrder(e){
     frequenz: frequenz,
     frequenzText: FREQUENZ_LABEL[frequenz],
     tage: tage,
-    uhrzeit: monatlich ? 'Gemäss Terminplan' : document.querySelector('input[name="f-uhrzeit"]:checked').value,
+    uhrzeit: monatlich ? '08:00 – 17:00 Uhr (Springerteam)' : document.querySelector('input[name="f-uhrzeit"]:checked').value,
     termine: termine,
     aufwandText: aufwand ? aufwand.text : 'Nach virtueller Besichtigung',
     aufwandTextEn: aufwand ? aufwand.textEn : 'After a virtual site visit',
@@ -864,7 +952,8 @@ function submitOrder(e){
     fensterOfferte: document.querySelector('input[name="f-fenster"]:checked').value,
     springerSofort: monatlich ? 'Ja' : document.querySelector('input[name="f-springer"]:checked').value,
     startDatum: monatlich ? termine[0].datum : (springerJa ? startFeld.value : ''),
-    startZeit:  monatlich ? termine[0].zeit : (springerJa ? (document.getElementById('f-startzeit').value || '') : ''),
+    startZeit:  '',   // Uhrzeit legt die Disposition fest, nicht die Kundschaft
+    zutritt:    (springerJa || monatlich) ? ((document.querySelector('input[name="f-zutritt"]:checked') || {}).value || '') : '',
     vereinbarungen: document.getElementById('f-vereinbarungen').value
   };
   entry.zusatzBuchen = (entry.zusatzBettbezuege || entry.zusatzWaesche ||
