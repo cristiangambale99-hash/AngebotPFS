@@ -1522,8 +1522,10 @@ function zeileFall(e){
     '<div class="btn-row" style="justify-content:flex-end;">' +
       (n.knopf ? '<button class="btn klein primary-action" onclick="event.stopPropagation();' + n.knopf.ruf + '">' + esc(n.knopf.text) + '</button>' : '') +
       (terminVorgeschlagen(e)
-        ? '<button class="btn klein secondary" onclick="event.stopPropagation();terminBestaetigen(\'' + e.id + '\', this)">Zusage eintragen</button>' +
-          '<button class="btn klein danger" onclick="event.stopPropagation();einfuehrungAbbrechen(\'' + e.id + '\', this)">Termin abbrechen</button>' : '') +
+        ? '<button class="btn klein secondary" onclick="event.stopPropagation();terminBestaetigen(\'' + e.id + '\', this)">Zusage eintragen</button>' : '') +
+      /* Abbrechen geht in beiden Lagen: Vorschlag draussen oder Termin bestätigt. */
+      (e.quelle === 'auftrag' && e.einfuehrungAm && !['abgesagt','archiv'].includes(e.stufe)
+        ? '<button class="btn klein danger" onclick="event.stopPropagation();einfuehrungAbbrechen(\'' + e.id + '\', this)">Termin abbrechen</button>' : '') +
       '<button class="btn klein secondary" onclick="event.stopPropagation();oeffneFall(\'' + e.id + '\')">Öffnen</button>' +
     '</div></div>';
 }
