@@ -1522,7 +1522,8 @@ function zeileFall(e){
     '<div class="btn-row" style="justify-content:flex-end;">' +
       (n.knopf ? '<button class="btn klein primary-action" onclick="event.stopPropagation();' + n.knopf.ruf + '">' + esc(n.knopf.text) + '</button>' : '') +
       (terminVorgeschlagen(e)
-        ? '<button class="btn klein secondary" onclick="event.stopPropagation();terminBestaetigen(\'' + e.id + '\', this)">Zusage eintragen</button>' : '') +
+        ? '<button class="btn klein secondary" onclick="event.stopPropagation();terminBestaetigen(\'' + e.id + '\', this)">Zusage eintragen</button>' +
+          '<button class="btn klein danger" onclick="event.stopPropagation();einfuehrungAbbrechen(\'' + e.id + '\', this)">Termin abbrechen</button>' : '') +
       '<button class="btn klein secondary" onclick="event.stopPropagation();oeffneFall(\'' + e.id + '\')">Öffnen</button>' +
     '</div></div>';
 }
@@ -2568,6 +2569,19 @@ function kartenSchritte(e){
       '<button class="btn primary-action" onclick="einfuehrungSenden(\'' + e.id + '\', this)">Terminvorschlag senden</button>'));
   }
 
+  /* Termin abbrechen: solange ein Einführungstermin erfasst ist, egal ob
+     die Zusage noch aussteht oder schon vorliegt. */
+  if(auftrag && e.einfuehrungAm && !['abgesagt','archiv'].includes(e.stufe)){
+    s.push(schritt('Einführungstermin abbrechen',
+      (e.einfuehrungBestaetigt
+        ? 'Der Termin am ' + dat(e.einfuehrungAm) + ' ist bestätigt, kann aber nicht stattfinden. Die Kundschaft erhält eine Nachricht, dass der Termin aus organisatorischen Gründen verschoben wird und ein neuer Vorschlag folgt. Raumpflegerin und Termin werden gelöscht.'
+        : 'Der Vorschlag für den ' + dat(e.einfuehrungAm) + ' ist draussen, die Zusage steht noch aus. Die Kundschaft erhält eine Nachricht, dass der Vorschlag hinfällig ist, und der Bestätigungslink im alten Mail wird ungültig.') +
+      (laeuftMitSpringer(e)
+        ? ' Der Auftrag bleibt aktiv, weil das Springerteam weiter reinigt, und erscheint unter «Aktive Aufträge · Ausführung mit Springerteam».'
+        : ' Der Auftrag geht zurück in Bearbeitung und erscheint wieder unter «Auftragserteilungen».'),
+      '<button class="btn danger" onclick="einfuehrungAbbrechen(\'' + e.id + '\', this)">Termin abbrechen</button>'));
+  }
+
   /* Sagt die Kundschaft telefonisch zu, wird der Termin hier von Hand
      bestätigt. Danach läuft alles wie beim Klick im Mail: Auftrag auf aktiv,
      Bestätigung mit dem unterschriebenen Vertrag an die Kundschaft. */
@@ -2951,6 +2965,59 @@ async function angabenSpeichern(id, btn){
     meldung('Nicht gespeichert: ' + err.message, 'neg');
   }
   btn.disabled = false; btn.textContent = text;
+}
+
+/* Einführungstermin abbrechen — zwei Fälle, ein Ablauf.
+   Vor der Zusage: Vorschlag zurückziehen, alter Bestätigungslink wird ungültig.
+   Nach der Zusage: vereinbarter Termin wird abgesagt, Auftrag verlässt «aktiv».
+   In beiden Fällen informiert der Server die Kundschaft und setzt den Auftrag
+   auf «in Bearbeitung» zurück, damit er im Eingang neu disponiert wird. */
+async function einfuehrungAbbrechen(id, btn){
+  const e = LISTE.find(x => String(x.id) === String(id));
+  if(!e) return;
+  const bestaetigt = !!e.einfuehrungBestaetigt;
+  if(!confirm((bestaetigt
+      ? 'Bestätigten Termin von ' + name(e) + ' am ' + dat(e.einfuehrungAm) + ' absagen?'
+      : 'Terminvorschlag für ' + name(e) + ' am ' + dat(e.einfuehrungAm) + ' zurückziehen?') +
+    '\n\nDie Kundschaft erhält eine Nachricht, dass der Termin aus organisatorischen Gründen nicht stattfindet und ein neuer Vorschlag folgt.' +
+    '\n\nRaumpflegerin, Termin und Qualitätsnachfrage werden gelöscht. ' +
+    (laeuftMitSpringer(e)
+      ? 'Der Auftrag bleibt aktiv, das Springerteam reinigt weiter.'
+      : 'Der Auftrag geht zurück in Bearbeitung.'))) return;
+  const alt = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'Wird abgebrochen …'; }
+  try{
+    const r = await fetch('/api/einfuehrung', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id, aktion:'abbruch', bearbeiter: CS_WER })
+    });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(d.error || 'Server ' + r.status);
+    const felder = { einfuehrungAm:'', einfuehrungZeit:'', einfuehrungVorschlagAm:'',
+      einfuehrungBestaetigt:'', einfuehrungBestaetigtVon:'', einfuehrungBestaetigtArt:'',
+      raumpflegerin:'', festStartAm:'', qualitaetAm:'', qualitaetMail:'' };
+    if(d.bleibtAktiv){
+      felder.stufe = 'aktiv';                 // Springerteam reinigt weiter
+    }else{
+      felder.stufe = 'bearbeitung';
+      felder.erstReinigung = '';
+      felder.bearbeitungAb = new Date().toISOString();
+    }
+    Object.assign(e, felder);
+    const auf = AUFTRAEGE.find(x => String(x.id) === String(id));
+    if(auf) Object.assign(auf, felder);
+    zeichnen();
+    meldung(d.kundenmail
+      ? 'Termin abgebrochen, die Kundschaft ist informiert. ' + (d.bleibtAktiv
+          ? 'Der Auftrag bleibt aktiv mit dem Springerteam.'
+          : 'Der Auftrag wartet wieder auf eine Disposition.')
+      : 'Termin abgebrochen. Achtung: Es konnte keine Nachricht an die Kundschaft gesendet werden' +
+        (d.mailfehler ? ' (' + d.mailfehler + ')' : '') + ' — bitte telefonisch informieren.',
+      d.kundenmail ? 'pos' : 'neg');
+  }catch(err){
+    meldung('Nicht abgebrochen: ' + err.message, 'neg');
+    if(btn){ btn.disabled = false; btn.textContent = alt; }
+  }
 }
 
 async function terminBestaetigen(id, btn){
