@@ -617,6 +617,17 @@ textarea{ min-height:96px; resize:vertical; }
 .tag.neutral{ background:#E6EDED; color:#3F5455; border-color:#CBD9D9; }
 
 .hinweis{ border-left-width:5px; }
+/* Servicegebiet: Statuszeile unter «PLZ und Ort» */
+.plz-status{ display:none; align-items:flex-start; gap:9px; margin-top:7px; padding:9px 12px;
+  border:1px solid var(--cs-border); border-left:4px solid var(--cs-border); border-radius:8px;
+  background:var(--cs-surface); font-size:var(--cs-fs-sm); line-height:1.5; }
+.plz-status.an{ display:flex; }
+.plz-status .punkt{ width:9px; height:9px; border-radius:50%; margin-top:6px; flex:none; background:currentColor; }
+.plz-status strong{ display:block; color:var(--cs-ink); font-size:var(--cs-fs-sm); }
+.plz-status span{ color:var(--cs-ink-soft); }
+.plz-status.ja{ border-left-color:var(--cs-pos); background:var(--cs-pos-bg); color:var(--cs-pos); }
+.plz-status.nein{ border-left-color:var(--cs-neg); background:var(--cs-neg-bg); color:var(--cs-neg); }
+.plz-status.unbekannt{ border-left-color:var(--cs-border); background:#F7F9F9; color:var(--cs-ink-mute); }
 .hinweis.neg{ background:var(--cs-neg-bg); border-color:#E4B0A4; border-left-color:var(--cs-neg); color:#7E2C1D; }
 .hinweis.warn{ background:var(--cs-warn-bg); border-color:#E2CB94; border-left-color:var(--cs-warn); color:#6E4C08; }
 .hinweis.pos{ background:var(--cs-pos-bg); border-color:#A9DCC0; border-left-color:var(--cs-pos); color:#14603200; }
@@ -923,6 +934,9 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
 <div class="toast" id="csToast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- Servicegebiet nach Postleitzahl. Liegt als eigene Datei neben admin.html,
+     damit die Liste ohne Eingriff in die Verwaltung ersetzt werden kann. -->
+<script src="plz-gebiete.js"></script>
 <script>
 /* =========================================================
    Verwaltung PFS — Clean Service Scaramuzzo AG
@@ -2046,12 +2060,48 @@ let GEN = {
   sprache:'de', von:'', paste:'', link:'', code:'', hinweis:'', hinweisArt:''
 };
 function genSet(feld, wert){ GEN[feld] = wert; }
+
+/* ---------- Servicegebiet nach Postleitzahl ----------
+   Die Liste steht in plz-gebiete.js: "status|Ort|Kanton|Hinweis" je PLZ.
+   j = wir bieten an · n = wir bieten nicht an · t = Grenz-PLZ, Ort prüfen.
+   Sobald vier Ziffern erfasst sind, erscheint die Antwort unter dem Feld. */
+function plzPruefen(text){
+  const treffer = String(text || '').match(/\b\d{4}\b/);
+  if(!treffer) return null;
+  const plz = treffer[0];
+  const roh = (window.CS_PLZ || {})[plz];
+  if(!roh) return { plz, status:'unbekannt' };
+  const [status, ort, kanton] = String(roh).split('|');
+  return { plz, status, ort, kanton };
+}
+
+function plzStatusZeigen(text){
+  const box = document.getElementById('plz-status');
+  if(!box) return;
+  const t = plzPruefen(text);
+  box.className = 'plz-status';
+  if(!t){ box.innerHTML = ''; return; }
+  const ortText = [t.ort, t.kanton ? '(' + t.kanton + ')' : ''].filter(Boolean).join(' ');
+  const M = {
+    j:        ['ja',        'Wir bieten den Service in diesem Gebiet an.', ''],
+    n:        ['nein',      'Wir bieten den Service in diesem Gebiet nicht an.',
+               'Bitte kein Angebot erstellen, sondern der Kundschaft absagen.'],
+    unbekannt:['unbekannt', 'Diese Postleitzahl steht nicht in unserer Liste.',
+               'Bitte von Hand prüfen oder bei Cristian nachfragen.']
+  };
+  const m = M[t.status] || M.unbekannt;
+  box.classList.add('an', m[0]);
+  box.innerHTML = '<span class="punkt"></span><div><strong>' + esc(t.plz) +
+    (ortText ? ' ' + esc(ortText) : '') + ' — ' + m[1] + '</strong>' +
+    (m[2] ? '<span>' + m[2] + '</span>' : '') + '</div>';
+}
 function genNeu(){
   GEN = Object.assign({}, GEN, {vorname:'', nachname:'', adresse:'', plzort:'', email:'',
     angebotsnr:'', zimmer:'', paste:'', link:'', code:'', hinweis:'', hinweisArt:''});
   genZeichnen();
 }
 function genZeichnen(){
+  setTimeout(() => plzStatusZeigen(GEN.plzort), 0);
   const box = document.getElementById('gen-box');
   if(box) box.innerHTML = generatorKarte();
 }
@@ -2092,7 +2142,11 @@ function generatorKarte(){
       '<h3>Kundschaft</h3>' +
       '<div class="feld-reihe">' + sel('anrede','Anrede',['Herr','Frau']) +
         f('vorname','Vorname','text') + f('nachname','Nachname','text') + '</div>' +
-      '<div class="feld-reihe">' + f('adresse','Adresse','text') + f('plzort','PLZ und Ort','text') +
+      '<div class="feld-reihe">' + f('adresse','Adresse','text') +
+        '<div class="feld"><label for="g-plzort">PLZ und Ort</label>' +
+        '<input id="g-plzort" type="text" value="' + esc(GEN.plzort) + '" ' +
+          'oninput="genSet(\'plzort\', this.value); plzStatusZeigen(this.value)">' +
+        '<div class="plz-status" id="plz-status"></div></div>' +
         f('email','E-Mail','email') + '</div>' +
     '</div></div>';
 
@@ -2220,6 +2274,15 @@ function linkErzeugen(){
   if(fehlt.length){
     GEN.hinweis = 'Es fehlt noch: ' + fehlt.join(', ') + '.';
     GEN.hinweisArt = 'neg'; genZeichnen(); return;
+  }
+  /* Letzte Sicherung: ausserhalb des Servicegebiets nur mit ausdrücklicher
+     Bestätigung. Der Hinweis steht schon beim Feld, hier geht es darum,
+     dass niemand versehentlich ein Angebot nach Lausanne schickt. */
+  const geb = plzPruefen(GEN.plzort);
+  if(geb && geb.status === 'n' &&
+     !confirm('Die Postleitzahl ' + geb.plz + (geb.ort ? ' (' + geb.ort + ')' : '') +
+              ' liegt ausserhalb unseres Servicegebiets.\n\nTrotzdem ein Angebot erstellen?')){
+    return;
   }
   const zeichen = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   GEN.code = Array.from({length:6}, () => zeichen[Math.floor(Math.random() * 32)]).join('');
