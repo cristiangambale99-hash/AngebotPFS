@@ -1537,6 +1537,9 @@ function zeileFall(e){
       (n.knopf ? '<button class="btn klein primary-action" onclick="event.stopPropagation();' + n.knopf.ruf + '">' + esc(n.knopf.text) + '</button>' : '') +
       (terminVorgeschlagen(e)
         ? '<button class="btn klein secondary" onclick="event.stopPropagation();terminBestaetigen(\'' + e.id + '\', this)">Zusage eintragen</button>' : '') +
+      /* Absagen: solange der Auftrag offen ist, also vor der Aktivierung. */
+      (offenerAuftrag(e)
+        ? '<button class="btn klein danger" onclick="event.stopPropagation();auftragAbsagen(\'' + e.id + '\')">Absagen</button>' : '') +
       /* Abbrechen geht in beiden Lagen: Vorschlag draussen oder Termin bestätigt. */
       (e.quelle === 'auftrag' && e.einfuehrungAm && !['abgesagt','archiv'].includes(e.stufe)
         ? '<button class="btn klein danger" onclick="event.stopPropagation();einfuehrungAbbrechen(\'' + e.id + '\', this)">Termin abbrechen</button>' : '') +
@@ -2000,7 +2003,7 @@ function suchfeld(ansicht, platzhalter){
 /* ---------- Verkauf: neues Angebot und Angebotspipeline ---------- */
 function gefiltertVerkauf(){
   const F = FILTERS.verkauf;
-  return LISTE.filter(e => e.quelle === 'angebot')
+  return verkaufBasis()
     .filter(e => F === 'alle' ? true : e.stufe === F)
     .filter(e => passt(e, 'verkauf'))
     .sort((a,b) => String(b.datum || '').localeCompare(String(a.datum || '')));
@@ -2016,8 +2019,10 @@ function verkaufListe(){
       return '<tr><td><strong>' + esc(name(e)) + '</strong></td>' +
         '<td>' + esc(e.plzOrt || e.ort || '') + '</td>' +
         '<td>' + esc(e.angebotsnr || e.code || '') + '</td>' +
-        '<td><span class="tag ' + d.art + '">' + d.label + '</span></td>' +
-        '<td class="num">' + dat(e.gesendetAm) + (tage != null ? '<span class="cs-mute"> · ' + tage + ' T.</span>' : '') + '</td>' +
+        '<td><span class="tag ' + d.art + '">' + d.label + '</span>' +
+          (e.quelle === 'auftrag' ? ' <span class="tag neutral">Auftrag abgesagt</span>' : '') + '</td>' +
+        '<td class="num">' + (dat(e.gesendetAm) || dat(e.eingegangenAm)) +
+          (tage != null ? '<span class="cs-mute"> · ' + tage + ' T.</span>' : '') + '</td>' +
         '<td class="num"><div class="btn-row" style="justify-content:flex-end;">' +
           (e.link ? '<button class="btn klein secondary" onclick="linkKopieren(\'' + esc(e.link) + '\')">Link</button>' : '') +
           (mailVon(e) ? '<a class="btn klein secondary" href="mailto:' + esc(mailVon(e)) + '">Mail</a>' : '') +
@@ -2025,15 +2030,22 @@ function verkaufListe(){
         '</div></td></tr>';
     }).join('') + '</tbody></table></div>';
 }
+/* Grundmenge der Verkaufsansicht: alle Angebote und zusätzlich Aufträge,
+   die das Team abgesagt hat. So liegen sämtliche Absagen an einem Ort. */
+function verkaufBasis(){
+  return LISTE.filter(e => e.quelle === 'angebot' ||
+                          (e.quelle === 'auftrag' && e.stufe === 'abgesagt'));
+}
+
 function seiteVerkauf(){
-  const ang = LISTE.filter(e => e.quelle === 'angebot');
+  const ang = verkaufBasis();
   const z = s => ang.filter(e => e.stufe === s).length;
   const k = (ANGEBOTE && ANGEBOTE.kennzahlen) || {};
   const kacheln = [
     {f:'gesendet',     t:'Gesendet',            n:z('gesendet'),     h:'Warten auf Antwort.'},
     {f:'nachgefasst1', t:'Nachgefasst 5 Tage',  n:z('nachgefasst1'), h:'Erste Erinnerung ist draussen.'},
     {f:'nachgefasst2', t:'Nachgefasst 30 Tage', n:z('nachgefasst2'), h:'Letzte Erinnerung vor der Absage.'},
-    {f:'abgesagt',     t:'Abgesagt',            n:z('abgesagt'),     h:'Nach 35 Tagen automatisch.'}
+    {f:'abgesagt',     t:'Abgesagt',            n:z('abgesagt'),     h:'Nach 35 Tagen automatisch oder von Hand abgesagt.'}
   ];
   const F = FILTERS.verkauf;
 
@@ -2598,6 +2610,13 @@ function kartenSchritte(e){
       '<button class="btn danger" onclick="stufeSetzen(\'' + e.id + '\',\'abgesagt\')">Angebot absagen</button>'));
   }
 
+  if(auftrag && offenerAuftrag(e)){
+    s.push(schritt('Auftrag absagen',
+      'Wenn die Kundschaft abspringt, das Objekt ausserhalb unseres Gebiets liegt oder wir den Auftrag nicht übernehmen. ' +
+      'Der Fall verschwindet aus den Auftragserteilungen und erscheint unter «Neues Angebot» bei den Absagen. Automatische Erinnerungen und Nachfragen stoppen.',
+      '<button class="btn danger" onclick="auftragAbsagen(\'' + e.id + '\')">Auftrag absagen</button>'));
+  }
+
   if(auftrag && e.stufe === 'auftrag'){
     s.push(schritt('In Bearbeitung nehmen',
       'Damit beginnt die Frist von sieben Werktagen, nach der die Nachfrage zum Springerteam automatisch hinausgeht.',
@@ -3037,6 +3056,22 @@ async function angabenSpeichern(id, btn){
    Nach der Zusage: vereinbarter Termin wird abgesagt, Auftrag verlässt «aktiv».
    In beiden Fällen informiert der Server die Kundschaft und setzt den Auftrag
    auf «in Bearbeitung» zurück, damit er im Eingang neu disponiert wird. */
+/* Auftrag absagen — aus der Zeile oder von der Fallseite.
+   Der Grund wird im Verlauf festgehalten, damit später nachvollziehbar
+   bleibt, warum nichts daraus wurde. Es geht keine Nachricht an die
+   Kundschaft hinaus; das Gespräch führt das Team selbst. */
+function auftragAbsagen(id){
+  const e = LISTE.find(x => String(x.id) === String(id));
+  if(!e) return;
+  if(!confirm('Auftrag von ' + name(e) + ' wirklich absagen?\n\n' +
+              'Der Fall erscheint danach unter «Neues Angebot» bei den Absagen. ' +
+              'Automatische Nachfragen und Erinnerungen stoppen.')) return;
+  const grund = (prompt('Grund der Absage (freiwillig, erscheint im Verlauf):', '') || '').trim();
+  const felder = { stufe:'abgesagt', vorlaufAus:true, terminErinnerungAus:true,
+                   notizNeu: 'Auftrag abgesagt' + (grund ? ': ' + grund : '.') };
+  speichern(id, felder, 'Auftrag abgesagt. Zu finden unter «Neues Angebot» bei den Absagen.');
+}
+
 async function einfuehrungAbbrechen(id, btn){
   const e = LISTE.find(x => String(x.id) === String(id));
   if(!e) return;
