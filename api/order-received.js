@@ -124,6 +124,47 @@ export default async function handler(req, res) {
       });
     } catch (e) { ergebnis.reporting = { geschrieben: false, grund: e.message }; }
 
+    /* ---- 1d) Kunde in die Materialbestellung uebernehmen ----
+       Die Angebotsnummer ist zugleich die Objektnummer. Faellt der Aufruf
+       aus, bleibt die Auftragserteilung davon unberuehrt. */
+    try {
+      const mbUrl    = process.env.MATERIAL_URL;
+      const mbKey    = process.env.MATERIAL_KEY;
+      const mbSecret = process.env.MATERIAL_SECRET;
+      const objektNr = String(b.angebotsnr || '').trim();
+      const kundenName = [b.vorname, b.nachname].filter(Boolean).join(' ').trim();
+
+      if (!mbUrl || !mbKey || !mbSecret) {
+        ergebnis.materialbestellung = { uebernommen: false, grund: 'nicht konfiguriert' };
+      } else if (!objektNr || !kundenName) {
+        ergebnis.materialbestellung = { uebernommen: false, grund: 'Angebotsnummer oder Name fehlt' };
+      } else {
+        const rm = await fetch(mbUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: mbKey,
+            Authorization: 'Bearer ' + mbKey
+          },
+          body: JSON.stringify({
+            p_secret: mbSecret,
+            p_quelle: 'angebotpfs',
+            p_abteilung: 'PFS',
+            p_objektnummer: objektNr,
+            p_name: kundenName,
+            p_adresse: [b.adresse, b.plzOrt || b.ort].filter(Boolean).join(', '),
+            p_mail: b.mail || b.email || ''
+          })
+        });
+        const dm = await rm.json().catch(() => null);
+        ergebnis.materialbestellung = rm.ok && dm && dm.ok
+          ? { uebernommen: true, objektnummer: objektNr, aktion: dm.aktion }
+          : { uebernommen: false, status: rm.status, antwort: dm };
+      }
+    } catch (e) {
+      ergebnis.materialbestellung = { uebernommen: false, fehler: (e && e.message) || String(e) };
+    }
+
     /* ---- 2) Benachrichtigung an das Team ---- */
     const apiKey = process.env.RESEND_API_KEY;
     if (apiKey) {
