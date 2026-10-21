@@ -1085,6 +1085,7 @@ async function ladeDaten(){
   }catch(e){ ANGEBOTE = null; }
   baueListe();
   zeichnen();
+  setTimeout(dispoSyncLv, 1500);
 }
 
 function auftragStufe(a){
@@ -3562,6 +3563,7 @@ if(CS_TOKEN && CS_WER) starten();
       csModal('checklist-panel', false);
       zeichnen();
       meldung('Checkliste gespeichert.');
+      setTimeout(dispoSyncLv, 300);
     }catch(err){
       meldung('Checkliste nicht gespeichert: ' + err.message, 'neg');
     }finally{
@@ -3850,9 +3852,9 @@ function baueDokument(entry){
    deckungsgleich sind.
    ============================================================================ */
 
-function downloadLeistungsverzeichnis(id){
+function downloadLeistungsverzeichnis(id, opt){
   const entry = auftragFinden(id);
-  if(!entry){ meldung('Auftrag nicht gefunden.', 'neg'); return; }
+  if(!entry){ if(!(opt && opt.nurPdf)) meldung('Auftrag nicht gefunden.', 'neg'); return null; }
 
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit:'mm', format:'a4' });
@@ -4121,10 +4123,57 @@ function downloadLeistungsverzeichnis(id){
     pdf.text(doc.legende.sprachen, ML, legY + 3.4);
   }
 
+  if(opt && opt.nurPdf) return pdf;
   pdf.save('Leistungsverzeichnis_' + (entry.angebotsnr || '') + '_' +
            (entry.nachname || 'Kunde') + '.pdf');
 }
 
+
+/* ---------- Leistungsverzeichnisse automatisch in den Dispogenerator ----------
+   Bei jedem Laden des Admin-Bereichs wird für jede aktive Kundschaft das Leistungsverzeichnis
+   erzeugt und in der Ablage des Dispogenerators gespeichert (Supabase, Tabelle dispo_checklisten).
+   Neu geschrieben wird nur, wenn sich der Inhalt geändert hat. Der Dispogenerator zeigt die
+   Kundschaft dann beim Einlesen mit «Checkliste vorhanden» an und hängt das Verzeichnis
+   automatisch an den Auftragsrapport. */
+const DISPO_SB_URL = 'https://fsxqqemnzutnhqxjmugf.supabase.co';
+const DISPO_SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzeHFxZW1uenV0bmhxeGptdWdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE5NTg4MjcsImV4cCI6MjEwNzUzNDgyN30.Niil4uZUmnm8VV6nVKYfBRM9Blsk-IGeuuRo8VxPOYo';
+async function dispoSb(pfad, opt){
+  opt = opt || {};
+  const r = await fetch(DISPO_SB_URL + '/rest/v1/' + pfad, Object.assign({}, opt, { headers: Object.assign({ apikey: DISPO_SB_KEY, Authorization: 'Bearer ' + DISPO_SB_KEY, 'Content-Type': 'application/json' }, opt.headers || {}) }));
+  if(!r.ok) throw new Error('Dispo-Ablage ' + r.status);
+  const t = await r.text(); return t ? JSON.parse(t) : null;
+}
+function dispoHash(s){ let h = 5381; for(let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + '-' + s.length; }
+let dispoSyncLaeuft = false;
+async function dispoSyncLv(){
+  if(dispoSyncLaeuft || !window.jspdf) return;
+  dispoSyncLaeuft = true;
+  let n = 0;
+  try{
+    const vorhanden = {};
+    ((await dispoSb('dispo_checklisten?dept=eq.pfs&quelle=eq.angebot&select=id,src_hash')) || []).forEach(r => { vorhanden[r.id] = r.src_hash; });
+    const aktiv = AUFTRAEGE.filter(a => !['abgesagt','archiv'].includes(auftragStufe(a)) && a.nachname && a.adresse);
+    for(const a of aktiv){
+      try{
+        const id = 'angebot:' + (a.code || a.id);
+        const hash = dispoHash(JSON.stringify(baueDokument(a)));
+        if(vorhanden[id] === hash) continue;
+        const pdf = downloadLeistungsverzeichnis(a.id, { nurPdf:true });
+        if(!pdf) continue;
+        const kunde = [a.anrede, a.vorname, a.nachname].filter(Boolean).join(' ');
+        const ort = a.plzOrt || a.ort || '';
+        await dispoSb('dispo_checklisten?on_conflict=dept,id', { method:'POST', headers:{ Prefer:'resolution=merge-duplicates,return=minimal' },
+          body: JSON.stringify({ dept:'pfs', id, quelle:'angebot', src_hash:hash, customer:kunde, street:a.adresse, plz_ort:ort,
+            fname:'Leistungsverzeichnis_' + (a.angebotsnr || '') + '_' + a.nachname + '.pdf', pages: pdf.getNumberOfPages(),
+            text_idx:[kunde, a.adresse, ort, a.angebotsnr ? 'Objekt ' + a.angebotsnr : ''].join(' '),
+            data: pdf.output('datauristring').split(',')[1], saved_at: new Date().toISOString() }) });
+        n++;
+      }catch(e){ console.warn('Dispo-Sync für', a.nachname, e); }
+    }
+  }catch(e){ console.warn('Dispo-Sync', e); }
+  finally{ dispoSyncLaeuft = false; }
+  if(n) console.info('Dispo-Sync: ' + n + ' Leistungsverzeichnis(se) aktualisiert');
+}
 
 </script>
 </body>
