@@ -1,5 +1,6 @@
 // api/kunde.js
-// Eine Serverfunktion für alle signierten Kundenlinks.
+// Eine Serverfunktion für alle signierten Kundenlinks und die Vakanzen
+// der Verwaltung (lib/vakanzen.js, eigener Sitzungsschutz).
 //
 // Hintergrund: Der Hobby-Plan von Vercel erlaubt höchstens 12 Funktionen
 // pro Deployment. Deshalb liegen die fünf Kundenfunktionen als Module in
@@ -13,13 +14,15 @@ import qualitaet from '../lib/qualitaet.js';
 import einfuehrung from '../lib/einfuehrung.js';
 import vertragSigniert from '../lib/vertrag-signiert.js';
 import termine from '../lib/termine.js';
+import vakanzen from '../lib/vakanzen.js';
 
 const FUNKTIONEN = {
   'antwort': antwort,
   'qualitaet': qualitaet,
   'einfuehrung': einfuehrung,
   'vertrag-signiert': vertragSigniert,
-  'termine': termine
+  'termine': termine,
+  'vakanzen': vakanzen
 };
 
 export default async function handler(req, res) {

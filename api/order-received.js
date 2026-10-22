@@ -99,6 +99,7 @@ export default async function handler(req, res) {
       terminErinnerung: '',
       /* Beekeeper-Gruppenchat zum Objekt */
       chatId: '', chatTitel: '', chatAm: '',
+      portalId: '',
       zutritt: b.zutritt || '',
       /* Status automatisch setzen:
          Mit Springerteam startet der Auftrag direkt in der eigenen Phase, das
@@ -432,6 +433,19 @@ export default async function handler(req, res) {
           ergebnis.stellenportal = pr.ok ? { angelegt: true, id: pd.id, region: pd.region }
                                          : { angelegt: false, fehler: pd.error || ('HTTP ' + pr.status) };
           if (!pr.ok) console.error('Stellenportal: Kunde nicht angelegt', pd);
+          /* Kennung der Ausschreibung am Auftrag merken: so erkennt die
+             Vakanzenansicht die eigenen Objekte eindeutig. */
+          if (pr.ok && pd.id) {
+            try {
+              const auf = await lesen('auftraege', auftragId);
+              if (auf) {
+                const neu = Object.assign({}, auf);
+                delete neu._id;
+                neu.portalId = String(pd.id);
+                await speichern('auftraege', auftragId, neu);
+              }
+            } catch (e) { console.error('Stellenportal: Kennung nicht gespeichert', e); }
+          }
         } else {
           ergebnis.stellenportal = { angelegt: false, fehler: 'STELLENPORTAL_URL nicht gesetzt' };
         }
