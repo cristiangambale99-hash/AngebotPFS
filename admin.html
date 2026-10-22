@@ -2566,10 +2566,14 @@ function vakPanel(){
     zl('Einsatz', vakEinsatz(o)) +
     zl('Hinweis', o.info) +
     zl('Stellenportal', vakOffen(o) ? 'Ausgeschrieben seit ' + dat(o.ausgeschriebenAm) : 'Vergeben am ' + dat(o.vergebenAm)) +
-    zl('Gruppenchat', o.chatTitel || (o.chatId ? 'Eröffnet' : 'Noch nicht eröffnet')) +
+    zl('Gruppenchat', o.imTool === false ? 'Kein Auftrag in diesem Tool' : (o.chatTitel || (o.chatId ? 'Eröffnet' : 'Noch nicht eröffnet'))) +
     (o.einfuehrungAm ? zl('Einführung', vakZeit(o.einfuehrungAm, o.einfuehrungZeit) +
       (o.einfuehrungBestaetigt ? ' · von der Kundschaft bestätigt' : ' · Vorschlag an die Kundschaft')) : '');
 
+  if(o.imTool === false){
+    inhalt += '<div class="hinweis warn" style="margin-top:14px;"><strong>Direkt im Stellenportal erfasst.</strong> Zu diesem Objekt gibt es keinen Auftrag in diesem Tool. ' +
+      'Beim Bestätigen erhält die Mitarbeiterin die Zusage in Beekeeper und das Objekt wird im Stellenportal auf vergeben gesetzt — den Einführungstermin machst du mit der Kundschaft direkt ab.</div>';
+  }
   inhalt += '<h3 style="margin:18px 0 0;font-size:15px;">Bewerbungen</h3>';
   if(!bew.length){
     inhalt += '<p class="cs-mute" style="margin-top:8px;">Noch keine Bewerbung aus dem Stellenportal.</p>';
@@ -2588,16 +2592,19 @@ function vakPanel(){
     }else if(b.status === 'abgesagt'){
       inhalt += '<span class="tag neutral">Abgesagt</span>';
     }else if(vakOffen(o)){
-      inhalt += '<div class="feld" style="margin-bottom:0;"><label>Einführung und erste Reinigung</label>' +
+      inhalt += '<div class="feld" style="margin-bottom:0;"><label>Einführung und erste Reinigung <span class="erklaerung">Vorbelegt mit dem Wunschtermin der Mitarbeiterin — Datum und Uhrzeit können vor dem Bestätigen angepasst werden.</span></label>' +
         '<div class="vak-termin"><input type="date" id="vak-d-' + esc(b.id) + '" min="' + heute + '" value="' + esc(b.datum && b.datum >= heute ? b.datum : '') + '">' +
-        '<input type="time" id="vak-z-' + esc(b.id) + '" value="' + esc(b.uhrzeit || '') + '"></div></div>' +
+        '<input type="time" id="vak-z-' + esc(b.id) + '" value="' + esc(b.uhrzeit || '') + '"></div>' +
+        (wunsch ? '<div class="cs-mute" style="font-size:var(--cs-fs-xs);margin:-4px 0 8px;">Wunschtermin: ' + esc(wunsch) +
+          ' · <a href="#" onclick="vakWunsch(\'' + esc(b.id) + '\',\'' + esc(b.datum || '') + '\',\'' + esc(b.uhrzeit || '') + '\');return false;">wieder übernehmen</a></div>' : '') +
+        '</div>' +
         '<div class="btn-row"><button class="btn klein primary-action" onclick="vakBestaetigen(\'' + esc(o.portalId) + '\',\'' + esc(b.id) + '\',this)">Bestätigen</button>' +
         '<button class="btn klein secondary" onclick="vakAbsagen(\'' + esc(b.id) + '\',this)">Absagen</button></div>';
     }
     inhalt += '</div>';
   });
 
-  if(vakOffen(o) && bew.some(b => b.status !== 'abgesagt' && b.status !== 'bestaetigt')){
+  if(o.imTool !== false && vakOffen(o) && bew.some(b => b.status !== 'abgesagt' && b.status !== 'bestaetigt')){
     inhalt += '<div class="hinweis pos" style="margin-top:16px;"><strong>Beim Bestätigen.</strong> Der Terminvorschlag geht wie bisher an die Kundschaft, ' +
       'die Raumpflegerin kommt in den Gruppenchat und erhält die Zusage in Beekeeper, das Objekt wird im Stellenportal auf vergeben gesetzt ' +
       'und die übrigen Bewerberinnen erhalten die Absage.</div>';
@@ -2612,6 +2619,10 @@ function vakPanel(){
 }
 
 function vakFilter(f){ VAK.filter = f; VAK.offen = null; zeichnen(); }
+function vakWunsch(id, d, z){
+  const fd = document.getElementById('vak-d-' + id), fz = document.getElementById('vak-z-' + id);
+  if(fd) fd.value = d; if(fz) fz.value = z;
+}
 function vakOeffnen(id){ VAK.offen = String(id); zeichnen(); }
 function vakSchliessen(){ VAK.offen = null; zeichnen(); }
 
@@ -2630,7 +2641,7 @@ async function vakBestaetigen(portalId, bewerbungId, btn){
       body: JSON.stringify({ aktion:'bestaetigen', portalId, bewerbungId, datum:d, zeit:z, bearbeiter: CS_WER }) });
     const e = await r.json().catch(() => ({}));
     if(!r.ok || !e.ok) throw new Error(e.error || 'Server ' + r.status);
-    let txt = 'Bestätigt: Terminvorschlag an die Kundschaft gesendet.';
+    let txt = e.terminGesendet ? 'Bestätigt: Terminvorschlag an die Kundschaft gesendet.' : 'Bestätigt: Zusage an die Mitarbeiterin gesendet, Objekt im Stellenportal vergeben.';
     if(e.chatFehler) txt += ' Beekeeper: ' + e.chatFehler;
     if(e.portalFehler) txt += ' Stellenportal: ' + e.portalFehler;
     meldung(txt, (e.chatFehler || e.portalFehler) ? 'neg' : '');
