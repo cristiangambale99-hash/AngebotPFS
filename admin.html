@@ -2490,6 +2490,7 @@ async function vakLaden(leise){
     VAK.stand = d.stand || new Date().toISOString();
   }catch(e){
     VAK.fehler = e.message || String(e);
+    VAK.stand = VAK.stand || 'fehler';   // Fehler anzeigen statt endlos laden
     if(!leise) meldung('Vakanzen konnten nicht geladen werden: ' + VAK.fehler, 'neg');
   }
   VAK.laedt = false;
@@ -2516,7 +2517,12 @@ function seiteVakanzen(){
     txt + ' · ' + n + '</button>';
 
   let h = '';
-  if(VAK.fehler) h += '<div class="hinweis neg" style="margin-bottom:16px;"><strong>Verbindung zum Stellenportal.</strong> ' + esc(VAK.fehler) + '</div>';
+  if(VAK.fehler){
+    const tipp = /Server 404/.test(VAK.fehler) ? ' — die Weiterleitung /api/vakanzen fehlt: vercel.json im Hauptverzeichnis aktualisieren und neu deployen.'
+               : /STELLEN_SUPABASE/.test(VAK.fehler) ? ' — in Vercel die Variable setzen und neu deployen.' : '';
+    h += '<div class="hinweis neg" style="margin-bottom:16px;"><strong>Vakanzen nicht geladen.</strong> ' + esc(VAK.fehler) + esc(tipp) +
+         ' <a href="#" onclick="VAK.stand=null;vakLaden();return false;">Nochmals versuchen</a></div>';
+  }
   h += '<div class="vak-chips">' + chip('offen','Offen',offen.length) + chip('besetzt','Besetzt',besetzt.length) + chip('alle','Alle',VAK.objekte.length) + '</div>';
 
   if(!liste.length){
