@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { bkBereit, bkChatEroeffnen } from '../lib/beekeeper.js';
 // api/order-received.js
 // Wird vom Auftragsformular aufgerufen, sobald ein Kunde absendet.
 //
@@ -96,6 +97,8 @@ export default async function handler(req, res) {
       termineGebuchtAm: monatlich ? new Date().toISOString() : '',
       terminErinnerungAb: monatlich ? plusMonate(new Date(), 4).toISOString().slice(0, 10) : '',
       terminErinnerung: '',
+      /* Beekeeper-Gruppenchat zum Objekt */
+      chatId: '', chatTitel: '', chatAm: '',
       zutritt: b.zutritt || '',
       /* Status automatisch setzen:
          Mit Springerteam startet der Auftrag direkt in der eigenen Phase, das
@@ -383,6 +386,18 @@ export default async function handler(req, res) {
         }
       }
 
+      /* ---- Beekeeper: Gruppenchat zum Objekt eröffnen ----
+         Titel «Vorname Nachname PFS Objektnummer», Beschreibung mit Adresse,
+         Frequenz, Aufwand und Reinigungstag. Die Abteilung Putzfrauenservice
+         und Cristian kommen als Administratoren hinein. Fehler hier dürfen die
+         Auftragsbestätigung nie stören, deshalb eigener try-Block. */
+      try {
+        ergebnis.gruppenchat = await gruppenchatEroeffnen(b, auftragId);
+      } catch (e) {
+        ergebnis.gruppenchat = { erstellt: false, fehler: String(e && e.message || e).slice(0, 300) };
+        console.error('Beekeeper: Gruppenchat nicht erstellt', e);
+      }
+
       /* ---- Kunde im Stellenportal anlegen ----
          Laeuft bewusst nach den Mails und mit eigenem try: Ist das Portal
          nicht erreichbar, darf das die Auftragsbestaetigung nicht stoeren. */
@@ -409,6 +424,7 @@ export default async function handler(req, res) {
               bodenbelaege: b.bodenbelaege, stockwerk: b.stockwerk, lift: b.lift,
               pp: b.pp, haustiere: b.haustiere, alarmanlage: b.alarmanlage,
               vereinbarungen: b.vereinbarungen, angebotsnr: b.angebotsnr,
+              herkunft: 'Angebotssystem PFS', auftragId: auftragId,
               mail: b.mail || b.email, mobile: b.mobile
             })
           });
@@ -929,4 +945,58 @@ function plusMonate(datum, n) {
   const d = new Date(datum);
   d.setMonth(d.getMonth() + n);
   return d;
+}
+
+
+/* ==========================================================================
+   Beekeeper: Gruppenchat je Objekt
+   Titel        «Vorname Nachname PFS Objektnummer»
+   Beschreibung Adresse, Leerzeile, Frequenz, Aufwand, Reinigungstag
+   Die Objektnummer ist die Angebotsnummer; fehlt sie, nehmen wir die
+   Auftragsnummer, damit der Chat trotzdem eindeutig benannt ist.
+   ========================================================================== */
+const CHAT_FREQUENZ = {
+  woechentlich: 'wöchentlich', '14-taeglich': 'alle 14 Tage', monatlich: 'monatlich',
+  'Wöchentlich': 'wöchentlich', 'Alle zwei Wochen': 'alle 14 Tage', 'Monatlich': 'monatlich'
+};
+
+function chatTitel(b, auftragId) {
+  const name = [b.vorname, b.nachname].filter(Boolean).join(' ').trim() || 'Kundschaft';
+  const nr = String(b.angebotsnr || auftragId || '').trim();
+  return [name, 'PFS', nr].filter(Boolean).join(' ');
+}
+
+function chatBeschreibung(b) {
+  const adresse = [b.adresse, b.plzOrt || b.ort].filter(Boolean).join(', ');
+  const freq = CHAT_FREQUENZ[b.frequenz] || CHAT_FREQUENZ[b.frequenzText] || b.frequenzText || b.frequenz || '';
+  const m = String(b.aufwandText || '').match(/([\d.,]+)\s*(?:Std|Stunden|h)/i);
+  const aufwand = m ? m[1].replace(',', '.') + ' Stunden' : '';
+  const tage = Array.isArray(b.tage) ? b.tage.join(', ') : String(b.tage || '');
+  const zeit = String(b.uhrzeit || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+  const zeilen = [
+    freq ? 'Reinigungsfrequenz: ' + freq : '',
+    aufwand ? 'Reinigungsaufwand: ' + aufwand : '',
+    (tage || zeit) ? 'Reinigungstag: ' + [tage, zeit].filter(Boolean).join(' / ') : ''
+  ].filter(Boolean);
+  return [adresse, '', ...zeilen].join('\n').trim();
+}
+
+async function gruppenchatEroeffnen(b, auftragId) {
+  if (!bkBereit()) return { erstellt: false, grund: 'Beekeeper ist nicht eingerichtet' };
+  const titel = chatTitel(b, auftragId);
+  const bericht = await bkChatEroeffnen({ titel, beschreibung: chatBeschreibung(b), mitglieder: [] });
+  /* Kennung am Auftrag festhalten, damit die Vakanzen später die
+     Mitarbeiterin in genau diesen Chat aufnehmen können. */
+  try {
+    const auf = await lesen('auftraege', auftragId);
+    if (auf) {
+      const neu = { ...auf };
+      delete neu._id;
+      neu.chatId = String(bericht.chatId || '');
+      neu.chatTitel = titel;
+      neu.chatAm = new Date().toISOString();
+      await speichern('auftraege', auftragId, neu);
+    }
+  } catch (e) { bericht.fehler = (bericht.fehler || []).concat('Am Auftrag vermerken: ' + e.message); }
+  return Object.assign({ erstellt: true }, bericht);
 }
