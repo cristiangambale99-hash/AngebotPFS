@@ -820,6 +820,47 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
 .zeit .e.p-cristian{ border-left-color:rgba(47,111,208,.30); }
 .zeit .e.p-fiorella{ border-left-color:rgba(214,67,140,.30); }
 .zeit .e.p-tayron{   border-left-color:rgba(139,94,52,.30); }
+/* ---- Vakanzen ---- */
+.vak-chips{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+.vak-chip{ background:var(--cs-surface); border:1px solid var(--cs-border); border-radius:100px;
+  padding:7px 15px; font-family:inherit; font-size:var(--cs-fs-sm); font-weight:bold;
+  color:var(--cs-ink-soft); cursor:pointer; }
+.vak-chip[aria-pressed="true"]{ background:var(--cs-teal); border-color:var(--cs-teal); color:#fff; }
+.vak-grid{ display:grid; gap:14px; grid-template-columns:repeat(auto-fill,minmax(400px,1fr)); }
+.vak-card{ background:var(--cs-surface); border:1px solid var(--cs-border); border-radius:14px;
+  padding:16px 18px; display:flex; flex-direction:column; gap:10px; cursor:pointer; text-align:left;
+  font-family:inherit; color:var(--cs-ink); width:100%; }
+.vak-card:hover, .vak-card.on{ border-color:#BFDFDF; box-shadow:0 3px 10px rgba(14,67,68,.09); }
+.vak-card.on{ border-color:var(--cs-teal); }
+.vak-card h3{ margin:0; font-size:var(--cs-fs-md); color:var(--cs-ink); }
+.vak-card .vak-kopf{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.vak-card .vak-zeilen{ display:flex; flex-direction:column; gap:5px; font-size:var(--cs-fs-sm); color:var(--cs-ink-soft); }
+.vak-card .vak-fuss{ display:flex; align-items:center; justify-content:space-between;
+  border-top:1px solid var(--cs-border); padding-top:10px; margin-top:2px; }
+.vak-avas{ display:flex; align-items:center; }
+.vak-ava{ width:30px; height:30px; border-radius:50%; background:var(--cs-teal-light); border:2px solid #fff;
+  color:var(--cs-teal-dark); font-size:11px; font-weight:bold; display:flex; align-items:center;
+  justify-content:center; margin-right:-8px; flex:none; }
+.vak-ava.mehr{ background:#EEF3F3; color:var(--cs-ink-soft); }
+.vak-go{ font-size:var(--cs-fs-sm); font-weight:bold; color:var(--cs-teal-dark); }
+.vak-schleier{ position:fixed; inset:0; background:rgba(14,67,68,.28); z-index:850; }
+.vak-panel{ position:fixed; top:0; right:0; width:min(480px,100%); height:100%; background:#fff;
+  border-left:1px solid var(--cs-border); box-shadow:-14px 0 40px rgba(14,67,68,.14);
+  display:flex; flex-direction:column; z-index:860; }
+.vak-panel .vak-ph{ padding:18px 20px; border-bottom:1px solid var(--cs-border); display:flex;
+  justify-content:space-between; align-items:flex-start; gap:12px; }
+.vak-panel .vak-pb{ padding:18px 20px; overflow:auto; flex:1; }
+.vak-zl{ display:flex; justify-content:space-between; gap:12px; padding:7px 0;
+  border-bottom:1px solid var(--cs-border); font-size:var(--cs-fs-sm); }
+.vak-zl span:first-child{ color:var(--cs-ink-soft); flex:none; }
+.vak-zl span:last-child{ text-align:right; }
+.vak-eyebrow{ font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--cs-ink-mute); font-weight:bold; }
+.vak-bew{ border:1px solid var(--cs-border); border-radius:11px; padding:12px 14px; margin-top:10px; }
+.vak-bew.fertig{ background:#F7FAFA; }
+.vak-bew .vak-bk{ display:flex; gap:10px; align-items:center; margin-bottom:8px; }
+.vak-bew .vak-termin{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:8px 0 10px; }
+.vak-schliessen{ background:none; border:none; font-size:20px; line-height:1; cursor:pointer; color:var(--cs-ink-mute); padding:2px 6px; }
+@media (max-width:760px){ .vak-grid{ grid-template-columns:1fr; } .vak-bew .vak-termin{ grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
@@ -861,7 +902,7 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
   <aside class="sidebar" id="sb">
     <div class="brand">
       <div class="mark" role="img" aria-label="Clean Service Scaramuzzo AG"></div>
-      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 26</span></div>
+      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 27</span></div>
     </div>
 
     <nav class="nav">
@@ -869,6 +910,7 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
       <a href="#" data-ansicht="monatlich">Monatlich · Disponieren <span class="zahl" id="n-monat">0</span></a>
       <a href="#" data-ansicht="aktive">Aktive Aufträge <span class="zahl" id="n-aktive">0</span></a>
       <a href="#" data-ansicht="unzufrieden">Unzufriedene Kunden <span class="zahl" id="n-unzu">0</span></a>
+      <a href="#" data-ansicht="vakanzen">Vakanzen <span class="zahl" id="n-vak">0</span></a>
       <a href="#" data-ansicht="kalender">Kalender <span class="zahl" id="n-kalender">0</span></a>
       <a href="#" data-ansicht="verkauf">Neues Angebot</a>
       <a href="#" data-ansicht="auswertung">Auswertung</a>
@@ -1085,6 +1127,7 @@ async function ladeDaten(){
   }catch(e){ ANGEBOTE = null; }
   baueListe();
   zeichnen();
+  vakLaden(true);
   setTimeout(dispoSyncLv, 1500);
 }
 
@@ -1214,6 +1257,7 @@ function zeichnen(){
   const text = document.getElementById('seiten-text');
 
   document.getElementById('n-unzu').textContent = LISTE.filter(unzufrieden).length;
+  document.getElementById('n-vak').textContent = VAK.objekte.filter(o => o.status === 'offen').length;
   document.getElementById('n-eingang').textContent = LISTE.filter(offenerAuftrag).length;
   document.getElementById('n-monat').textContent =
     monatAlle().filter(e => monatZuDisponieren(e) || monatNachbuchungUeberfaellig(e)).length;
@@ -1240,6 +1284,7 @@ function zeichnen(){
     monatlich:  ['Auftragserteilung monatliche Reinigung · Disponieren', 'Monatliche Kunden des Springerteams: Termine disponieren, Nachbuchungen, Einsatzplan.', seiteMonatlich],
     aktive:     ['Aktive Aufträge', 'Vom Springerteam-Einsatz über den Terminvorschlag bis zur laufenden Reinigung.', seiteAktive],
     unzufrieden:['Unzufriedene Kunden', 'Negative Rückmeldungen, die eine zweite Runde brauchen.', seiteUnzufrieden],
+    vakanzen:   ['Vakanzen', 'Objekte aus diesem Tool, für die im Stellenportal eine Raumpflegerin gesucht wird. Bewerbungen erscheinen hier automatisch.', seiteVakanzen],
     kalender:   ['Kalender', 'Alle Einführungstermine im Überblick.', seiteKalender],
     verkauf:    ['Neues Angebot', 'Angebot erstellen und alle laufenden Angebote verfolgen.', seiteVerkauf],
     auswertung: ['Auswertung', 'Zahlen zum laufenden Bestand.', seiteAuswertung],
@@ -1572,6 +1617,8 @@ function seiteAnleitung(){
      'Drei Blöcke entlang des Ablaufs: «Ausführung mit Springerteam», «Einführungstermin vorgeschlagen» und «Einführungstermin angenommen». Archiv und Absagen liegen zusammengeklappt darunter.'],
     ['Unzufriedene Kunden',
      'Jede negative Rückmeldung landet hier, mit dem Wortlaut. Zuerst anrufen und die Ursache klären, danach die zweite Nachfrage senden.'],
+    ['Vakanzen',
+     'Jede Auftragserteilung eröffnet automatisch den Gruppenchat in Beekeeper und die Ausschreibung im Stellenportal. Die Bewerbungen der Mitarbeiterinnen erscheinen hier. «Bestätigen» mit Datum und Uhrzeit: der Terminvorschlag geht an die Kundschaft, die Raumpflegerin kommt in den Gruppenchat und erhält die Zusage, das Objekt wird im Stellenportal auf vergeben gesetzt, die übrigen Bewerberinnen erhalten die Absage. «Absagen» schickt einer einzelnen Bewerberin die Absage.'],
     ['Kalender',
      'Alle Einführungstermine im Monatsraster. Grün heisst bestätigt, gelb heisst vorgeschlagen und noch ohne Zusage.'],
     ['Neues Angebot',
@@ -2424,6 +2471,196 @@ function seiteAktive(){
 }
 
 /* ---------- Unzufriedene Kundschaft ---------- */
+/* ======================================================================
+   Vakanzen — Objekte aus diesem Verkaufstool im Stellenportal, samt den
+   Bewerbungen der Mitarbeiterinnen. Daten kommen von /api/vakanzen.
+   ====================================================================== */
+let VAK = { objekte: [], stand: null, laedt: false, fehler: '', filter: 'offen', offen: null };
+
+async function vakLaden(leise){
+  if(VAK.laedt) return;
+  VAK.laedt = true; VAK.fehler = '';
+  if(!leise && ANSICHT === 'vakanzen') zeichnen();
+  try{
+    const r = await fetch('/api/vakanzen', {cache:'no-store'});
+    if(r.status === 401){ abmelden(); return; }
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(d.error || 'Server ' + r.status);
+    VAK.objekte = d.objekte || [];
+    VAK.stand = d.stand || new Date().toISOString();
+  }catch(e){
+    VAK.fehler = e.message || String(e);
+    if(!leise) meldung('Vakanzen konnten nicht geladen werden: ' + VAK.fehler, 'neg');
+  }
+  VAK.laedt = false;
+  zeichnen();
+}
+
+const vakOffen = o => o.status === 'offen';
+const vakInitialen = n => String(n || '').trim().split(/\s+/).slice(0,2).map(x => x[0] || '').join('').toUpperCase() || '?';
+const vakZeit = (d, z) => (d ? dat(d) : '') + (z ? ', ' + z + ' Uhr' : '');
+function vakEinsatz(o){
+  return [o.tage, o.uhrzeit].filter(Boolean).join(' ') +
+    (o.aufwand ? ' · ' + o.aufwand : '') || (o.turnus || '');
+}
+function vakOffeneBew(o){ return (o.bewerbungen || []).filter(b => b.status !== 'abgesagt'); }
+
+function seiteVakanzen(){
+  if(VAK.laedt && !VAK.stand) return '<div class="lade">Vakanzen werden geladen …</div>';
+  if(!VAK.stand && !VAK.laedt){ vakLaden(true); return '<div class="lade">Vakanzen werden geladen …</div>'; }
+
+  const offen = VAK.objekte.filter(vakOffen), besetzt = VAK.objekte.filter(o => !vakOffen(o));
+  const liste = VAK.filter === 'offen' ? offen : VAK.filter === 'besetzt' ? besetzt : VAK.objekte;
+  const chip = (id, txt, n) =>
+    '<button class="vak-chip" aria-pressed="' + (VAK.filter === id) + '" onclick="vakFilter(\'' + id + '\')">' +
+    txt + ' · ' + n + '</button>';
+
+  let h = '';
+  if(VAK.fehler) h += '<div class="hinweis neg" style="margin-bottom:16px;"><strong>Verbindung zum Stellenportal.</strong> ' + esc(VAK.fehler) + '</div>';
+  h += '<div class="vak-chips">' + chip('offen','Offen',offen.length) + chip('besetzt','Besetzt',besetzt.length) + chip('alle','Alle',VAK.objekte.length) + '</div>';
+
+  if(!liste.length){
+    h += '<div class="leer"><h3>' + (VAK.filter === 'besetzt' ? 'Noch kein Objekt besetzt' : 'Keine offene Vakanz') + '</h3>' +
+         'Sobald eine Auftragserteilung im Stellenportal ausgeschrieben ist, erscheint sie hier.</div>';
+  }else{
+    h += '<div class="vak-grid">' + liste.map(vakKarte).join('') + '</div>';
+  }
+  if(VAK.offen) h += vakPanel();
+  return h;
+}
+
+function vakKarte(o){
+  const bew = vakOffeneBew(o);
+  const tage = tageSeit(o.ausgeschriebenAm);
+  let tag;
+  if(!vakOffen(o)) tag = '<span class="tag pos">Besetzt' + (o.raumpflegerin ? ' · ' + esc(o.raumpflegerin) : '') + '</span>';
+  else if(bew.length) tag = '<span class="tag">' + bew.length + (bew.length === 1 ? ' Bewerbung' : ' Bewerbungen') + '</span>';
+  else if(tage !== null && tage >= 14) tag = '<span class="tag neg">' + tage + ' Tage offen</span>';
+  else tag = '<span class="tag neutral">Noch keine Bewerbung</span>';
+
+  const avas = bew.slice(0,4).map(b => '<span class="vak-ava" title="' + esc(b.name) + '">' + esc(vakInitialen(b.name)) + '</span>').join('') +
+    (bew.length > 4 ? '<span class="vak-ava mehr">+' + (bew.length - 4) + '</span>' : '');
+  const start = o.einfuehrungAm ? 'Einführung: ' + vakZeit(o.einfuehrungAm, o.einfuehrungZeit) : 'Reinigungsstart: so bald wie möglich';
+
+  return '<button class="vak-card' + (VAK.offen === String(o.portalId) ? ' on' : '') + '" onclick="vakOeffnen(\'' + esc(o.portalId) + '\')">' +
+    '<div class="vak-kopf"><div><h3>' + esc(o.kunde) + '</h3>' +
+    '<div class="cs-mute" style="font-size:var(--cs-fs-sm);">' + esc([o.adresse, o.plz].filter(Boolean).join(', ')) + '</div></div>' + tag + '</div>' +
+    '<div class="vak-zeilen"><span>' + esc(start) + '</span><span>Einsatz: ' + esc(vakEinsatz(o)) + '</span>' +
+    (o.angebotsnr ? '<span>Objekt-Nr. ' + esc(o.angebotsnr) + '</span>' : '') + '</div>' +
+    '<div class="vak-fuss"><span class="vak-avas">' + (avas || '<span class="cs-mute" style="font-size:var(--cs-fs-sm);">Wartet auf Bewerbungen aus dem Stellenportal</span>') + '</span>' +
+    '<span class="vak-go">' + (bew.length && vakOffen(o) ? 'Auswählen ›' : 'Öffnen ›') + '</span></div></button>';
+}
+
+function vakPanel(){
+  const o = VAK.objekte.find(x => String(x.portalId) === String(VAK.offen));
+  if(!o) return '';
+  const bew = o.bewerbungen || [];
+  const status = vakOffen(o)
+    ? '<span class="tag">Offen · ' + vakOffeneBew(o).length + ' Bewerbung' + (vakOffeneBew(o).length === 1 ? '' : 'en') + '</span>'
+    : '<span class="tag pos">Besetzt' + (o.raumpflegerin ? ' · ' + esc(o.raumpflegerin) : '') + '</span>';
+  const zl = (a, b) => b ? '<div class="vak-zl"><span>' + a + '</span><span>' + esc(b) + '</span></div>' : '';
+  const heute = new Date().toISOString().slice(0,10);
+
+  let inhalt = zl('Objekt', [o.adresse, o.plz].filter(Boolean).join(', ')) +
+    zl('Objekt-Nr.', o.angebotsnr) +
+    zl('Einsatz', vakEinsatz(o)) +
+    zl('Hinweis', o.info) +
+    zl('Stellenportal', vakOffen(o) ? 'Ausgeschrieben seit ' + dat(o.ausgeschriebenAm) : 'Vergeben am ' + dat(o.vergebenAm)) +
+    zl('Gruppenchat', o.chatTitel || (o.chatId ? 'Eröffnet' : 'Noch nicht eröffnet')) +
+    (o.einfuehrungAm ? zl('Einführung', vakZeit(o.einfuehrungAm, o.einfuehrungZeit) +
+      (o.einfuehrungBestaetigt ? ' · von der Kundschaft bestätigt' : ' · Vorschlag an die Kundschaft')) : '');
+
+  inhalt += '<h3 style="margin:18px 0 0;font-size:15px;">Bewerbungen</h3>';
+  if(!bew.length){
+    inhalt += '<p class="cs-mute" style="margin-top:8px;">Noch keine Bewerbung aus dem Stellenportal.</p>';
+  }
+  bew.forEach(b => {
+    const fertig = b.status === 'abgesagt' || b.status === 'bestaetigt';
+    const wunsch = [b.datum ? dat(b.datum) : '', b.uhrzeit].filter(Boolean).join(', ');
+    inhalt += '<div class="vak-bew' + (fertig ? ' fertig' : '') + '" id="vak-bew-' + esc(b.id) + '">' +
+      '<div class="vak-bk"><span class="vak-ava">' + esc(vakInitialen(b.name)) + '</span>' +
+      '<div><strong style="color:var(--cs-ink);">' + esc(b.name) + '</strong>' +
+      '<div class="cs-mute" style="font-size:12.5px;">' +
+      (b.personalnummer ? 'Personal-Nr. ' + esc(b.personalnummer) + ' · ' : '') +
+      (wunsch ? 'Wunschtermin ' + esc(wunsch) : 'Beworben am ' + dat(b.erstellt)) + '</div></div></div>';
+    if(b.status === 'bestaetigt'){
+      inhalt += '<span class="tag pos">Bestätigt — Terminvorschlag an die Kundschaft</span>';
+    }else if(b.status === 'abgesagt'){
+      inhalt += '<span class="tag neutral">Abgesagt</span>';
+    }else if(vakOffen(o)){
+      inhalt += '<div class="feld" style="margin-bottom:0;"><label>Einführung und erste Reinigung</label>' +
+        '<div class="vak-termin"><input type="date" id="vak-d-' + esc(b.id) + '" min="' + heute + '" value="' + esc(b.datum && b.datum >= heute ? b.datum : '') + '">' +
+        '<input type="time" id="vak-z-' + esc(b.id) + '" value="' + esc(b.uhrzeit || '') + '"></div></div>' +
+        '<div class="btn-row"><button class="btn klein primary-action" onclick="vakBestaetigen(\'' + esc(o.portalId) + '\',\'' + esc(b.id) + '\',this)">Bestätigen</button>' +
+        '<button class="btn klein secondary" onclick="vakAbsagen(\'' + esc(b.id) + '\',this)">Absagen</button></div>';
+    }
+    inhalt += '</div>';
+  });
+
+  if(vakOffen(o) && bew.some(b => b.status !== 'abgesagt' && b.status !== 'bestaetigt')){
+    inhalt += '<div class="hinweis pos" style="margin-top:16px;"><strong>Beim Bestätigen.</strong> Der Terminvorschlag geht wie bisher an die Kundschaft, ' +
+      'die Raumpflegerin kommt in den Gruppenchat und erhält die Zusage in Beekeeper, das Objekt wird im Stellenportal auf vergeben gesetzt ' +
+      'und die übrigen Bewerberinnen erhalten die Absage.</div>';
+  }
+
+  return '<div class="vak-schleier" onclick="vakSchliessen()"></div>' +
+    '<aside class="vak-panel" role="dialog" aria-label="Vakanz ' + esc(o.kunde) + '">' +
+    '<div class="vak-ph"><div><div class="vak-eyebrow">Vakanz</div>' +
+    '<h2 style="margin:4px 0 6px;font-size:19px;">' + esc(o.kunde) + '</h2>' + status + '</div>' +
+    '<button class="vak-schliessen" onclick="vakSchliessen()" aria-label="Schliessen">×</button></div>' +
+    '<div class="vak-pb">' + inhalt + '</div></aside>';
+}
+
+function vakFilter(f){ VAK.filter = f; VAK.offen = null; zeichnen(); }
+function vakOeffnen(id){ VAK.offen = String(id); zeichnen(); }
+function vakSchliessen(){ VAK.offen = null; zeichnen(); }
+
+async function vakBestaetigen(portalId, bewerbungId, btn){
+  const d = (document.getElementById('vak-d-' + bewerbungId) || {}).value || '';
+  const z = (document.getElementById('vak-z-' + bewerbungId) || {}).value || '';
+  if(!d || !z){ meldung('Bitte Datum und Uhrzeit für die Einführung eintragen.', 'neg'); return; }
+  const o = VAK.objekte.find(x => String(x.portalId) === String(portalId));
+  const b = o && (o.bewerbungen || []).find(x => String(x.id) === String(bewerbungId));
+  if(!o || !b) return;
+  if(!confirm(b.name + ' erhält das Objekt ' + o.kunde + '.\n\nDer Terminvorschlag vom ' + dat(d) + ', ' + z +
+    ' Uhr geht an die Kundschaft, die Raumpflegerin kommt in den Gruppenchat und die übrigen Bewerberinnen erhalten die Absage.')) return;
+  const alt = btn.textContent; btn.disabled = true; btn.textContent = 'Wird bestätigt …';
+  try{
+    const r = await fetch('/api/vakanzen', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ aktion:'bestaetigen', portalId, bewerbungId, datum:d, zeit:z, bearbeiter: CS_WER }) });
+    const e = await r.json().catch(() => ({}));
+    if(!r.ok || !e.ok) throw new Error(e.error || 'Server ' + r.status);
+    let txt = 'Bestätigt: Terminvorschlag an die Kundschaft gesendet.';
+    if(e.chatFehler) txt += ' Beekeeper: ' + e.chatFehler;
+    if(e.portalFehler) txt += ' Stellenportal: ' + e.portalFehler;
+    meldung(txt, (e.chatFehler || e.portalFehler) ? 'neg' : '');
+    VAK.offen = null;
+    await vakLaden(true);
+    ladeDaten();
+  }catch(err){
+    meldung('Bestätigen fehlgeschlagen: ' + err.message, 'neg');
+    btn.disabled = false; btn.textContent = alt;
+  }
+}
+
+async function vakAbsagen(bewerbungId, btn){
+  let name = '';
+  VAK.objekte.forEach(o => (o.bewerbungen || []).forEach(b => { if(String(b.id) === String(bewerbungId)) name = b.name; }));
+  if(!confirm((name || 'Die Bewerberin') + ' erhält die Absage für dieses Objekt in Beekeeper.')) return;
+  const alt = btn.textContent; btn.disabled = true; btn.textContent = 'Wird abgesagt …';
+  try{
+    const r = await fetch('/api/vakanzen', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ aktion:'absagen', bewerbungId, bearbeiter: CS_WER }) });
+    const e = await r.json().catch(() => ({}));
+    if(!r.ok || !e.ok) throw new Error(e.error || 'Server ' + r.status);
+    meldung(e.nachricht ? 'Absage an ' + (e.name || name) + ' gesendet.' : 'Absage vermerkt. ' + (e.chatFehler || ''), e.nachricht ? '' : 'neg');
+    await vakLaden(true);
+  }catch(err){
+    meldung('Absagen fehlgeschlagen: ' + err.message, 'neg');
+    btn.disabled = false; btn.textContent = alt;
+  }
+}
+
 function seiteUnzufrieden(){
   const l = LISTE.filter(unzufrieden)
     .sort((a,b) => String(b.qualitaetAntwortAm || '').localeCompare(String(a.qualitaetAntwortAm || '')));
