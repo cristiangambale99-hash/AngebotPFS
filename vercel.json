@@ -29,6 +29,10 @@
     {
       "source": "/api/termine",
       "destination": "/api/kunde?fn=termine"
+    },
+    {
+      "source": "/api/vakanzen",
+      "destination": "/api/kunde?fn=vakanzen"
     }
   ]
 }
