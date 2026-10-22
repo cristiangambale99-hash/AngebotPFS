@@ -1284,7 +1284,7 @@ function zeichnen(){
     monatlich:  ['Auftragserteilung monatliche Reinigung · Disponieren', 'Monatliche Kunden des Springerteams: Termine disponieren, Nachbuchungen, Einsatzplan.', seiteMonatlich],
     aktive:     ['Aktive Aufträge', 'Vom Springerteam-Einsatz über den Terminvorschlag bis zur laufenden Reinigung.', seiteAktive],
     unzufrieden:['Unzufriedene Kunden', 'Negative Rückmeldungen, die eine zweite Runde brauchen.', seiteUnzufrieden],
-    vakanzen:   ['Vakanzen', 'Objekte aus diesem Tool, für die im Stellenportal eine Raumpflegerin gesucht wird. Bewerbungen erscheinen hier automatisch.', seiteVakanzen],
+    vakanzen:   ['Vakanzen', 'Objekte aus dem Stellenportal, auf die sich mindestens eine Mitarbeiterin beworben hat. Bewerbungen erscheinen hier automatisch.', seiteVakanzen],
     kalender:   ['Kalender', 'Alle Einführungstermine im Überblick.', seiteKalender],
     verkauf:    ['Neues Angebot', 'Angebot erstellen und alle laufenden Angebote verfolgen.', seiteVerkauf],
     auswertung: ['Auswertung', 'Zahlen zum laufenden Bestand.', seiteAuswertung],
@@ -1618,7 +1618,7 @@ function seiteAnleitung(){
     ['Unzufriedene Kunden',
      'Jede negative Rückmeldung landet hier, mit dem Wortlaut. Zuerst anrufen und die Ursache klären, danach die zweite Nachfrage senden.'],
     ['Vakanzen',
-     'Jede Auftragserteilung eröffnet automatisch den Gruppenchat in Beekeeper und die Ausschreibung im Stellenportal. Die Bewerbungen der Mitarbeiterinnen erscheinen hier. «Bestätigen» mit Datum und Uhrzeit: der Terminvorschlag geht an die Kundschaft, die Raumpflegerin kommt in den Gruppenchat und erhält die Zusage, das Objekt wird im Stellenportal auf vergeben gesetzt, die übrigen Bewerberinnen erhalten die Absage. «Absagen» schickt einer einzelnen Bewerberin die Absage.'],
+     'Jede Auftragserteilung eröffnet automatisch den Gruppenchat in Beekeeper und die Ausschreibung im Stellenportal. Sobald sich eine Mitarbeiterin auf ein Objekt bewirbt, erscheint es hier mit allen Bewerbungen. «Bestätigen» mit Datum und Uhrzeit: der Terminvorschlag geht an die Kundschaft, die Raumpflegerin kommt in den Gruppenchat und erhält die Zusage, das Objekt wird im Stellenportal auf vergeben gesetzt, die übrigen Bewerberinnen erhalten die Absage. «Absagen» schickt einer einzelnen Bewerberin die Absage.'],
     ['Kalender',
      'Alle Einführungstermine im Monatsraster. Grün heisst bestätigt, gelb heisst vorgeschlagen und noch ohne Zusage.'],
     ['Neues Angebot',
@@ -2526,8 +2526,8 @@ function seiteVakanzen(){
   h += '<div class="vak-chips">' + chip('offen','Offen',offen.length) + chip('besetzt','Besetzt',besetzt.length) + chip('alle','Alle',VAK.objekte.length) + '</div>';
 
   if(!liste.length){
-    h += '<div class="leer"><h3>' + (VAK.filter === 'besetzt' ? 'Noch kein Objekt besetzt' : 'Keine offene Vakanz') + '</h3>' +
-         'Sobald eine Auftragserteilung im Stellenportal ausgeschrieben ist, erscheint sie hier.</div>';
+    h += '<div class="leer"><h3>' + (VAK.filter === 'besetzt' ? 'Noch kein Objekt besetzt' : 'Keine offene Bewerbung') + '</h3>' +
+         'Sobald sich eine Mitarbeiterin im Stellenportal auf ein Objekt bewirbt, erscheint es hier.</div>';
   }else{
     h += '<div class="vak-grid">' + liste.map(vakKarte).join('') + '</div>';
   }
