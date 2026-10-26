@@ -821,30 +821,37 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
 .zeit .e.p-fiorella{ border-left-color:rgba(214,67,140,.30); }
 .zeit .e.p-tayron{   border-left-color:rgba(139,94,52,.30); }
 /* ---- Vakanzen ---- */
-.vak-chips{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+.vak-chips{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
 .vak-chip{ background:var(--cs-surface); border:1px solid var(--cs-border); border-radius:100px;
   padding:7px 15px; font-family:inherit; font-size:var(--cs-fs-sm); font-weight:bold;
   color:var(--cs-ink-soft); cursor:pointer; }
 .vak-chip[aria-pressed="true"]{ background:var(--cs-teal); border-color:var(--cs-teal); color:#fff; }
-.vak-grid{ display:grid; gap:14px; grid-template-columns:repeat(auto-fill,minmax(400px,1fr)); }
-.vak-card{ background:var(--cs-surface); border:1px solid var(--cs-border); border-radius:14px;
-  padding:16px 18px; display:flex; flex-direction:column; gap:10px; cursor:pointer; text-align:left;
-  font-family:inherit; color:var(--cs-ink); width:100%; }
-.vak-card:hover, .vak-card.on{ border-color:#BFDFDF; box-shadow:0 3px 10px rgba(14,67,68,.09); }
-.vak-card.on{ border-color:var(--cs-teal); }
-.vak-card h3{ margin:0; font-size:var(--cs-fs-md); color:var(--cs-ink); }
-.vak-card .vak-kopf{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
-.vak-card .vak-zeilen{ display:flex; flex-direction:column; gap:5px; font-size:var(--cs-fs-sm); color:var(--cs-ink-soft); }
-.vak-card .vak-fuss{ display:flex; align-items:center; justify-content:space-between;
-  border-top:1px solid var(--cs-border); padding-top:10px; margin-top:2px; }
-.vak-avas{ display:flex; align-items:center; }
-.vak-ava{ width:30px; height:30px; border-radius:50%; background:var(--cs-teal-light); border:2px solid #fff;
-  color:var(--cs-teal-dark); font-size:11px; font-weight:bold; display:flex; align-items:center;
-  justify-content:center; margin-right:-8px; flex:none; }
-.vak-ava.mehr{ background:#EEF3F3; color:var(--cs-ink-soft); }
-.vak-go{ font-size:var(--cs-fs-sm); font-weight:bold; color:var(--cs-teal-dark); }
+.vak-liste{ background:var(--cs-surface); border:1px solid var(--cs-border); border-radius:14px; overflow:hidden; }
+.vak-kopfzeile, .vak-zeile{ display:grid; grid-template-columns:minmax(220px,1.4fr) minmax(160px,1fr) minmax(220px,1.3fr) 150px 28px;
+  gap:14px; align-items:center; padding:12px 18px; }
+.vak-kopfzeile{ font-size:var(--cs-fs-xs); font-weight:bold; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--cs-ink-mute); background:#F4F8F8; border-bottom:1px solid var(--cs-border); }
+.vak-zeile{ width:100%; text-align:left; background:none; border:none; border-bottom:1px solid var(--cs-border);
+  font-family:inherit; color:var(--cs-ink); cursor:pointer; }
+.vak-zeile:last-child{ border-bottom:none; }
+.vak-zeile:hover{ background:var(--cs-teal-light); }
+.vak-zeile.on{ background:var(--cs-teal-light); box-shadow:inset 3px 0 0 var(--cs-teal); }
+.vak-zeile.erledigt{ opacity:.72; }
+.vak-zeile strong{ display:block; font-size:var(--cs-fs-md); }
+.vak-zeile .vak-sub{ font-size:var(--cs-fs-sm); color:var(--cs-ink-soft); }
+.vak-zeile .vak-pfeil{ color:var(--cs-teal-dark); font-weight:bold; text-align:right; }
+.vak-bewerber{ display:flex; align-items:center; gap:10px; min-width:0; }
+.vak-fotos{ display:flex; align-items:center; flex:none; }
+.vak-foto{ width:34px; height:34px; border-radius:50%; border:2px solid #fff; margin-right:-9px; flex:none;
+  background:var(--cs-teal-light); color:var(--cs-teal-dark); font-size:11px; font-weight:bold;
+  display:flex; align-items:center; justify-content:center; overflow:hidden; box-shadow:0 0 0 1px var(--cs-border); }
+.vak-foto img{ width:100%; height:100%; object-fit:cover; display:block; }
+.vak-foto.gross{ width:44px; height:44px; margin-right:0; font-size:13px; }
+.vak-foto.mehr{ background:#EEF3F3; color:var(--cs-ink-soft); }
+.vak-neu{ font-size:var(--cs-fs-xs); color:var(--cs-ink-soft); margin-left:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.vak-neu b{ color:var(--cs-ink); }
 .vak-schleier{ position:fixed; inset:0; background:rgba(14,67,68,.28); z-index:850; }
-.vak-panel{ position:fixed; top:0; right:0; width:min(480px,100%); height:100%; background:#fff;
+.vak-panel{ position:fixed; top:0; right:0; width:min(500px,100%); height:100%; background:#fff;
   border-left:1px solid var(--cs-border); box-shadow:-14px 0 40px rgba(14,67,68,.14);
   display:flex; flex-direction:column; z-index:860; }
 .vak-panel .vak-ph{ padding:18px 20px; border-bottom:1px solid var(--cs-border); display:flex;
@@ -855,12 +862,21 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
 .vak-zl span:first-child{ color:var(--cs-ink-soft); flex:none; }
 .vak-zl span:last-child{ text-align:right; }
 .vak-eyebrow{ font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--cs-ink-mute); font-weight:bold; }
-.vak-bew{ border:1px solid var(--cs-border); border-radius:11px; padding:12px 14px; margin-top:10px; }
+.vak-bew{ border:1px solid var(--cs-border); border-radius:12px; padding:14px; margin-top:10px; }
 .vak-bew.fertig{ background:#F7FAFA; }
-.vak-bew .vak-bk{ display:flex; gap:10px; align-items:center; margin-bottom:8px; }
+.vak-bew.neu{ border-color:var(--cs-teal); box-shadow:0 0 0 2px rgba(43,182,183,.15); }
+.vak-bew .vak-bk{ display:flex; gap:12px; align-items:center; margin-bottom:10px; }
+.vak-bew .vak-bk strong{ display:block; color:var(--cs-ink); font-size:var(--cs-fs-md); }
+.vak-bew .vak-bk .vak-sub{ font-size:var(--cs-fs-xs); color:var(--cs-ink-soft); line-height:1.5; }
 .vak-bew .vak-termin{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:8px 0 10px; }
+.vak-zeitpunkt{ font-size:var(--cs-fs-xs); font-weight:bold; color:var(--cs-teal-dark); white-space:nowrap; flex:none; align-self:flex-start; }
 .vak-schliessen{ background:none; border:none; font-size:20px; line-height:1; cursor:pointer; color:var(--cs-ink-mute); padding:2px 6px; }
-@media (max-width:760px){ .vak-grid{ grid-template-columns:1fr; } .vak-bew .vak-termin{ grid-template-columns:1fr; } }
+@media (max-width:900px){
+  .vak-kopfzeile{ display:none; }
+  .vak-zeile{ grid-template-columns:1fr; gap:6px; }
+  .vak-zeile .vak-pfeil{ display:none; }
+  .vak-bew .vak-termin{ grid-template-columns:1fr; }
+}
 </style>
 </head>
 <body>
@@ -2475,7 +2491,7 @@ function seiteAktive(){
    Vakanzen — Objekte aus diesem Verkaufstool im Stellenportal, samt den
    Bewerbungen der Mitarbeiterinnen. Daten kommen von /api/vakanzen.
    ====================================================================== */
-let VAK = { objekte: [], stand: null, laedt: false, fehler: '', filter: 'offen', offen: null };
+let VAK = { objekte: [], nachholen: [], stand: null, laedt: false, fehler: '', filter: 'offen', offen: null };
 
 async function vakLaden(leise){
   if(VAK.laedt) return;
@@ -2487,6 +2503,7 @@ async function vakLaden(leise){
     const d = await r.json().catch(() => ({}));
     if(!r.ok) throw new Error(d.error || 'Server ' + r.status);
     VAK.objekte = d.objekte || [];
+    VAK.nachholen = d.nachholen || [];
     VAK.stand = d.stand || new Date().toISOString();
   }catch(e){
     VAK.fehler = e.message || String(e);
@@ -2504,7 +2521,23 @@ function vakEinsatz(o){
   return [o.tage, o.uhrzeit].filter(Boolean).join(' ') +
     (o.aufwand ? ' · ' + o.aufwand : '') || (o.turnus || '');
 }
-function vakOffeneBew(o){ return (o.bewerbungen || []).filter(b => b.status !== 'abgesagt'); }
+function vakOffeneBew(o){ return (o.bewerbungen || []).filter(b => b.status !== 'abgesagt' && b.status !== 'bestaetigt'); }
+function vakFoto(b, gross){
+  const k = 'vak-foto' + (gross ? ' gross' : '');
+  if(b.foto) return '<span class="' + k + '" title="' + esc(b.name) + '"><img src="' + esc(b.foto) + '" alt="" loading="lazy" onerror="this.parentNode.textContent=\'' + esc(vakInitialen(b.name)) + '\'"></span>';
+  return '<span class="' + k + '" title="' + esc(b.name) + '">' + esc(vakInitialen(b.name)) + '</span>';
+}
+/* «vor 2 Std.», «gestern», sonst Datum mit Uhrzeit */
+function vakSeit(iso){
+  const d = new Date(iso); if(isNaN(d)) return '';
+  const min = Math.round((Date.now() - d.getTime()) / 60000);
+  if(min < 60) return 'vor ' + Math.max(min,1) + ' Min.';
+  if(min < 60*24) return 'vor ' + Math.round(min/60) + ' Std.';
+  const tage = Math.floor(min / (60*24));
+  if(tage === 1) return 'gestern, ' + d.toLocaleTimeString('de-CH').slice(0,5);
+  if(tage < 7) return 'vor ' + tage + ' Tagen';
+  return datZeit(iso);
+}
 
 function seiteVakanzen(){
   if(VAK.laedt && !VAK.stand) return '<div class="lade">Vakanzen werden geladen …</div>';
@@ -2523,46 +2556,61 @@ function seiteVakanzen(){
     h += '<div class="hinweis neg" style="margin-bottom:16px;"><strong>Vakanzen nicht geladen.</strong> ' + esc(VAK.fehler) + esc(tipp) +
          ' <a href="#" onclick="VAK.stand=null;vakLaden();return false;">Nochmals versuchen</a></div>';
   }
-  h += '<div class="vak-chips">' + chip('offen','Offen',offen.length) + chip('besetzt','Besetzt',besetzt.length) + chip('alle','Alle',VAK.objekte.length) + '</div>';
+  if(VAK.nachholen.length){
+    h += '<div class="hinweis warn" style="margin-bottom:16px;"><strong>' + VAK.nachholen.length + ' Auftr' + (VAK.nachholen.length === 1 ? 'ag' : 'äge') +
+      ' ohne Ausschreibung oder Gruppenchat.</strong> Bei diesen Auftragserteilungen ist die automatische Ausschreibung im Stellenportal oder der Gruppenchat fehlgeschlagen. Mit einem Klick wird es nachgeholt.' +
+      '<div style="margin-top:10px;display:flex;flex-direction:column;gap:6px;">' +
+      VAK.nachholen.map(n => '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:var(--cs-fs-sm);" id="vak-nh-' + esc(n.auftragId) + '">' +
+        '<span style="min-width:260px;"><b>' + esc(n.kunde) + '</b> · ' + esc(n.adresse) + (n.angebotsnr ? ' · Nr. ' + esc(n.angebotsnr) : '') + ' <span class="cs-mute">(' + dat(n.eingegangenAm) + ')</span></span>' +
+        (n.portalFehlt ? '<button class="btn klein primary-action" onclick="vakNachholen(\'' + esc(n.auftragId) + '\',\'portal\',this)">Ausschreibung nachholen</button>' : '') +
+        (n.chatFehlt ? '<button class="btn klein secondary" onclick="vakNachholen(\'' + esc(n.auftragId) + '\',\'chat\',this)">Gruppenchat nachholen</button>' : '') +
+        '</div>').join('') + '</div></div>';
+  }
+  const unbeantwortet = offen.reduce((n, o) => n + vakOffeneBew(o).length, 0);
+  h += '<div class="vak-chips">' + chip('offen','Offen',offen.length) + chip('besetzt','Besetzt',besetzt.length) + chip('alle','Alle',VAK.objekte.length) +
+       (unbeantwortet ? '<span class="cs-mute" style="align-self:center;margin-left:4px;font-size:var(--cs-fs-sm);">' + unbeantwortet + ' Bewerbung' + (unbeantwortet === 1 ? '' : 'en') + ' unbeantwortet</span>' : '') + '</div>';
 
   if(!liste.length){
     h += '<div class="leer"><h3>' + (VAK.filter === 'besetzt' ? 'Noch kein Objekt besetzt' : 'Keine offene Bewerbung') + '</h3>' +
          'Sobald sich eine Mitarbeiterin im Stellenportal auf ein Objekt bewirbt, erscheint es hier.</div>';
   }else{
-    h += '<div class="vak-grid">' + liste.map(vakKarte).join('') + '</div>';
+    h += '<div class="vak-liste"><div class="vak-kopfzeile"><span>Objekt</span><span>Einsatz</span><span>Bewerbungen · neuste zuerst</span><span>Status</span><span></span></div>' +
+         liste.map(vakZeile).join('') + '</div>';
   }
   if(VAK.offen) h += vakPanel();
   return h;
 }
 
-function vakKarte(o){
-  const bew = vakOffeneBew(o);
-  const tage = tageSeit(o.ausgeschriebenAm);
+function vakZeile(o){
+  const alle = o.bewerbungen || [];
+  const offenBew = vakOffeneBew(o);
+  const neuste = alle[0];
   let tag;
   if(!vakOffen(o)) tag = '<span class="tag pos">Besetzt' + (o.raumpflegerin ? ' · ' + esc(o.raumpflegerin) : '') + '</span>';
-  else if(bew.length) tag = '<span class="tag">' + bew.length + (bew.length === 1 ? ' Bewerbung' : ' Bewerbungen') + '</span>';
-  else if(tage !== null && tage >= 14) tag = '<span class="tag neg">' + tage + ' Tage offen</span>';
-  else tag = '<span class="tag neutral">Noch keine Bewerbung</span>';
+  else if(offenBew.length) tag = '<span class="tag">' + offenBew.length + ' offen</span>';
+  else tag = '<span class="tag neutral">Alle beantwortet</span>';
 
-  const avas = bew.slice(0,4).map(b => '<span class="vak-ava" title="' + esc(b.name) + '">' + esc(vakInitialen(b.name)) + '</span>').join('') +
-    (bew.length > 4 ? '<span class="vak-ava mehr">+' + (bew.length - 4) + '</span>' : '');
-  const start = o.einfuehrungAm ? 'Einführung: ' + vakZeit(o.einfuehrungAm, o.einfuehrungZeit) : 'Reinigungsstart: so bald wie möglich';
+  const fotos = alle.slice(0,4).map(b => vakFoto(b)).join('') +
+    (alle.length > 4 ? '<span class="vak-foto mehr">+' + (alle.length - 4) + '</span>' : '');
+  const neu = neuste ? '<span class="vak-neu"><b>' + esc(neuste.name) + '</b><br>' + esc(vakSeit(neuste.erstellt)) +
+    (alle.length > 1 ? ' · ' + alle.length + ' Bewerbungen' : '') + '</span>' : '';
 
-  return '<button class="vak-card' + (VAK.offen === String(o.portalId) ? ' on' : '') + '" onclick="vakOeffnen(\'' + esc(o.portalId) + '\')">' +
-    '<div class="vak-kopf"><div><h3>' + esc(o.kunde) + '</h3>' +
-    '<div class="cs-mute" style="font-size:var(--cs-fs-sm);">' + esc([o.adresse, o.plz].filter(Boolean).join(', ')) + '</div></div>' + tag + '</div>' +
-    '<div class="vak-zeilen"><span>' + esc(start) + '</span><span>Einsatz: ' + esc(vakEinsatz(o)) + '</span>' +
-    (o.angebotsnr ? '<span>Objekt-Nr. ' + esc(o.angebotsnr) + '</span>' : '') + '</div>' +
-    '<div class="vak-fuss"><span class="vak-avas">' + (avas || '<span class="cs-mute" style="font-size:var(--cs-fs-sm);">Wartet auf Bewerbungen aus dem Stellenportal</span>') + '</span>' +
-    '<span class="vak-go">' + (bew.length && vakOffen(o) ? 'Auswählen ›' : 'Öffnen ›') + '</span></div></button>';
+  return '<button class="vak-zeile' + (VAK.offen === String(o.portalId) ? ' on' : '') + (vakOffen(o) && !offenBew.length ? ' erledigt' : '') +
+    '" onclick="vakOeffnen(\'' + esc(o.portalId) + '\')">' +
+    '<span><strong>' + esc(o.kunde) + '</strong><span class="vak-sub">' + esc([o.adresse, o.plz].filter(Boolean).join(', ')) +
+      (o.angebotsnr ? ' · Nr. ' + esc(o.angebotsnr) : '') + '</span></span>' +
+    '<span class="vak-sub">' + esc(vakEinsatz(o)) + (o.einfuehrungAm ? '<br>Einführung ' + esc(vakZeit(o.einfuehrungAm, o.einfuehrungZeit)) : '') + '</span>' +
+    '<span class="vak-bewerber"><span class="vak-fotos">' + fotos + '</span>' + neu + '</span>' +
+    '<span>' + tag + '</span><span class="vak-pfeil">›</span></button>';
 }
 
 function vakPanel(){
   const o = VAK.objekte.find(x => String(x.portalId) === String(VAK.offen));
   if(!o) return '';
   const bew = o.bewerbungen || [];
+  const offenBew = vakOffeneBew(o);
   const status = vakOffen(o)
-    ? '<span class="tag">Offen · ' + vakOffeneBew(o).length + ' Bewerbung' + (vakOffeneBew(o).length === 1 ? '' : 'en') + '</span>'
+    ? (offenBew.length ? '<span class="tag">' + offenBew.length + ' Bewerbung' + (offenBew.length === 1 ? '' : 'en') + ' offen</span>' : '<span class="tag neutral">Alle Bewerbungen beantwortet</span>')
     : '<span class="tag pos">Besetzt' + (o.raumpflegerin ? ' · ' + esc(o.raumpflegerin) : '') + '</span>';
   const zl = (a, b) => b ? '<div class="vak-zl"><span>' + a + '</span><span>' + esc(b) + '</span></div>' : '';
   const heute = new Date().toISOString().slice(0,10);
@@ -2580,19 +2628,22 @@ function vakPanel(){
     inhalt += '<div class="hinweis warn" style="margin-top:14px;"><strong>Direkt im Stellenportal erfasst.</strong> Zu diesem Objekt gibt es keinen Auftrag in diesem Tool. ' +
       'Beim Bestätigen erhält die Mitarbeiterin die Zusage in Beekeeper und das Objekt wird im Stellenportal auf vergeben gesetzt — den Einführungstermin machst du mit der Kundschaft direkt ab.</div>';
   }
-  inhalt += '<h3 style="margin:18px 0 0;font-size:15px;">Bewerbungen</h3>';
+  inhalt += '<h3 style="margin:18px 0 0;font-size:15px;">Bewerbungen <span class="cs-mute" style="font-weight:normal;font-size:var(--cs-fs-sm);">· neuste zuoberst</span></h3>';
   if(!bew.length){
     inhalt += '<p class="cs-mute" style="margin-top:8px;">Noch keine Bewerbung aus dem Stellenportal.</p>';
   }
-  bew.forEach(b => {
+  bew.forEach((b, i) => {
     const fertig = b.status === 'abgesagt' || b.status === 'bestaetigt';
     const wunsch = [b.datum ? dat(b.datum) : '', b.uhrzeit].filter(Boolean).join(', ');
-    inhalt += '<div class="vak-bew' + (fertig ? ' fertig' : '') + '" id="vak-bew-' + esc(b.id) + '">' +
-      '<div class="vak-bk"><span class="vak-ava">' + esc(vakInitialen(b.name)) + '</span>' +
-      '<div><strong style="color:var(--cs-ink);">' + esc(b.name) + '</strong>' +
-      '<div class="cs-mute" style="font-size:12.5px;">' +
-      (b.personalnummer ? 'Personal-Nr. ' + esc(b.personalnummer) + ' · ' : '') +
-      (wunsch ? 'Wunschtermin ' + esc(wunsch) : 'Beworben am ' + dat(b.erstellt)) + '</div></div></div>';
+    inhalt += '<div class="vak-bew' + (fertig ? ' fertig' : '') + (!fertig && i === 0 ? ' neu' : '') + '" id="vak-bew-' + esc(b.id) + '">' +
+      '<div class="vak-bk">' + vakFoto(b, true) +
+      '<div style="flex:1;min-width:0;"><strong>' + esc(b.name) + '</strong>' +
+      '<div class="vak-sub">' +
+      (b.personalnummer ? 'Personal-Nr. ' + esc(b.personalnummer) : 'Neue Mitarbeiterin') +
+      (b.beekeeperName && b.beekeeperName !== b.name ? ' · in Beekeeper: ' + esc(b.beekeeperName) : '') +
+      (!b.beekeeperId && VAK.beekeeper !== false ? ' · <span class="cs-neg">in Beekeeper nicht gefunden</span>' : '') +
+      (wunsch ? '<br>Wunschtermin ' + esc(wunsch) : '') + '</div></div>' +
+      '<span class="vak-zeitpunkt" title="' + esc(datZeit(b.erstellt)) + '">Eingegangen<br>' + esc(vakSeit(b.erstellt)) + '</span></div>';
     if(b.status === 'bestaetigt'){
       inhalt += '<span class="tag pos">Bestätigt — Terminvorschlag an die Kundschaft</span>';
     }else if(b.status === 'abgesagt'){
@@ -2610,7 +2661,7 @@ function vakPanel(){
     inhalt += '</div>';
   });
 
-  if(o.imTool !== false && vakOffen(o) && bew.some(b => b.status !== 'abgesagt' && b.status !== 'bestaetigt')){
+  if(o.imTool !== false && vakOffen(o) && offenBew.length){
     inhalt += '<div class="hinweis pos" style="margin-top:16px;"><strong>Beim Bestätigen.</strong> Der Terminvorschlag geht wie bisher an die Kundschaft, ' +
       'die Raumpflegerin kommt in den Gruppenchat und erhält die Zusage in Beekeeper, das Objekt wird im Stellenportal auf vergeben gesetzt ' +
       'und die übrigen Bewerberinnen erhalten die Absage.</div>';
@@ -2625,6 +2676,27 @@ function vakPanel(){
 }
 
 function vakFilter(f){ VAK.filter = f; VAK.offen = null; zeichnen(); }
+async function vakNachholen(auftragId, was, btn){
+  const alt = btn.textContent; btn.disabled = true; btn.textContent = 'Läuft …';
+  try{
+    const r = await fetch('/api/vakanzen', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ aktion:'nachholen', auftragId, was:[was], bearbeiter: CS_WER }) });
+    const e = await r.json().catch(() => ({}));
+    if(!r.ok || e.error) throw new Error(e.error || 'Server ' + r.status);
+    if(was === 'portal'){
+      if(e.portalFehler) throw new Error('Stellenportal: ' + e.portalFehler);
+      meldung('Ausschreibung im Stellenportal erstellt' + (e.portal && e.portal.region ? ' (' + e.portal.region + ')' : '') + '.');
+    }else{
+      if(e.chatFehler) throw new Error('Beekeeper: ' + e.chatFehler);
+      meldung('Gruppenchat «' + (e.chat && e.chat.titel || '') + '» eröffnet.');
+    }
+    await vakLaden(true);
+    ladeDaten();
+  }catch(err){
+    meldung((was === 'portal' ? 'Ausschreibung' : 'Gruppenchat') + ' nicht nachgeholt: ' + err.message, 'neg');
+    btn.disabled = false; btn.textContent = alt;
+  }
+}
 function vakWunsch(id, d, z){
   const fd = document.getElementById('vak-d-' + id), fz = document.getElementById('vak-z-' + id);
   if(fd) fd.value = d; if(fz) fz.value = z;
