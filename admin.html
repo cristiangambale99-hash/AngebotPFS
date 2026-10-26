@@ -821,6 +821,17 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
 .zeit .e.p-fiorella{ border-left-color:rgba(214,67,140,.30); }
 .zeit .e.p-tayron{   border-left-color:rgba(139,94,52,.30); }
 /* ---- Vakanzen ---- */
+.vak-nach{ background:#FFF9EC; border:1px solid #EBDCB4; border-left:5px solid var(--cs-warn); border-radius:12px; padding:14px 16px 6px; margin-bottom:18px; }
+.vak-nach-kopf{ display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap; margin-bottom:8px; }
+.vak-nach-kopf h3{ margin:0; font-size:var(--cs-fs-md); color:#6E4C08; }
+.vak-nach-zeile{ display:grid; grid-template-columns:minmax(220px,1.6fr) 110px minmax(150px,1fr) minmax(200px,auto); gap:12px; align-items:center;
+  padding:9px 0; border-top:1px solid #EBDCB4; font-size:var(--cs-fs-sm); }
+.vak-nach-zeile strong{ display:block; color:var(--cs-ink); }
+.vak-nach-zeile .vak-sub{ font-size:var(--cs-fs-xs); color:var(--cs-ink-soft); display:block; }
+.vak-nach-titel{ font-size:var(--cs-fs-xs); font-weight:bold; letter-spacing:.06em; text-transform:uppercase; color:#8A6A2A; border-top:none; padding-top:4px; }
+.vak-nach-zeile.fertig{ opacity:.45; }
+@media (max-width:900px){ .vak-nach-zeile{ grid-template-columns:1fr; gap:4px; } .vak-nach-titel{ display:none; } }
+
 .vak-chips{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
 .vak-chip{ background:var(--cs-surface); border:1px solid var(--cs-border); border-radius:100px;
   padding:7px 15px; font-family:inherit; font-size:var(--cs-fs-sm); font-weight:bold;
@@ -877,6 +888,138 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
   .vak-zeile .vak-pfeil{ display:none; }
   .vak-bew .vak-termin{ grid-template-columns:1fr; }
 }
+
+/* ==========================================================================
+   Clean Service App-Layout v1 — Stilschicht (Variante B, 26.10.2026)
+   Überschreibt Farben, Schriften und Bausteine. Inhalt und Abläufe bleiben
+   unverändert. Gerüst: Icon-Leiste links, Topbar mit Schublade am Handy,
+   Eisblau-Seitenkopf mit Welle.
+   ========================================================================== */
+:root{
+  --cs-teal:#2BB6B7; --cs-teal-dark:#1B8384; --cs-teal-deep:#1B8384; --cs-teal-light:#EEF7F8;
+  --cs-bg:#FFFFFF; --cs-surface:#FFFFFF; --cs-border:#DCEBEE; --cs-border-soft:#DCEBEE;
+  --cs-ink:#3C3C3B; --cs-ink-soft:#767676; --cs-ink-mute:#8A8A8A;
+  --cs-pos:#1B8384; --cs-pos-bg:rgba(96,190,179,.22);
+  --cs-neg:#B8453C; --cs-neg-bg:rgba(200,85,75,.12);
+  --cs-warn:#B7641F; --cs-warn-bg:rgba(224,160,58,.18);
+  --cs-font:"Brandon Text","Figtree",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  --cs-head-font:"Brandon Grotesque","Figtree",system-ui,sans-serif;
+  --cs-fs-xs:12px; --cs-fs-sm:13.5px; --cs-fs-md:15px; --cs-fs-lg:17px; --cs-fs-xl:22px;
+  --cs-radius:16px; --cs-radius-sm:8px; --cs-shadow:none;
+  --cs-shadow-lg:0 18px 50px -24px rgba(27,131,132,.45);
+  --cs-sidebar-w:300px; --rail-w:76px; --topbar-h:56px;
+  color-scheme:light;
+}
+html,body{ overflow-x:clip; }
+body{ background:#fff; -webkit-font-smoothing:antialiased; }
+
+/* Icon-Leiste */
+.rail{ position:sticky; top:0; height:100vh; width:var(--rail-w); flex:0 0 var(--rail-w);
+  background:#1B8384; display:flex; flex-direction:column; align-items:center; gap:4px;
+  padding:14px 0 14px; z-index:20; overflow-y:auto; overflow-x:hidden; scrollbar-width:none; }
+.rail::-webkit-scrollbar{ display:none; }
+.rail .signet, .topbar .signet{ width:50px; height:50px; border-radius:14px; background:#fff; display:grid; place-items:center; margin-bottom:12px; flex:none; }
+.rail .signet span, .topbar .signet span{ width:30px; height:30px; display:block; background:var(--cs-logo) center/22px auto no-repeat; }
+.nav-i{ width:64px; border:0; background:transparent; color:rgba(255,255,255,.72); border-radius:12px;
+  padding:8px 0 6px; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer;
+  font-family:inherit; font-size:10.5px; font-weight:500; line-height:1.15; text-align:center; position:relative;
+  text-decoration:none; transition:background .18s ease-out,color .18s ease-out; flex:none; }
+.nav-i svg{ width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.nav-i:hover{ background:rgba(255,255,255,.08); color:#fff; }
+.nav-i.on{ background:rgba(255,255,255,.16); color:#fff; }
+.nav-i .z{ position:absolute; top:3px; right:7px; min-width:18px; height:18px; border-radius:9px; background:#fff; color:#1B8384;
+  font-size:10.5px; font-weight:700; display:grid; place-items:center; padding:0 5px; font-variant-numeric:tabular-nums; }
+.rail .spacer{ flex:1; min-height:8px; }
+.rail .avatar{ width:36px; height:36px; border-radius:50%; background:#9AD3D3; color:#1F2A2B; display:grid; place-items:center;
+  font-weight:600; font-size:13px; margin-top:6px; flex:none; }
+
+/* Topbar (nur Handy) */
+.topbar{ display:none; }
+.icon-btn{ width:40px; height:40px; border-radius:10px; border:0; background:transparent; cursor:pointer; display:grid; place-items:center; color:var(--cs-ink); }
+.icon-btn svg{ width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; }
+.sidebar-knopf{ display:none !important; }
+
+/* Bisherige Seitenleiste: am Computer ausgeblendet, am Handy die Schublade */
+.sidebar{ display:none; background:#fff; color:var(--cs-ink); width:min(300px,86%); box-shadow:var(--cs-shadow-lg); }
+.sidebar .brand{ border-bottom:1px solid var(--cs-border); background:transparent; }
+.sidebar .brand .mark{ background:#fff var(--cs-logo) center/22px auto no-repeat; border:1px solid var(--cs-border); border-radius:12px; }
+.sidebar .brand .name{ color:var(--cs-ink); }
+.sidebar .brand .unit{ color:var(--cs-ink-soft); }
+.sidebar .nav a{ color:var(--cs-ink); font-weight:500; font-size:15.5px; padding:12px; border-radius:10px; min-height:48px; }
+.sidebar .nav a:hover{ background:var(--cs-teal-light); color:var(--cs-ink); }
+.sidebar .nav a.on{ background:var(--cs-teal-light); color:#1B8384; box-shadow:none; font-weight:600; }
+.sidebar .nav a .zahl{ background:var(--cs-teal-light); color:#1B8384; }
+.sidebar .nav a.on .zahl{ background:#1B8384; color:#fff; }
+.sidebar .nav-title, .sidebar .kontext, .sidebar .fuss{ color:var(--cs-ink-soft); }
+.sidebar .fuss a{ color:#1B8384; }
+.sidebar .k-item{ color:var(--cs-ink); }
+
+/* Hauptbereich und Seitenkopf */
+.main{ padding:0 0 48px; }
+.wrap{ max-width:none; margin:0; }
+.page-head{ position:relative; overflow:hidden; background:#EEF7F8; border-bottom:1px solid var(--cs-border);
+  margin:0 0 24px; padding:0; gap:0; }
+.page-head .wave{ position:absolute; right:0; bottom:0; width:min(560px,70%); height:100%; pointer-events:none; }
+.page-head .titel{ position:relative; z-index:1; flex:1; min-width:0; padding:26px 32px 24px; }
+.page-head .eyebrow{ font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:#1B8384; font-weight:600; margin-bottom:6px; }
+.page-head h1{ font-family:var(--cs-head-font); font-weight:300; text-transform:uppercase; letter-spacing:.08em;
+  font-size:clamp(26px,3vw,34px); line-height:1.1; color:#1B8384; }
+.page-head .titel p{ margin-top:6px; color:var(--cs-ink-soft); font-size:14.5px; max-width:74ch; }
+.page-head .aktionen{ position:relative; z-index:1; padding:26px 32px 24px; align-self:flex-end; }
+#inhalt{ padding:0 32px; max-width:1264px; }
+
+/* Bausteine */
+.btn{ border-radius:8px; min-height:42px; padding:10px 16px; font-weight:600; font-size:14.5px; box-shadow:none;
+  transition:background .18s ease-out,transform .12s ease-out,border-color .18s ease-out; }
+.btn:active{ transform:scale(.97); }
+.btn.klein{ min-height:36px; padding:7px 12px; font-size:13px; }
+.btn.primary-action{ background:#1B8384; border-color:#1B8384; color:#fff; }
+.btn.primary-action:hover{ background:#187778; border-color:#187778; }
+.btn.secondary{ background:#fff; border-color:#C5DDE1; color:#1B8384; }
+.btn.secondary:hover{ background:#F6FAFB; }
+.btn.danger{ color:var(--cs-neg); border-color:rgba(200,85,75,.35); }
+.tag{ border:none; border-radius:999px; padding:3px 10px; font-weight:600; font-size:12px; color:var(--cs-ink); background:rgba(113,182,198,.22); }
+.tag::before{ content:""; display:inline-block; width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.55; margin-right:6px; vertical-align:middle; }
+.tag.pos{ background:rgba(96,190,179,.22); color:var(--cs-ink); }
+.tag.neutral{ background:rgba(152,194,209,.3); color:var(--cs-ink); }
+.tag.warn{ background:rgba(224,160,58,.18); color:var(--cs-ink); }
+.tag.neg{ background:rgba(200,85,75,.12); color:var(--cs-ink); }
+.tabs button.on{ color:#1B8384; border-bottom-color:#1B8384; }
+.hinweis{ border-radius:12px; }
+.gruppe, .vak-liste, .vak-nach, .karte, .card{ border-radius:16px; border-color:var(--cs-border); box-shadow:none; }
+.gruppe-kopf{ border-radius:16px 16px 0 0; }
+.vak-kopfzeile{ background:#fff; color:var(--cs-ink-soft); letter-spacing:.06em; }
+.vak-zeile:hover{ background:#F6FAFB; } .vak-zeile.on{ background:#EEF7F8; box-shadow:inset 3px 0 0 #1B8384; }
+.vak-chip{ border-color:#C5DDE1; font-weight:500; min-height:38px; }
+.vak-chip[aria-pressed="true"]{ background:#1B8384; border-color:#1B8384; }
+.vak-nach{ background:#fff; border:1px solid var(--cs-border); }
+.vak-nach-kopf h3{ color:var(--cs-ink); } .vak-nach-titel{ color:var(--cs-ink-soft); } .vak-nach-zeile{ border-color:var(--cs-border); }
+.vak-foto{ box-shadow:0 0 0 1px var(--cs-border); background:#EEF7F8; color:#1B8384; }
+.vak-panel .vak-ph{ background:#EEF7F8; }
+input[type=text], input[type=email], input[type=tel], input[type=number], input[type=date], input[type=time],
+input[type=search], input[type=password], select, textarea{ border-radius:8px; border-color:#C5DDE1; min-height:42px; }
+input:focus, select:focus, textarea:focus{ border-color:#1B8384; box-shadow:0 0 0 3px rgba(43,182,183,.18); outline:none; }
+
+/* Handy: Topbar und Schublade */
+@media (max-width:900px){
+  .rail{ display:none; }
+  .topbar{ display:flex; position:sticky; top:0; z-index:25; height:calc(var(--topbar-h) + env(safe-area-inset-top,0px));
+    padding:env(safe-area-inset-top,0px) 8px 0 16px; align-items:center; justify-content:space-between;
+    background:#fff; border-bottom:1px solid var(--cs-border); }
+  .topbar .signet{ width:auto; height:auto; margin:0; border-radius:0; background:none; }
+  .topbar .signet span{ width:34px; height:34px; background-size:26px auto; }
+  .topbar .app-n{ font-weight:600; font-size:15px; margin-left:10px; flex:1; }
+  .sidebar{ display:flex; position:fixed; top:0; left:0; bottom:0; height:auto; z-index:830;
+    transform:translateX(-102%); transition:transform .28s cubic-bezier(.22,1,.36,1); }
+  .sidebar.offen{ transform:none; }
+  .main{ padding:0 0 40px; }
+  .page-head .titel, .page-head .aktionen{ padding:20px 16px 18px; }
+  .page-head .aktionen{ width:100%; padding-top:0; }
+  .page-head .aktionen .btn{ width:100%; justify-content:center; }
+  #inhalt{ padding:0 16px; }
+}
+@media print{ .rail, .topbar{ display:none !important; } .page-head{ background:none; } .page-head .wave{ display:none; } }
+@media (prefers-reduced-motion:reduce){ *{ transition:none !important; } }
 </style>
 </head>
 <body>
@@ -915,10 +1058,27 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
 
 <div class="app" id="app" style="display:none;">
 
+  <nav class="rail" id="rail" aria-label="Hauptnavigation">
+    <div class="signet" role="img" aria-label="Clean Service Scaramuzzo AG"><span></span></div>
+    <button class="nav-i on" data-ansicht="eingang" type="button"><svg viewBox="0 0 24 24"><path d="M4 7h16v12H4zM4 7l8 6 8-6"/></svg>Aufträge<span class="z" data-zahl="n-eingang"></span></button>
+    <button class="nav-i" data-ansicht="monatlich" type="button"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Monatlich<span class="z" data-zahl="n-monat"></span></button>
+    <button class="nav-i" data-ansicht="aktive" type="button"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Aktiv<span class="z" data-zahl="n-aktive"></span></button>
+    <button class="nav-i" data-ansicht="unzufrieden" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v5M12 16h.01"/></svg>Unzufrieden<span class="z" data-zahl="n-unzu"></span></button>
+    <button class="nav-i" data-ansicht="vakanzen" type="button"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.8a3.3 3.3 0 0 1 0 6.4M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/></svg>Vakanzen<span class="z" data-zahl="n-vak"></span></button>
+    <button class="nav-i" data-ansicht="kalender" type="button"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17"/></svg>Kalender<span class="z" data-zahl="n-kalender"></span></button>
+    <button class="nav-i" data-ansicht="verkauf" type="button"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M12 8v8M8 12h8"/></svg>Angebot</button>
+    <button class="nav-i" data-ansicht="auswertung" type="button"><svg viewBox="0 0 24 24"><path d="M4 19h16M7 16V9M12 16V5M17 16v-6"/></svg>Auswertung</button>
+    <button class="nav-i" data-ansicht="anleitung" type="button"><svg viewBox="0 0 24 24"><path d="M5 4h9l5 5v11H5zM14 4v5h5"/></svg>Anleitung</button>
+    <div class="spacer"></div>
+    <a class="nav-i" href="index.html" title="Angebotsseite öffnen"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M10 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>Angebotsseite</a>
+    <button class="nav-i" type="button" onclick="abmelden()" title="Abmelden"><svg viewBox="0 0 24 24"><path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4M15 8l4 4-4 4M19 12H9"/></svg>Abmelden</button>
+    <div class="avatar" id="rail-avatar" title="">–</div>
+  </nav>
+
   <aside class="sidebar" id="sb">
     <div class="brand">
       <div class="mark" role="img" aria-label="Clean Service Scaramuzzo AG"></div>
-      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 27</span></div>
+      <div class="name">Clean Service<span class="unit">Verwaltung PFS · Version 28</span></div>
     </div>
 
     <nav class="nav">
@@ -946,10 +1106,16 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
   </aside>
 
   <main class="main">
+    <header class="topbar">
+      <div class="signet" role="img" aria-label="Clean Service"><span></span></div><span class="app-n">Verwaltung PFS</span>
+      <button class="icon-btn" id="topMenu" aria-label="Menü öffnen" aria-expanded="false" type="button"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    </header>
     <div class="wrap">
 
       <div class="page-head">
+        <svg class="wave" viewBox="0 0 560 140" preserveAspectRatio="none" aria-hidden="true"><path d="M140 140 C230 90 330 120 420 70 C480 38 520 40 560 18 L560 140 Z" fill="#9ad3d3" opacity=".45"/><path d="M280 140 C350 110 430 128 500 92 C530 78 548 76 560 70 L560 140 Z" fill="#2bb6b7" opacity=".28"/></svg>
         <div class="titel">
+          <div class="eyebrow">Verwaltung PFS</div>
           <h1 id="seiten-titel">Zu erledigen</h1>
           <p id="seiten-text">Was heute Aufmerksamkeit braucht.</p>
         </div>
@@ -1111,6 +1277,8 @@ function starten(){
   document.getElementById('app').style.display = 'flex';
   document.getElementById('sbKnopf').style.display = '';
   document.getElementById('wer-angemeldet').textContent = 'Angemeldet als ' + CS_WER;
+  const av = document.getElementById('rail-avatar');
+  if(av){ av.textContent = String(CS_WER || '').split(/\s+/).map(x => x[0] || '').join('').slice(0,2).toUpperCase() || '–'; av.title = CS_WER; }
   ladeDaten();
 }
 
@@ -1244,13 +1412,13 @@ function auftragFinden(id){
 /* ---------- Navigation ---------- */
 function zeigeAnsicht(a){
   ANSICHT = a; FALL = null;
-  document.querySelectorAll('.sidebar .nav a[data-ansicht]').forEach(el =>
+  document.querySelectorAll('[data-ansicht]').forEach(el =>
     el.classList.toggle('on', el.dataset.ansicht === a));
   zeichnen();
   window.scrollTo({top:0, behavior:'smooth'});
 }
 document.addEventListener('click', e => {
-  const a = e.target.closest('.sidebar .nav a[data-ansicht]');
+  const a = e.target.closest('[data-ansicht]');
   if(a){ e.preventDefault(); zeigeAnsicht(a.dataset.ansicht); }
 });
 
@@ -1282,6 +1450,11 @@ function zeichnen(){
   document.getElementById('n-aktive').textContent =
     LISTE.filter(e => e.quelle === 'auftrag' && !unzufrieden(e) &&
       (e.stufe === 'aktiv' || terminVorgeschlagen(e))).length;
+  document.querySelectorAll('#rail [data-zahl]').forEach(z => {
+    const q = document.getElementById(z.dataset.zahl);
+    const n = q ? String(q.textContent || '').trim() : '';
+    z.textContent = n; z.style.display = (n && n !== '0') ? '' : 'none';
+  });
   document.getElementById('zuletzt').innerHTML = ZULETZT.map(z =>
     '<button class="k-item" onclick="oeffneFall(\'' + z.id + '\')">' + esc(z.txt) +
     '<small>' + esc(z.sub) + '</small></button>').join('') ||
@@ -1300,7 +1473,7 @@ function zeichnen(){
     monatlich:  ['Auftragserteilung monatliche Reinigung · Disponieren', 'Monatliche Kunden des Springerteams: Termine disponieren, Nachbuchungen, Einsatzplan.', seiteMonatlich],
     aktive:     ['Aktive Aufträge', 'Vom Springerteam-Einsatz über den Terminvorschlag bis zur laufenden Reinigung.', seiteAktive],
     unzufrieden:['Unzufriedene Kunden', 'Negative Rückmeldungen, die eine zweite Runde brauchen.', seiteUnzufrieden],
-    vakanzen:   ['Vakanzen', 'Objekte aus dem Stellenportal, auf die sich mindestens eine Mitarbeiterin beworben hat. Bewerbungen erscheinen hier automatisch.', seiteVakanzen],
+    vakanzen:   ['Vakanzen', 'Objekte mit unbeantworteten Bewerbungen aus dem Stellenportal. Sind alle Bewerbungen beantwortet, verschwindet das Objekt bis zur nächsten Bewerbung.', seiteVakanzen],
     kalender:   ['Kalender', 'Alle Einführungstermine im Überblick.', seiteKalender],
     verkauf:    ['Neues Angebot', 'Angebot erstellen und alle laufenden Angebote verfolgen.', seiteVerkauf],
     auswertung: ['Auswertung', 'Zahlen zum laufenden Bestand.', seiteAuswertung],
@@ -2557,22 +2730,32 @@ function seiteVakanzen(){
          ' <a href="#" onclick="VAK.stand=null;vakLaden();return false;">Nochmals versuchen</a></div>';
   }
   if(VAK.nachholen.length){
-    h += '<div class="hinweis warn" style="margin-bottom:16px;"><strong>' + VAK.nachholen.length + ' Auftr' + (VAK.nachholen.length === 1 ? 'ag' : 'äge') +
-      ' ohne Ausschreibung oder Gruppenchat.</strong> Bei diesen Auftragserteilungen ist die automatische Ausschreibung im Stellenportal oder der Gruppenchat fehlgeschlagen. Mit einem Klick wird es nachgeholt.' +
-      '<div style="margin-top:10px;display:flex;flex-direction:column;gap:6px;">' +
-      VAK.nachholen.map(n => '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:var(--cs-fs-sm);" id="vak-nh-' + esc(n.auftragId) + '">' +
-        '<span style="min-width:260px;"><b>' + esc(n.kunde) + '</b> · ' + esc(n.adresse) + (n.angebotsnr ? ' · Nr. ' + esc(n.angebotsnr) : '') + ' <span class="cs-mute">(' + dat(n.eingegangenAm) + ')</span></span>' +
-        (n.portalFehlt ? '<button class="btn klein primary-action" onclick="vakNachholen(\'' + esc(n.auftragId) + '\',\'portal\',this)">Ausschreibung nachholen</button>' : '') +
-        (n.chatFehlt ? '<button class="btn klein secondary" onclick="vakNachholen(\'' + esc(n.auftragId) + '\',\'chat\',this)">Gruppenchat nachholen</button>' : '') +
-        '</div>').join('') + '</div></div>';
+    const nP = VAK.nachholen.filter(n => n.portalFehlt).length, nC = VAK.nachholen.filter(n => n.chatFehlt).length;
+    h += '<div class="vak-nach">' +
+      '<div class="vak-nach-kopf"><div><h3>Nachzuholen · ' + VAK.nachholen.length + ' Auftr' + (VAK.nachholen.length === 1 ? 'ag' : 'äge') + '</h3>' +
+      '<p class="cs-hint" style="margin:3px 0 0;">Bei diesen Auftragserteilungen hat die automatische Ausschreibung im Stellenportal oder der Gruppenchat nicht geklappt. ' +
+      'Ein Klick holt es mit denselben Daten nach; erledigte Einträge verschwinden aus der Liste.</p></div>' +
+      '<div class="btn-row">' +
+      (nP ? '<button class="btn klein primary-action" onclick="vakAlleNachholen(\'portal\',this)">Alle ' + nP + ' Ausschreibungen nachholen</button>' : '') +
+      (nC ? '<button class="btn klein secondary" onclick="vakAlleNachholen(\'chat\',this)">Alle ' + nC + ' Gruppenchats nachholen</button>' : '') +
+      '</div></div>' +
+      '<div class="vak-nach-zeile vak-nach-titel"><span>Kundschaft · Objekt</span><span>Eingegangen</span><span>Fehlt</span><span></span></div>' +
+      VAK.nachholen.map(n => '<div class="vak-nach-zeile" id="vak-nh-' + esc(n.auftragId) + '">' +
+        '<span><strong>' + esc(n.kunde) + '</strong><span class="vak-sub">' + esc(n.adresse) + (n.angebotsnr ? ' · Nr. ' + esc(n.angebotsnr) : '') + '</span></span>' +
+        '<span class="vak-sub">' + dat(n.eingegangenAm) + '</span>' +
+        '<span>' + (n.portalFehlt ? '<span class="tag warn">Ausschreibung</span> ' : '') + (n.chatFehlt ? '<span class="tag neutral">Gruppenchat</span>' : '') + '</span>' +
+        '<span class="btn-row" style="justify-content:flex-end;">' +
+        (n.portalFehlt ? '<button class="btn klein primary-action" onclick="vakNachholen(\'' + esc(n.auftragId) + '\',\'portal\',this)">Ausschreiben</button>' : '') +
+        (n.chatFehlt ? '<button class="btn klein secondary" onclick="vakNachholen(\'' + esc(n.auftragId) + '\',\'chat\',this)">Chat eröffnen</button>' : '') +
+        '</span></div>').join('') + '</div>';
   }
   const unbeantwortet = offen.reduce((n, o) => n + vakOffeneBew(o).length, 0);
   h += '<div class="vak-chips">' + chip('offen','Offen',offen.length) + chip('besetzt','Besetzt',besetzt.length) + chip('alle','Alle',VAK.objekte.length) +
        (unbeantwortet ? '<span class="cs-mute" style="align-self:center;margin-left:4px;font-size:var(--cs-fs-sm);">' + unbeantwortet + ' Bewerbung' + (unbeantwortet === 1 ? '' : 'en') + ' unbeantwortet</span>' : '') + '</div>';
 
   if(!liste.length){
-    h += '<div class="leer"><h3>' + (VAK.filter === 'besetzt' ? 'Noch kein Objekt besetzt' : 'Keine offene Bewerbung') + '</h3>' +
-         'Sobald sich eine Mitarbeiterin im Stellenportal auf ein Objekt bewirbt, erscheint es hier.</div>';
+    h += '<div class="leer"><h3>' + (VAK.filter === 'besetzt' ? 'Noch kein Objekt besetzt' : 'Keine unbeantwortete Bewerbung') + '</h3>' +
+         'Sobald sich eine Mitarbeiterin im Stellenportal auf ein Objekt bewirbt, erscheint es hier – und bleibt, bis alle Bewerbungen beantwortet sind.</div>';
   }else{
     h += '<div class="vak-liste"><div class="vak-kopfzeile"><span>Objekt</span><span>Einsatz</span><span>Bewerbungen · neuste zuerst</span><span>Status</span><span></span></div>' +
          liste.map(vakZeile).join('') + '</div>';
@@ -2676,6 +2859,27 @@ function vakPanel(){
 }
 
 function vakFilter(f){ VAK.filter = f; VAK.offen = null; zeichnen(); }
+async function vakAlleNachholen(was, btn){
+  const liste = VAK.nachholen.filter(n => was === 'portal' ? n.portalFehlt : n.chatFehlt);
+  if(!liste.length) return;
+  if(!confirm(liste.length + (was === 'portal' ? ' Ausschreibungen im Stellenportal' : ' Gruppenchats in Beekeeper') + ' jetzt nachholen?')) return;
+  btn.disabled = true; const alt = btn.textContent;
+  let ok = 0, fehler = [];
+  for(let i = 0; i < liste.length; i++){
+    btn.textContent = 'Läuft … ' + (i + 1) + '/' + liste.length;
+    try{
+      const r = await fetch('/api/vakanzen', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ aktion:'nachholen', auftragId: liste[i].auftragId, was:[was], bearbeiter: CS_WER }) });
+      const e = await r.json().catch(() => ({}));
+      const f = e.error || (was === 'portal' ? e.portalFehler : e.chatFehler);
+      if(!r.ok || f) fehler.push(liste[i].kunde + ': ' + (f || 'Server ' + r.status)); else ok++;
+    }catch(err){ fehler.push(liste[i].kunde + ': ' + err.message); }
+  }
+  meldung(ok + ' von ' + liste.length + ' nachgeholt.' + (fehler.length ? ' Fehler: ' + fehler.join(' · ') : ''), fehler.length ? 'neg' : '');
+  btn.disabled = false; btn.textContent = alt;
+  await vakLaden(true);
+  ladeDaten();
+}
 async function vakNachholen(auftragId, was, btn){
   const alt = btn.textContent; btn.disabled = true; btn.textContent = 'Läuft …';
   try{
@@ -3467,7 +3671,7 @@ async function terminBestaetigen(id, btn){
     const auf = AUFTRAEGE.find(x => String(x.id) === String(id));
     if(auf) Object.assign(auf, felder);
     FALL = null; ANSICHT = 'aktive';
-    document.querySelectorAll('.sidebar .nav a[data-ansicht]').forEach(el =>
+    document.querySelectorAll('[data-ansicht]').forEach(el =>
       el.classList.toggle('on', el.dataset.ansicht === 'aktive'));
     zeichnen();
     meldung('Termin bestätigt. Der Auftrag steht jetzt unter «Einführungstermin angenommen».');
@@ -3554,7 +3758,7 @@ async function einfuehrungSenden(id, btn){
     /* Zurück in die Liste, damit der Wechsel in den Block
        «Einführungstermin vorgeschlagen» sichtbar wird. */
     FALL = null; ANSICHT = 'eingang';
-    document.querySelectorAll('.sidebar .nav a[data-ansicht]').forEach(el =>
+    document.querySelectorAll('[data-ansicht]').forEach(el =>
       el.classList.toggle('on', el.dataset.ansicht === 'eingang'));
     zeichnen();
     window.scrollTo({top:0, behavior:'smooth'});
@@ -3609,10 +3813,14 @@ async function notizSpeichern(id, btn){
 /* ---------- Sidebar auf kleinen Geräten ---------- */
 const sb = document.getElementById('sb');
 const schleier = document.getElementById('sbSchleier');
-document.getElementById('sbKnopf').addEventListener('click', () => {
+function menueUmschalten(){
   const offen = !sb.classList.contains('offen');
   sb.classList.toggle('offen', offen); schleier.classList.toggle('on', offen);
-});
+  const t = document.getElementById('topMenu'); if(t) t.setAttribute('aria-expanded', String(offen));
+}
+document.getElementById('sbKnopf').addEventListener('click', menueUmschalten);
+const topMenu = document.getElementById('topMenu'); if(topMenu) topMenu.addEventListener('click', menueUmschalten);
+document.addEventListener('keydown', ev => { if(ev.key === 'Escape' && sb.classList.contains('offen')){ sb.classList.remove('offen'); schleier.classList.remove('on'); } });
 schleier.addEventListener('click', () => { sb.classList.remove('offen'); schleier.classList.remove('on'); });
 sb.addEventListener('click', ev => {
   if(ev.target.closest('a, .k-item') && window.innerWidth <= 900){
