@@ -821,16 +821,6 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
 .zeit .e.p-fiorella{ border-left-color:rgba(214,67,140,.30); }
 .zeit .e.p-tayron{   border-left-color:rgba(139,94,52,.30); }
 /* ---- Vakanzen ---- */
-.vak-nach{ background:#FFF9EC; border:1px solid #EBDCB4; border-left:5px solid var(--cs-warn); border-radius:12px; padding:14px 16px 6px; margin-bottom:18px; }
-.vak-nach-kopf{ display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap; margin-bottom:8px; }
-.vak-nach-kopf h3{ margin:0; font-size:var(--cs-fs-md); color:#6E4C08; }
-.vak-nach-zeile{ display:grid; grid-template-columns:minmax(220px,1.6fr) 110px minmax(150px,1fr) minmax(200px,auto); gap:12px; align-items:center;
-  padding:9px 0; border-top:1px solid #EBDCB4; font-size:var(--cs-fs-sm); }
-.vak-nach-zeile strong{ display:block; color:var(--cs-ink); }
-.vak-nach-zeile .vak-sub{ font-size:var(--cs-fs-xs); color:var(--cs-ink-soft); display:block; }
-.vak-nach-titel{ font-size:var(--cs-fs-xs); font-weight:bold; letter-spacing:.06em; text-transform:uppercase; color:#8A6A2A; border-top:none; padding-top:4px; }
-.vak-nach-zeile.fertig{ opacity:.45; }
-@media (max-width:900px){ .vak-nach-zeile{ grid-template-columns:1fr; gap:4px; } .vak-nach-titel{ display:none; } }
 
 .vak-chips{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
 .vak-chip{ background:var(--cs-surface); border:1px solid var(--cs-border); border-radius:100px;
@@ -986,14 +976,12 @@ body{ background:#fff; -webkit-font-smoothing:antialiased; }
 .tag.neg{ background:rgba(200,85,75,.12); color:var(--cs-ink); }
 .tabs button.on{ color:#1B8384; border-bottom-color:#1B8384; }
 .hinweis{ border-radius:12px; }
-.gruppe, .vak-liste, .vak-nach, .karte, .card{ border-radius:16px; border-color:var(--cs-border); box-shadow:none; }
+.gruppe, .vak-liste, .karte, .card{ border-radius:16px; border-color:var(--cs-border); box-shadow:none; }
 .gruppe-kopf{ border-radius:16px 16px 0 0; }
 .vak-kopfzeile{ background:#fff; color:var(--cs-ink-soft); letter-spacing:.06em; }
 .vak-zeile:hover{ background:#F6FAFB; } .vak-zeile.on{ background:#EEF7F8; box-shadow:inset 3px 0 0 #1B8384; }
 .vak-chip{ border-color:#C5DDE1; font-weight:500; min-height:38px; }
 .vak-chip[aria-pressed="true"]{ background:#1B8384; border-color:#1B8384; }
-.vak-nach{ background:#fff; border:1px solid var(--cs-border); }
-.vak-nach-kopf h3{ color:var(--cs-ink); } .vak-nach-titel{ color:var(--cs-ink-soft); } .vak-nach-zeile{ border-color:var(--cs-border); }
 .vak-foto{ box-shadow:0 0 0 1px var(--cs-border); background:#EEF7F8; color:#1B8384; }
 .vak-panel .vak-ph{ background:#EEF7F8; }
 input[type=text], input[type=email], input[type=tel], input[type=number], input[type=date], input[type=time],
@@ -2729,26 +2717,6 @@ function seiteVakanzen(){
     h += '<div class="hinweis neg" style="margin-bottom:16px;"><strong>Vakanzen nicht geladen.</strong> ' + esc(VAK.fehler) + esc(tipp) +
          ' <a href="#" onclick="VAK.stand=null;vakLaden();return false;">Nochmals versuchen</a></div>';
   }
-  if(VAK.nachholen.length){
-    const nP = VAK.nachholen.filter(n => n.portalFehlt).length, nC = VAK.nachholen.filter(n => n.chatFehlt).length;
-    h += '<div class="vak-nach">' +
-      '<div class="vak-nach-kopf"><div><h3>Nachzuholen · ' + VAK.nachholen.length + ' Auftr' + (VAK.nachholen.length === 1 ? 'ag' : 'äge') + '</h3>' +
-      '<p class="cs-hint" style="margin:3px 0 0;">Bei diesen Auftragserteilungen hat die automatische Ausschreibung im Stellenportal oder der Gruppenchat nicht geklappt. ' +
-      'Ein Klick holt es mit denselben Daten nach; erledigte Einträge verschwinden aus der Liste.</p></div>' +
-      '<div class="btn-row">' +
-      (nP ? '<button class="btn klein primary-action" onclick="vakAlleNachholen(\'portal\',this)">Alle ' + nP + ' Ausschreibungen nachholen</button>' : '') +
-      (nC ? '<button class="btn klein secondary" onclick="vakAlleNachholen(\'chat\',this)">Alle ' + nC + ' Gruppenchats nachholen</button>' : '') +
-      '</div></div>' +
-      '<div class="vak-nach-zeile vak-nach-titel"><span>Kundschaft · Objekt</span><span>Eingegangen</span><span>Fehlt</span><span></span></div>' +
-      VAK.nachholen.map(n => '<div class="vak-nach-zeile" id="vak-nh-' + esc(n.auftragId) + '">' +
-        '<span><strong>' + esc(n.kunde) + '</strong><span class="vak-sub">' + esc(n.adresse) + (n.angebotsnr ? ' · Nr. ' + esc(n.angebotsnr) : '') + '</span></span>' +
-        '<span class="vak-sub">' + dat(n.eingegangenAm) + '</span>' +
-        '<span>' + (n.portalFehlt ? '<span class="tag warn">Ausschreibung</span> ' : '') + (n.chatFehlt ? '<span class="tag neutral">Gruppenchat</span>' : '') + '</span>' +
-        '<span class="btn-row" style="justify-content:flex-end;">' +
-        (n.portalFehlt ? '<button class="btn klein primary-action" onclick="vakNachholen(\'' + esc(n.auftragId) + '\',\'portal\',this)">Ausschreiben</button>' : '') +
-        (n.chatFehlt ? '<button class="btn klein secondary" onclick="vakNachholen(\'' + esc(n.auftragId) + '\',\'chat\',this)">Chat eröffnen</button>' : '') +
-        '</span></div>').join('') + '</div>';
-  }
   const unbeantwortet = offen.reduce((n, o) => n + vakOffeneBew(o).length, 0);
   h += '<div class="vak-chips">' + chip('offen','Offen',offen.length) + chip('besetzt','Besetzt',besetzt.length) + chip('alle','Alle',VAK.objekte.length) +
        (unbeantwortet ? '<span class="cs-mute" style="align-self:center;margin-left:4px;font-size:var(--cs-fs-sm);">' + unbeantwortet + ' Bewerbung' + (unbeantwortet === 1 ? '' : 'en') + ' unbeantwortet</span>' : '') + '</div>';
@@ -2859,48 +2827,6 @@ function vakPanel(){
 }
 
 function vakFilter(f){ VAK.filter = f; VAK.offen = null; zeichnen(); }
-async function vakAlleNachholen(was, btn){
-  const liste = VAK.nachholen.filter(n => was === 'portal' ? n.portalFehlt : n.chatFehlt);
-  if(!liste.length) return;
-  if(!confirm(liste.length + (was === 'portal' ? ' Ausschreibungen im Stellenportal' : ' Gruppenchats in Beekeeper') + ' jetzt nachholen?')) return;
-  btn.disabled = true; const alt = btn.textContent;
-  let ok = 0, fehler = [];
-  for(let i = 0; i < liste.length; i++){
-    btn.textContent = 'Läuft … ' + (i + 1) + '/' + liste.length;
-    try{
-      const r = await fetch('/api/vakanzen', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ aktion:'nachholen', auftragId: liste[i].auftragId, was:[was], bearbeiter: CS_WER }) });
-      const e = await r.json().catch(() => ({}));
-      const f = e.error || (was === 'portal' ? e.portalFehler : e.chatFehler);
-      if(!r.ok || f) fehler.push(liste[i].kunde + ': ' + (f || 'Server ' + r.status)); else ok++;
-    }catch(err){ fehler.push(liste[i].kunde + ': ' + err.message); }
-  }
-  meldung(ok + ' von ' + liste.length + ' nachgeholt.' + (fehler.length ? ' Fehler: ' + fehler.join(' · ') : ''), fehler.length ? 'neg' : '');
-  btn.disabled = false; btn.textContent = alt;
-  await vakLaden(true);
-  ladeDaten();
-}
-async function vakNachholen(auftragId, was, btn){
-  const alt = btn.textContent; btn.disabled = true; btn.textContent = 'Läuft …';
-  try{
-    const r = await fetch('/api/vakanzen', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ aktion:'nachholen', auftragId, was:[was], bearbeiter: CS_WER }) });
-    const e = await r.json().catch(() => ({}));
-    if(!r.ok || e.error) throw new Error(e.error || 'Server ' + r.status);
-    if(was === 'portal'){
-      if(e.portalFehler) throw new Error('Stellenportal: ' + e.portalFehler);
-      meldung('Ausschreibung im Stellenportal erstellt' + (e.portal && e.portal.region ? ' (' + e.portal.region + ')' : '') + '.');
-    }else{
-      if(e.chatFehler) throw new Error('Beekeeper: ' + e.chatFehler);
-      meldung('Gruppenchat «' + (e.chat && e.chat.titel || '') + '» eröffnet.');
-    }
-    await vakLaden(true);
-    ladeDaten();
-  }catch(err){
-    meldung((was === 'portal' ? 'Ausschreibung' : 'Gruppenchat') + ' nicht nachgeholt: ' + err.message, 'neg');
-    btn.disabled = false; btn.textContent = alt;
-  }
-}
 function vakWunsch(id, d, z){
   const fd = document.getElementById('vak-d-' + id), fz = document.getElementById('vak-z-' + id);
   if(fd) fd.value = d; if(fz) fz.value = z;
