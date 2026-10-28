@@ -894,6 +894,7 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
 .we-in{ width:100%; padding:6px 8px; font-size:var(--cs-fs-sm); }
 .we-in.sub{ margin-top:4px; color:var(--cs-ink-soft); }
 .we-in.fehlt{ border-color:var(--cs-neg); background:var(--cs-neg-bg); }
+.vak-kunde input.fehlt, #ein-k-mail.fehlt{ border-color:var(--cs-neg); background:var(--cs-neg-bg); }
 .we-pr{ display:block; font-size:var(--cs-fs-xs); color:var(--cs-warn); font-weight:bold; margin-top:2px; }
 .we-mo{ display:block; font-size:var(--cs-fs-xs); color:var(--cs-ink-mute); margin-top:2px; }
 .we-x{ background:none; border:1px solid var(--cs-border); border-radius:8px; width:28px; height:28px; cursor:pointer; color:var(--cs-ink-mute); font-size:16px; line-height:1; }
@@ -1754,6 +1755,11 @@ function naechsterSchritt(e){
             dringend:(tageSeit(e.eingegangenAm) || 0) >= 3 ? 0 : 3,
             knopf:{text:'In Bearbeitung nehmen', ruf:"inBearbeitung('" + e.id + "')"}};
 
+  if(terminVorgeschlagen(e) && !mailVon(e)){
+    return {titel:'E-Mail der Kundin eintragen',
+            satz:'Für diese Kundin ist noch keine E-Mail-Adresse hinterlegt, der Terminvorschlag ist noch nicht verschickt. Im Fall eintragen und senden.',
+            dringend:0, knopf:{text:'Öffnen', ruf:"oeffneFall('" + e.id + "')"}};
+  }
   if(terminVorgeschlagen(e)){
     const tage = e.einfuehrungVorschlagAm ? tageSeit(e.einfuehrungVorschlagAm) : 0;
     return {titel:'Zusage abwarten',
@@ -2719,7 +2725,7 @@ function seiteAktive(){
    Vakanzen — Objekte aus diesem Verkaufstool im Stellenportal, samt den
    Bewerbungen der Mitarbeiterinnen. Daten kommen von /api/vakanzen.
    ====================================================================== */
-let VAK = { objekte: [], nachholen: [], stand: null, laedt: false, fehler: '', filter: 'offen', offen: null };
+let VAK = { objekte: [], nachholen: [], stand: null, laedt: false, fehler: '', filter: 'offen', offen: null, kunde: {} };
 
 async function vakLaden(leise){
   if(VAK.laedt) return;
@@ -2845,9 +2851,21 @@ function vakPanel(){
     (o.einfuehrungAm ? zl('Einführung', vakZeit(o.einfuehrungAm, o.einfuehrungZeit) +
       (o.einfuehrungBestaetigt ? ' · von der Kundschaft bestätigt' : ' · Vorschlag an die Kundschaft')) : '');
 
-  if(o.imTool === false){
-    inhalt += '<div class="hinweis warn" style="margin-top:14px;"><strong>Direkt im Stellenportal erfasst.</strong> Zu diesem Objekt gibt es keinen Auftrag in diesem Tool. ' +
-      'Beim Bestätigen erhält die Mitarbeiterin die Zusage in Beekeeper und das Objekt wird im Stellenportal auf vergeben gesetzt — den Einführungstermin machst du mit der Kundschaft direkt ab.</div>';
+  if(o.imTool === false && vakOffen(o)){
+    const k = VAK.kunde[o.portalId] || (VAK.kunde[o.portalId] = { anrede:'', vorname:'', nachname:o.kunde || '', mail:'', mobile:'' });
+    const sel = v => '<option value="' + v + '"' + (k.anrede === v ? ' selected' : '') + '>' + (v || '–') + '</option>';
+    const mailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(k.mail || '').trim());
+    inhalt += '<div class="vak-kunde" id="vak-kunde">' +
+      '<div class="hinweis neg" id="vak-kunde-hinweis" style="margin:14px 0 12px;' + (mailOk ? 'display:none;' : '') + '"><strong>Für diese Kundin ist noch keine E-Mail-Adresse hinterlegt.</strong> ' +
+        'Das Objekt wurde direkt im Stellenportal erfasst. Bitte Anrede, Name und E-Mail eintragen — erst dann kann bestätigt werden. Der Terminvorschlag geht an die Kundin, Kopie an putzfrauenservice@clean-service.ch.</div>' +
+      '<div class="feld-reihe">' +
+        '<div class="feld"><label>Anrede</label><select oninput="vakKunde(\'' + esc(o.portalId) + '\',\'anrede\',this.value)">' + sel('') + sel('Frau') + sel('Herr') + sel('Familie') + '</select></div>' +
+        '<div class="feld"><label>Vorname</label><input type="text" value="' + esc(k.vorname) + '" oninput="vakKunde(\'' + esc(o.portalId) + '\',\'vorname\',this.value)"></div>' +
+        '<div class="feld"><label>Nachname</label><input type="text" value="' + esc(k.nachname) + '" oninput="vakKunde(\'' + esc(o.portalId) + '\',\'nachname\',this.value)"></div>' +
+      '</div><div class="feld-reihe">' +
+        '<div class="feld"><label>E-Mail der Kundin <span class="cs-neg">*</span></label><input type="email" id="vak-k-mail" class="' + (mailOk ? '' : 'fehlt') + '" value="' + esc(k.mail) + '" placeholder="name@mail.ch" oninput="vakKunde(\'' + esc(o.portalId) + '\',\'mail\',this.value)"></div>' +
+        '<div class="feld"><label>Telefon</label><input type="tel" value="' + esc(k.mobile) + '" oninput="vakKunde(\'' + esc(o.portalId) + '\',\'mobile\',this.value)"></div>' +
+      '</div></div>';
   }
   inhalt += '<h3 style="margin:18px 0 0;font-size:15px;">Bewerbungen <span class="cs-mute" style="font-weight:normal;font-size:var(--cs-fs-sm);">· neuste zuoberst</span></h3>';
   if(!bew.length){
@@ -2897,6 +2915,16 @@ function vakPanel(){
 }
 
 function vakFilter(f){ VAK.filter = f; VAK.offen = null; zeichnen(); }
+/* Angaben der Kundschaft bei Objekten aus dem Stellenportal — ohne Neuzeichnen,
+   damit der Cursor im Feld bleibt */
+function vakKunde(id, feld, wert){
+  const k = VAK.kunde[id] || (VAK.kunde[id] = {});
+  k[feld] = wert;
+  const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(k.mail || '').trim());
+  const h = document.getElementById('vak-kunde-hinweis'), m = document.getElementById('vak-k-mail');
+  if(h) h.style.display = ok ? 'none' : '';
+  if(m) m.classList.toggle('fehlt', !ok);
+}
 function vakWunsch(id, d, z){
   const fd = document.getElementById('vak-d-' + id), fz = document.getElementById('vak-z-' + id);
   if(fd) fd.value = d; if(fz) fz.value = z;
@@ -2911,12 +2939,24 @@ async function vakBestaetigen(portalId, bewerbungId, btn){
   const o = VAK.objekte.find(x => String(x.portalId) === String(portalId));
   const b = o && (o.bewerbungen || []).find(x => String(x.id) === String(bewerbungId));
   if(!o || !b) return;
-  if(!confirm(b.name + ' erhält das Objekt ' + o.kunde + '.\n\nDer Terminvorschlag vom ' + dat(d) + ', ' + z +
-    ' Uhr geht an die Kundschaft, die Raumpflegerin kommt in den Gruppenchat und die übrigen Bewerberinnen erhalten die Absage.')) return;
+  const kunde = o.imTool === false ? Object.assign({}, VAK.kunde[o.portalId] || {}) : null;
+  if(kunde){
+    kunde.mail = String(kunde.mail || '').trim();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(kunde.mail)){
+      meldung('Für diese Kundin ist noch keine E-Mail-Adresse hinterlegt. Bitte oben eintragen.', 'neg');
+      const m = document.getElementById('vak-k-mail'); if(m){ m.focus(); m.scrollIntoView({block:'center'}); }
+      return;
+    }
+    if(!kunde.anrede){ meldung('Bitte die Anrede der Kundin wählen.', 'neg'); return; }
+  }
+  if(!confirm(b.name + ' erhält das Objekt ' + o.kunde + '.\n\n' +
+      'Der Terminvorschlag vom ' + dat(d) + ', ' + z + ' Uhr geht an ' + (kunde ? kunde.mail : 'die Kundschaft') +
+      ' (Kopie an putzfrauenservice@clean-service.ch)' + (kunde ? '' : ', die Raumpflegerin kommt in den Gruppenchat') +
+      ' und die übrigen Bewerberinnen erhalten die Absage.')) return;
   const alt = btn.textContent; btn.disabled = true; btn.textContent = 'Wird bestätigt …';
   try{
     const r = await fetch('/api/vakanzen', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ aktion:'bestaetigen', portalId, bewerbungId, datum:d, zeit:z, bearbeiter: CS_WER }) });
+      body: JSON.stringify({ aktion:'bestaetigen', portalId, bewerbungId, datum:d, zeit:z, bearbeiter: CS_WER, kunde }) });
     const e = await r.json().catch(() => ({}));
     if(!r.ok || !e.ok) throw new Error(e.error || 'Server ' + r.status);
     let txt = e.terminGesendet ? 'Bestätigt: Terminvorschlag an die Kundschaft gesendet.' : 'Bestätigt: Zusage an die Mitarbeiterin gesendet, Objekt im Stellenportal vergeben.';
@@ -2927,11 +2967,13 @@ async function vakBestaetigen(portalId, bewerbungId, btn){
     await ladeDaten();
     /* Mit dem Terminvorschlag läuft der Fall unter «Aktive Aufträge ·
        Einführungstermin vorgeschlagen» weiter — dorthin wechseln. */
-    if(e.terminGesendet && o.auftragId){
+    const zielId = e.auftragId || o.auftragId;
+    if(zielId && (e.terminGesendet || e.auftragAngelegt)){
       zeigeAnsicht('aktive');
-      if(LISTE.some(x => String(x.id) === String(o.auftragId))) oeffneFall(o.auftragId);
+      if(LISTE.some(x => String(x.id) === String(zielId))) oeffneFall(zielId);
       txt += ' Der Fall steht jetzt unter «Aktive Aufträge · Einführungstermin vorgeschlagen».';
     }
+    if(kunde) delete VAK.kunde[o.portalId];
     meldung(txt, (e.chatFehler || e.portalFehler) ? 'neg' : '');
   }catch(err){
     meldung('Bestätigen fehlgeschlagen: ' + err.message, 'neg');
@@ -3559,6 +3601,14 @@ function kartenSchritte(e){
         '<div class="feld"><label for="ein-dat">Datum</label><input id="ein-dat" type="date" value="' + esc(e.einfuehrungAm || '') + '" onchange="qualVorschau(\'' + e.id + '\')"></div>' +
         '<div class="feld"><label for="ein-zeit">Uhrzeit</label><input id="ein-zeit" type="time" value="' + esc(e.einfuehrungZeit || '') + '"></div>' +
       '</div>' +
+      (mailVon(e) ? '' :
+        '<div class="hinweis neg" style="margin:4px 0 12px;"><strong>Für diese Kundin ist noch keine E-Mail-Adresse hinterlegt.</strong> Bitte eintragen — der Terminvorschlag geht an die Kundin, Kopie an putzfrauenservice@clean-service.ch.</div>' +
+        '<div class="feld-reihe">' +
+          '<div class="feld"><label for="ein-k-anr">Anrede</label><select id="ein-k-anr"><option value="">–</option>' + ['Frau','Herr','Familie'].map(v => '<option' + (e.anrede === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></div>' +
+          '<div class="feld"><label for="ein-k-vn">Vorname</label><input id="ein-k-vn" type="text" value="' + esc(e.vorname || '') + '"></div>' +
+          '<div class="feld"><label for="ein-k-nn">Nachname</label><input id="ein-k-nn" type="text" value="' + esc(e.nachname || '') + '"></div>' +
+          '<div class="feld"><label for="ein-k-mail">E-Mail der Kundin *</label><input id="ein-k-mail" type="email" class="fehlt" placeholder="name@mail.ch" oninput="einMailPruefen(this)"></div>' +
+        '</div>') +
       '<p class="cs-hint" id="qual-vorschau" style="margin-bottom:10px;"></p>' +
       '<button class="btn primary-action" onclick="einfuehrungSenden(\'' + e.id + '\', this)">Terminvorschlag senden</button>'));
   }
@@ -4111,6 +4161,7 @@ async function bewertungProbe(id, btn){
   btn.disabled = false; btn.textContent = text;
 }
 
+function einMailPruefen(el){ el.classList.toggle('fehlt', !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(el.value || '').trim())); }
 async function einfuehrungSenden(id, btn){
   const e = LISTE.find(x => String(x.id) === String(id));
   if(!e) return;
@@ -4120,17 +4171,25 @@ async function einfuehrungSenden(id, btn){
   if(!pflegerin || !datum || !zeit){
     meldung('Bitte Raumpflegerin, Datum und Uhrzeit erfassen.', 'neg'); return;
   }
+  let kunde = null;
+  if(!mailVon(e)){
+    const v = i => ((document.getElementById(i) || {}).value || '').trim();
+    kunde = { anrede: v('ein-k-anr'), vorname: v('ein-k-vn'), nachname: v('ein-k-nn'), mail: v('ein-k-mail') };
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(kunde.mail)){ meldung('Für diese Kundin ist noch keine E-Mail-Adresse hinterlegt. Bitte eintragen.', 'neg'); return; }
+    if(!kunde.anrede){ meldung('Bitte die Anrede der Kundin wählen.', 'neg'); return; }
+  }
   btn.disabled = true; btn.textContent = 'Wird gesendet …';
   try{
     const r = await fetch('/api/einfuehrung', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({id, raumpflegerin: pflegerin, datum, zeit, erstReinigung: datum})
+      body: JSON.stringify({id, raumpflegerin: pflegerin, datum, zeit, erstReinigung: datum, kunde})
     });
     const d = await r.json().catch(() => ({}));
     if(!r.ok) throw new Error(d.error || 'Server ' + r.status);
     const felder = {raumpflegerin: pflegerin, einfuehrungAm: datum, einfuehrungZeit: zeit,
                     erstReinigung: datum, einfuehrungBestaetigt: '',
                     einfuehrungVorschlagAm: new Date().toISOString()};
+    if(kunde) Object.assign(felder, { mail: kunde.mail, anrede: kunde.anrede, vorname: kunde.vorname || e.vorname || '', nachname: kunde.nachname || e.nachname || '', vorschlagOhneMail: false });
     Object.assign(e, felder);
     const auf = AUFTRAEGE.find(x => String(x.id) === String(id));
     if(auf) Object.assign(auf, felder);
