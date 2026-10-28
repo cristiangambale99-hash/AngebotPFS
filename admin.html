@@ -2006,8 +2006,11 @@ function terminVorgeschlagen(e){
   /* Ein Terminvorschlag zählt auch dann, wenn der Auftrag bereits aktiv ist —
      etwa nach einem Springerteam-Start, bei dem die feste Raumpflegerin
      nachträglich eingeführt wird. Sonst fehlte dort die Zusage-Möglichkeit. */
-  return e.quelle === 'auftrag' && !!e.einfuehrungAm && !e.einfuehrungBestaetigt
-      && !['archiv','abgesagt'].includes(e.stufe);
+  if(e.quelle !== 'auftrag' || !e.einfuehrungAm || e.einfuehrungBestaetigt) return false;
+  /* Ein Terminvorschlag, der NACH dem Archivieren verschickt wurde, holt den
+     Fall zurück (z. B. automatisch archiviert, dann doch neu disponiert). */
+  if(e.stufe === 'archiv') return !!(e.einfuehrungVorschlagAm && String(e.einfuehrungVorschlagAm) > String(e.archiviertAm || ''));
+  return e.stufe !== 'abgesagt';
 }
 function einfuehrungMerkmal(e){
   if(terminVorgeschlagen(e)) return '<span class="tag warn">Einführungstermin vorgeschlagen</span>';
@@ -2656,6 +2659,7 @@ function linkKopieren(link){
    ein Termin ist vorgeschlagen, oder der Termin ist bestätigt und der Auftrag
    läuft mit der festen Raumpflegerin. Abgeschlossenes liegt darunter. */
 function aktivArt(e){
+  if(terminVorgeschlagen(e)) return 'vorgeschlagen';
   if(e.stufe === 'archiv') return 'archiv';
   if(e.stufe === 'abgesagt') return 'abgesagt';
   if(terminVorgeschlagen(e)) return 'vorgeschlagen';
