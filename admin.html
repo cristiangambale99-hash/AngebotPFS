@@ -2767,11 +2767,10 @@ function seiteVakanzen(){
   if(VAK.laedt && !VAK.stand) return '<div class="lade">Vakanzen werden geladen …</div>';
   if(!VAK.stand && !VAK.laedt){ vakLaden(true); return '<div class="lade">Vakanzen werden geladen …</div>'; }
 
-  const offen = VAK.objekte.filter(vakOffen), besetzt = VAK.objekte.filter(o => !vakOffen(o));
-  const liste = VAK.filter === 'offen' ? offen : VAK.filter === 'besetzt' ? besetzt : VAK.objekte;
-  const chip = (id, txt, n) =>
-    '<button class="vak-chip" aria-pressed="' + (VAK.filter === id) + '" onclick="vakFilter(\'' + id + '\')">' +
-    txt + ' · ' + n + '</button>';
+  /* Nur Objekte mit unbeantworteten Bewerbungen. Bestätigte Fälle laufen
+     unter «Aktive Aufträge · Einführungstermin vorgeschlagen» weiter. */
+  const offen = VAK.objekte.filter(vakOffen);
+  const liste = offen;
 
   let h = '';
   if(VAK.fehler){
@@ -2781,11 +2780,12 @@ function seiteVakanzen(){
          ' <a href="#" onclick="VAK.stand=null;vakLaden();return false;">Nochmals versuchen</a></div>';
   }
   const unbeantwortet = offen.reduce((n, o) => n + vakOffeneBew(o).length, 0);
-  h += '<div class="vak-chips">' + chip('offen','Offen',offen.length) + chip('besetzt','Besetzt',besetzt.length) + chip('alle','Alle',VAK.objekte.length) +
-       (unbeantwortet ? '<span class="cs-mute" style="align-self:center;margin-left:4px;font-size:var(--cs-fs-sm);">' + unbeantwortet + ' Bewerbung' + (unbeantwortet === 1 ? '' : 'en') + ' unbeantwortet</span>' : '') + '</div>';
+  h += '<div class="vak-chips"><span class="cs-mute" style="align-self:center;font-size:var(--cs-fs-sm);">' +
+       offen.length + ' Objekt' + (offen.length === 1 ? '' : 'e') + ' · ' + unbeantwortet + ' Bewerbung' + (unbeantwortet === 1 ? '' : 'en') + ' unbeantwortet · ' +
+       'Bestätigte Fälle findest du unter <a href="#" data-ansicht="aktive">Aktive Aufträge · Einführungstermin vorgeschlagen</a></span></div>';
 
   if(!liste.length){
-    h += '<div class="leer"><h3>' + (VAK.filter === 'besetzt' ? 'Noch kein Objekt besetzt' : 'Keine unbeantwortete Bewerbung') + '</h3>' +
+    h += '<div class="leer"><h3>Keine unbeantwortete Bewerbung</h3>' +
          'Sobald sich eine Mitarbeiterin im Stellenportal auf ein Objekt bewirbt, erscheint es hier – und bleibt, bis alle Bewerbungen beantwortet sind.</div>';
   }else{
     h += '<div class="vak-liste"><div class="vak-kopfzeile"><span>Objekt</span><span>Einsatz</span><span>Bewerbungen · neuste zuerst</span><span>Status</span><span></span></div>' +
@@ -2918,10 +2918,17 @@ async function vakBestaetigen(portalId, bewerbungId, btn){
     let txt = e.terminGesendet ? 'Bestätigt: Terminvorschlag an die Kundschaft gesendet.' : 'Bestätigt: Zusage an die Mitarbeiterin gesendet, Objekt im Stellenportal vergeben.';
     if(e.chatFehler) txt += ' Beekeeper: ' + e.chatFehler;
     if(e.portalFehler) txt += ' Stellenportal: ' + e.portalFehler;
-    meldung(txt, (e.chatFehler || e.portalFehler) ? 'neg' : '');
     VAK.offen = null;
     await vakLaden(true);
-    ladeDaten();
+    await ladeDaten();
+    /* Mit dem Terminvorschlag läuft der Fall unter «Aktive Aufträge ·
+       Einführungstermin vorgeschlagen» weiter — dorthin wechseln. */
+    if(e.terminGesendet && o.auftragId){
+      zeigeAnsicht('aktive');
+      if(LISTE.some(x => String(x.id) === String(o.auftragId))) oeffneFall(o.auftragId);
+      txt += ' Der Fall steht jetzt unter «Aktive Aufträge · Einführungstermin vorgeschlagen».';
+    }
+    meldung(txt, (e.chatFehler || e.portalFehler) ? 'neg' : '');
   }catch(err){
     meldung('Bestätigen fehlgeschlagen: ' + err.message, 'neg');
     btn.disabled = false; btn.textContent = alt;
@@ -3013,7 +3020,7 @@ function weNeuStart(){
   zeichnen();
 }
 function weAbbrechen(){ WE.neu = false; WE.kunden = []; WE.plan = null; WE.vorschau = null; zeichnen(); }
-function weFeld(k, v){ WE[k] = v; if(k === 'grund' && !WE.plan) { WE.letzter = weLetzterVorschlag(); const f = document.getElementById('we-letzter'); if(f) f.value = WE.letzter; } }
+function weFeld(k, v){ WE[k] = v; if(k === 'grund' && !WE.plan) { WE.letzter = weLetzterVorschlag(); const f = document.getElementById('we-letzter'); if(f) f.value = WE.letzter; } weStatus(); }
 
 function weNeu(){
   const rb = (id, txt) => '<label class="we-radio"><input type="radio" name="we-grund" value="' + id + '"' + (WE.grund === id ? ' checked' : '') +
@@ -3033,9 +3040,7 @@ function weNeu(){
     '<div id="we-pdf-status" class="cs-mute" style="font-size:var(--cs-fs-sm);margin-top:6px;"></div></div>';
 
   /* Kundenliste */
-  const fehlt = WE.kunden.filter(k => k.on && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(k.mail || '')).length;
   const gew = WE.kunden.filter(k => k.on);
-  const ohneOrt = WE.kunden.filter(k => k.on && !/\d{4}\s+\S/.test(k.adresse || '')).length;
   h += '<h3 style="margin:8px 0 6px;font-size:15px;">Kunden ' + (WE.kunden.length ? '<span class="cs-mute" style="font-weight:normal;font-size:var(--cs-fs-sm);">· ' + gew.length + ' von ' + WE.kunden.length + ' ausgewählt</span>' : '') + '</h3>';
   if(!WE.kunden.length){
     h += '<p class="cs-mute" style="margin:0 0 10px;">Noch keine Kunden. Monatsplan einlesen oder unten von Hand hinzufügen.</p>';
@@ -3048,13 +3053,10 @@ function weNeu(){
     '<input type="text" id="we-na-t" placeholder="Mo · 3" title="Wochentag · Stunden" style="width:90px;"><input type="email" id="we-na-m" placeholder="name@mail.ch">' +
     '<button class="btn klein secondary" type="button" onclick="weKundeHinzu()">+ Hinzufügen</button></div>';
   if(WE.kunden.length){
-    h += '<div class="we-sum">' + (fehlt ? '<span class="cs-neg"><strong>' + fehlt + ' E-Mail-Adresse' + (fehlt === 1 ? '' : 'n') + ' fehlt</strong></span>' : '<span class="cs-pos">Alle Adressen vorhanden</span>') +
-      (ohneOrt ? ' · <span class="cs-neg">' + ohneOrt + '× PLZ/Ort fehlt (nötig für die Region im Stellenportal)</span>' : '') +
-      ' · Rhythmus aus den Einsatztagen: 7 Tage = wöchentlich, 14 Tage = alle 2 Wochen, 1 Einsatz = monatlich. Monatliche Kunden erhalten nur die Information (Springerteam, keine Vakanz).</div>';
-    h += '<div class="btn-row" style="margin-top:14px;align-items:center;">' +
-      '<button class="btn secondary" onclick="weVorschau(-1)">Mailvorschau</button>' +
-      '<button class="btn primary-action" ' + (fehlt || !gew.length || WE.sendet || !WE.mitarbeiterin || !WE.letzter ? 'disabled' : '') + ' onclick="weSenden(this)">' + (WE.sendet ? 'Wird gesendet …' : 'Kunden informieren · ' + gew.length + ' E-Mail' + (gew.length === 1 ? '' : 's')) + '</button>' +
-      (!WE.mitarbeiterin || !WE.letzter ? '<span class="cs-mute" style="font-size:var(--cs-fs-sm);">Name der Raumpflegerin und letzter Einsatz sind nötig.</span>' : '') + '</div>';
+    /* Zusammenfassung und Sende-Knopf werden beim Tippen live nachgeführt (weStatus),
+       ohne die Liste neu zu zeichnen — sonst ginge der Cursor im Feld verloren. */
+    h += '<div class="we-sum" id="we-sum">' + weSumHtml() + '</div>';
+    h += '<div class="btn-row" id="we-send-row" style="margin-top:14px;align-items:center;">' + weSendHtml() + '</div>';
     h += '<div class="hinweis" style="margin-top:14px;"><strong>Was beim Senden passiert.</strong> Jede Kundschaft erhält die Information mit dem Knopf «Reinigungstage jetzt angeben», Kopie an putzfrauenservice@clean-service.ch. ' +
       'Mit der Antwort entsteht die Vakanz im Stellenportal eins zu eins nach Kundenwunsch. Ohne Antwort: Erinnerung nach 5 Tagen, Anruf-Aufgabe nach 10 Tagen. ' +
       'Die Ersatzreinigungen in Aduna trägst du von Hand ein und vermerkst in der Tabelle unten, bis wann — 7 Tage vor Ablauf kommt die Erinnerung, solange keine feste Raumpflegerin bestätigt ist.</div>';
@@ -3065,6 +3067,43 @@ function weNeu(){
   return h;
 }
 
+
+/* Prüfungen der Kundenliste — eine Quelle für Zusammenfassung, Knopf und Feldmarkierung */
+const WE_MAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const WE_ORT_RE = /\b\d{4}\s+\S/;
+const weMailFehlt = k => k.on && !WE_MAIL_RE.test(String(k.mail || '').trim());
+const weOrtFehlt = k => k.on && k.freq !== 'monatlich' && !WE_ORT_RE.test(String(k.adresse || ''));
+function weSumHtml(){
+  const fehlt = WE.kunden.filter(weMailFehlt).length;
+  const ohneOrt = WE.kunden.filter(weOrtFehlt).length;
+  return (fehlt ? '<span class="cs-neg"><strong>' + fehlt + ' E-Mail-Adresse' + (fehlt === 1 ? '' : 'n') + ' fehlt</strong></span>' : '<span class="cs-pos">Alle E-Mail-Adressen vorhanden</span>') +
+    (ohneOrt ? ' · <span class="cs-neg">' + ohneOrt + '× PLZ und Ort in der Adresse fehlen (nötig für die Region im Stellenportal)</span>' : '') +
+    ' · Rhythmus aus den Einsatztagen: 7 Tage = wöchentlich, 14 Tage = alle 2 Wochen, 1 Einsatz = monatlich. Monatliche Kunden erhalten nur die Information (Springerteam, keine Vakanz).';
+}
+function weSendHtml(){
+  const gew = WE.kunden.filter(k => k.on);
+  const fehlt = WE.kunden.filter(weMailFehlt).length;
+  const ohneOrt = WE.kunden.filter(weOrtFehlt).length;
+  const gesperrt = fehlt || ohneOrt || !gew.length || WE.sendet || !String(WE.mitarbeiterin || '').trim() || !WE.letzter;
+  let grund = '';
+  if(!String(WE.mitarbeiterin || '').trim() || !WE.letzter) grund = 'Name der Raumpflegerin und letzter Einsatz sind nötig.';
+  else if(fehlt) grund = 'Erst wenn alle E-Mail-Adressen eingetragen sind, kann gesendet werden.';
+  else if(ohneOrt) grund = 'Bitte PLZ und Ort in der Adresse ergänzen.';
+  return '<button class="btn secondary" onclick="weVorschau(-1)">Mailvorschau</button>' +
+    '<button class="btn primary-action" ' + (gesperrt ? 'disabled' : '') + ' onclick="weSenden(this)">' + (WE.sendet ? 'Wird gesendet …' : 'Kunden informieren · ' + gew.length + ' E-Mail' + (gew.length === 1 ? '' : 's')) + '</button>' +
+    (grund ? '<span class="cs-mute" style="font-size:var(--cs-fs-sm);">' + grund + '</span>' : '');
+}
+function weStatus(){
+  const a = document.getElementById('we-sum'), b = document.getElementById('we-send-row');
+  if(a) a.innerHTML = weSumHtml();
+  if(b) b.innerHTML = weSendHtml();
+  WE.kunden.forEach((k, i) => {
+    const m = document.getElementById('we-m-' + i), o = document.getElementById('we-a-' + i);
+    if(m) m.classList.toggle('fehlt', weMailFehlt(k));
+    if(o) o.classList.toggle('fehlt', weOrtFehlt(k));
+  });
+}
+
 function weKundeZeile(k, i){
   const sel = (v, t) => '<option value="' + v + '"' + (k.freq === v ? ' selected' : '') + '>' + t + '</option>';
   const an = (v, t) => '<option value="' + v + '"' + ((k.anrede || '') === v ? ' selected' : '') + '>' + t + '</option>';
@@ -3072,11 +3111,11 @@ function weKundeZeile(k, i){
   return '<div class="we-z' + (k.on ? '' : ' aus') + (k.freq === 'monatlich' ? ' mon' : '') + '">' +
     '<span><input type="checkbox" ' + (k.on ? 'checked' : '') + ' onchange="WE.kunden[' + i + '].on=this.checked;zeichnen()" title="Informieren"></span>' +
     '<span><select onchange="WE.kunden[' + i + '].anrede=this.value">' + an('', '–') + an('Frau', 'Frau') + an('Herr', 'Herr') + an('Familie', 'Familie') + '</select></span>' +
-    '<span><input type="text" value="' + esc(k.kunde) + '" oninput="WE.kunden[' + i + '].kunde=this.value" class="we-in"><input type="text" value="' + esc(k.adresse) + '" placeholder="Strasse Nr., PLZ Ort" oninput="WE.kunden[' + i + '].adresse=this.value" class="we-in sub"></span>' +
+    '<span><input type="text" value="' + esc(k.kunde) + '" oninput="WE.kunden[' + i + '].kunde=this.value" class="we-in"><input type="text" id="we-a-' + i + '" value="' + esc(k.adresse) + '" placeholder="Strasse Nr., PLZ Ort" oninput="WE.kunden[' + i + '].adresse=this.value;weStatus()" class="we-in sub' + (weOrtFehlt(k) ? ' fehlt' : '') + '"></span>' +
     '<span><select onchange="WE.kunden[' + i + '].freq=this.value;zeichnen()">' + sel('woechentlich', 'wöchentlich') + sel('14-taeglich', 'alle 2 Wochen') + sel('monatlich', 'monatlich') + '</select>' +
       '<span class="vak-sub">' + esc(k.wt || '–') + ' · ' + esc(k.std || '?') + ' Std.' + (k.einsaetze ? ' · ' + k.einsaetze + ' Einsätze' : '') + '</span>' + pr +
       (k.freq === 'monatlich' ? '<span class="we-mo">Info-Mail ohne Knopf · Springerteam, keine Vakanz</span>' : '') + '</span>' +
-    '<span><input type="email" value="' + esc(k.mail || '') + '" placeholder="E-Mail" class="we-in' + (k.on && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(k.mail || '') ? ' fehlt' : '') + '" oninput="WE.kunden[' + i + '].mail=this.value;this.classList.toggle(\'fehlt\', !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(this.value))"></span>' +
+    '<span><input type="email" id="we-m-' + i + '" value="' + esc(k.mail || '') + '" placeholder="E-Mail" class="we-in' + (weMailFehlt(k) ? ' fehlt' : '') + '" oninput="WE.kunden[' + i + '].mail=this.value.trim();weStatus()"></span>' +
     '<span><button class="we-x" onclick="WE.kunden.splice(' + i + ',1);zeichnen()" title="Entfernen" aria-label="Entfernen">×</button> <a href="#" class="we-vl" onclick="weVorschau(' + i + ');return false;" title="Mailvorschau für diesen Kunden">Mail</a></span></div>';
 }
 
@@ -3155,7 +3194,7 @@ async function weSenden(btn){
   try{
     const r = await fetch('/api/wechsel', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ aktion: 'starten', grund: WE.grund, mitarbeiterin: WE.mitarbeiterin, pnr: WE.pnr, letzterEinsatz: WE.letzter, bearbeiter: CS_WER,
-        kunden: gew.map(k => ({ kunde: k.kunde, adresse: k.adresse, nr: k.nr || '', freq: k.freq, wt: k.wt, std: k.std, sicher: k.sicher, mail: k.mail, anrede: k.anrede || '' })) }) });
+        kunden: gew.map(k => ({ kunde: k.kunde, adresse: k.adresse, nr: k.nr || '', freq: k.freq, wt: k.wt, std: k.std, sicher: k.sicher, mail: String(k.mail || '').trim(), anrede: k.anrede || '' })) }) });
     const d = await r.json().catch(() => ({}));
     if(!r.ok || !d.ok) throw new Error(d.error || 'Server ' + r.status);
     let txt = d.gesendet + ' Kund' + (d.gesendet === 1 ? 'in' : 'en') + ' informiert' + (d.info ? ', ' + d.info + ' monatlich nur Info' : '') + '. Vakanzen entstehen, sobald die Antworten eintreffen.';
