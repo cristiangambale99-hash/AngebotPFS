@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { wechselDurchlauf } from '../lib/wechsel.js';
 import { bewertungBitten } from '../lib/qualitaet.js';
 // api/followup.js
 // Läuft einmal täglich automatisch (siehe vercel.json) und sendet
@@ -406,6 +407,17 @@ export default async function handler(req, res) {
       }
     } catch (e) {
       bericht.fehler.push({ code: 'Termindurchgang', meldung: (e && e.message) || String(e) });
+    }
+
+    /* ======== Fünfter Durchgang: Wechsel der Raumpflegerin ========
+       Kundschaft ohne Antwort: Tag 5 Erinnerungsmail, Tag 10 Anruf-Aufgabe.
+       Ersatzreinigungen in Aduna: 7 Tage vor Ablauf Hinweis an den PFS,
+       solange keine feste Raumpflegerin bestaetigt ist (lib/wechsel.js). */
+    try {
+      const auftraege4 = await alleLesen(AUFTRAG_SAMMLUNG, 500);
+      bericht.wechsel = await wechselDurchlauf(apiKey, auftraege4, nurPruefen);
+    } catch (e) {
+      bericht.fehler.push({ code: 'Wechseldurchgang', meldung: (e && e.message) || String(e) });
     }
 
     return res.status(200).json({ ok: true, probelauf: !!nurPruefen, ...bericht });

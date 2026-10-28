@@ -15,6 +15,7 @@ import einfuehrung from '../lib/einfuehrung.js';
 import vertragSigniert from '../lib/vertrag-signiert.js';
 import termine from '../lib/termine.js';
 import vakanzen from '../lib/vakanzen.js';
+import wechsel from '../lib/wechsel.js';
 
 const FUNKTIONEN = {
   'antwort': antwort,
@@ -22,7 +23,8 @@ const FUNKTIONEN = {
   'einfuehrung': einfuehrung,
   'vertrag-signiert': vertragSigniert,
   'termine': termine,
-  'vakanzen': vakanzen
+  'vakanzen': vakanzen,
+  'wechsel': wechsel
 };
 
 export default async function handler(req, res) {
