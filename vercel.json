@@ -33,6 +33,10 @@
     {
       "source": "/api/vakanzen",
       "destination": "/api/kunde?fn=vakanzen"
+    },
+    {
+      "source": "/api/wechsel",
+      "destination": "/api/kunde?fn=wechsel"
     }
   ]
 }

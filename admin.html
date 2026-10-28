@@ -872,6 +872,56 @@ details.anl-frage > p{ margin:0 0 12px; font-size:var(--cs-fs-sm); color:var(--c
 .vak-bew .vak-termin{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:8px 0 10px; }
 .vak-zeitpunkt{ font-size:var(--cs-fs-xs); font-weight:bold; color:var(--cs-teal-dark); white-space:nowrap; flex:none; align-self:flex-start; }
 .vak-schliessen{ background:none; border:none; font-size:20px; line-height:1; cursor:pointer; color:var(--cs-ink-mute); padding:2px 6px; }
+/* ---- Wechsel der Raumpflegerin ---- */
+.we-radios{ display:flex; gap:8px; flex-wrap:wrap; }
+.we-radio input{ position:absolute; opacity:0; width:0; height:0; }
+.we-radio span{ display:inline-block; padding:8px 14px; border:1px solid var(--cs-border); border-radius:100px; font-size:var(--cs-fs-sm); cursor:pointer; background:var(--cs-surface); }
+.we-radio input:checked + span{ background:var(--cs-teal); border-color:var(--cs-teal); color:#fff; }
+.we-tage{ display:flex; gap:6px; flex-wrap:wrap; }
+.we-tag input{ position:absolute; opacity:0; width:0; height:0; }
+.we-tag span{ display:inline-block; min-width:46px; text-align:center; padding:9px 8px; border:1px solid var(--cs-border); border-radius:10px; font-weight:bold; cursor:pointer; background:var(--cs-surface); }
+.we-tag input:checked + span{ background:var(--cs-teal); border-color:var(--cs-teal); color:#fff; }
+.we-upload{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.we-liste{ border:1px solid var(--cs-border); border-radius:12px; overflow:hidden; background:var(--cs-surface); }
+.we-kopf, .we-z{ display:grid; grid-template-columns:28px 78px minmax(200px,1.5fr) minmax(170px,1fr) minmax(190px,1fr) 70px; gap:10px; align-items:start; padding:10px 12px; }
+.we-kopf{ font-size:var(--cs-fs-xs); font-weight:bold; letter-spacing:.06em; text-transform:uppercase; color:var(--cs-ink-soft); background:#fff; border-bottom:1px solid var(--cs-border); }
+.we-z{ border-bottom:1px solid var(--cs-border); }
+.we-z:last-child{ border-bottom:none; }
+.we-z.aus{ opacity:.5; }
+.we-z.mon{ background:#FAFBFB; }
+.we-z input[type=checkbox]{ margin-top:8px; }
+.we-z select{ width:100%; padding:6px 8px; font-size:var(--cs-fs-sm); }
+.we-in{ width:100%; padding:6px 8px; font-size:var(--cs-fs-sm); }
+.we-in.sub{ margin-top:4px; color:var(--cs-ink-soft); }
+.we-in.fehlt{ border-color:var(--cs-neg); background:var(--cs-neg-bg); }
+.we-pr{ display:block; font-size:var(--cs-fs-xs); color:var(--cs-warn); font-weight:bold; margin-top:2px; }
+.we-mo{ display:block; font-size:var(--cs-fs-xs); color:var(--cs-ink-mute); margin-top:2px; }
+.we-x{ background:none; border:1px solid var(--cs-border); border-radius:8px; width:28px; height:28px; cursor:pointer; color:var(--cs-ink-mute); font-size:16px; line-height:1; }
+.we-x:hover{ color:var(--cs-neg); border-color:var(--cs-neg); }
+.we-vl{ font-size:var(--cs-fs-xs); margin-left:4px; }
+.we-add{ display:grid; grid-template-columns:1.1fr 1.4fr 130px 90px 1.2fr auto; gap:8px; margin-top:10px; align-items:center; }
+.we-add input, .we-add select{ padding:7px 9px; font-size:var(--cs-fs-sm); }
+.we-sum{ font-size:var(--cs-fs-sm); color:var(--cs-ink-soft); margin-top:10px; }
+.we-vorschau{ margin-top:16px; border:1px solid var(--cs-border); border-radius:12px; overflow:hidden; }
+.we-vk{ padding:10px 14px; background:var(--cs-teal-light); font-size:var(--cs-fs-sm); display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.we-vorschau iframe{ width:100%; height:720px; border:none; background:#F2F4F4; }
+.we-tab{ overflow-x:auto; }
+.we-tk, .we-tz{ display:grid; grid-template-columns:minmax(210px,1.5fr) minmax(120px,.8fr) minmax(180px,1.2fr) minmax(180px,1.2fr) minmax(150px,1fr) minmax(170px,1fr); gap:12px; padding:12px 18px; align-items:start; min-width:1040px; }
+.we-tk{ font-size:var(--cs-fs-xs); font-weight:bold; letter-spacing:.06em; text-transform:uppercase; color:var(--cs-ink-soft); border-bottom:1px solid var(--cs-border); }
+.we-tz{ border-bottom:1px solid var(--cs-border); font-size:var(--cs-fs-sm); }
+.we-tz:last-child{ border-bottom:none; }
+.we-tz.aus{ opacity:.6; }
+.we-tz strong{ display:block; color:var(--cs-ink); font-size:var(--cs-fs-md); }
+.we-tz .vak-sub{ display:block; }
+.we-sp input{ width:100%; padding:6px 8px; font-size:var(--cs-fs-sm); }
+.we-kn{ display:flex; flex-direction:column; gap:4px; font-size:var(--cs-fs-xs); }
+@media (max-width:900px){
+  .we-kopf{ display:none; }
+  .we-z{ grid-template-columns:28px 1fr; }
+  .we-z > span:nth-child(2){ grid-column:2; }
+  .we-z > span:nth-child(n+3){ grid-column:1 / -1; }
+  .we-add{ grid-template-columns:1fr 1fr; }
+}
 @media (max-width:900px){
   .vak-kopfzeile{ display:none; }
   .vak-zeile{ grid-template-columns:1fr; gap:6px; }
@@ -1053,6 +1103,7 @@ input:focus, select:focus, textarea:focus{ border-color:#1B8384; box-shadow:0 0 
     <button class="nav-i" data-ansicht="aktive" type="button"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Aktiv<span class="z" data-zahl="n-aktive"></span></button>
     <button class="nav-i" data-ansicht="unzufrieden" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v5M12 16h.01"/></svg>Unzufrieden<span class="z" data-zahl="n-unzu"></span></button>
     <button class="nav-i" data-ansicht="vakanzen" type="button"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.8a3.3 3.3 0 0 1 0 6.4M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/></svg>Vakanzen<span class="z" data-zahl="n-vak"></span></button>
+    <button class="nav-i" data-ansicht="wechsel" type="button"><svg viewBox="0 0 24 24"><path d="M4 7h13l-3-3M20 17H7l3 3"/><path d="M4 7v3M20 17v-3"/></svg>Wechsel<span class="z" data-zahl="n-wechsel"></span></button>
     <button class="nav-i" data-ansicht="kalender" type="button"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17"/></svg>Kalender<span class="z" data-zahl="n-kalender"></span></button>
     <button class="nav-i" data-ansicht="verkauf" type="button"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M12 8v8M8 12h8"/></svg>Angebot</button>
     <button class="nav-i" data-ansicht="auswertung" type="button"><svg viewBox="0 0 24 24"><path d="M4 19h16M7 16V9M12 16V5M17 16v-6"/></svg>Auswertung</button>
@@ -1075,6 +1126,7 @@ input:focus, select:focus, textarea:focus{ border-color:#1B8384; box-shadow:0 0 
       <a href="#" data-ansicht="aktive">Aktive Aufträge <span class="zahl" id="n-aktive">0</span></a>
       <a href="#" data-ansicht="unzufrieden">Unzufriedene Kunden <span class="zahl" id="n-unzu">0</span></a>
       <a href="#" data-ansicht="vakanzen">Vakanzen <span class="zahl" id="n-vak">0</span></a>
+      <a href="#" data-ansicht="wechsel">Wechsel Raumpflegerin <span class="zahl" id="n-wechsel">0</span></a>
       <a href="#" data-ansicht="kalender">Kalender <span class="zahl" id="n-kalender">0</span></a>
       <a href="#" data-ansicht="verkauf">Neues Angebot</a>
       <a href="#" data-ansicht="auswertung">Auswertung</a>
@@ -1149,6 +1201,7 @@ input:focus, select:focus, textarea:focus{ border-color:#1B8384; box-shadow:0 0 
 <!-- Servicegebiet nach Postleitzahl. Liegt als eigene Datei neben admin.html,
      damit die Liste ohne Eingriff in die Verwaltung ersetzt werden kann. -->
 <script src="plz-gebiete.js"></script>
+<script src="monatsplan.js"></script>
 <script>
 /* =========================================================
    Verwaltung PFS — Clean Service Scaramuzzo AG
@@ -1300,11 +1353,13 @@ async function ladeDaten(){
   baueListe();
   zeichnen();
   vakLaden(true);
+  weLaden(true);
   setTimeout(dispoSyncLv, 1500);
 }
 
 function auftragStufe(a){
   const s = String(a.stufe || '');
+  if(s === 'wechsel') return 'bearbeitung';   // Wechsel der Raumpflegerin: wartet auf die neue Raumpflegerin
   return ['aktiv','bearbeitung','springer_gewuenscht','abgesagt','archiv'].includes(s) ? s : 'auftrag';
 }
 
@@ -1312,7 +1367,11 @@ function baueListe(){
   const angebote = (ANGEBOTE && ANGEBOTE.angebote) || [];
   const nachCode = {};
   const ohneCode = [];
-  AUFTRAEGE.forEach(a => { if(a.code) nachCode[a.code] = a; else ohneCode.push(a); });
+  /* Wechselfälle (bestehende Kundschaft) laufen im Bereich «Wechsel», bis ein
+     Terminvorschlag für die neue Raumpflegerin draussen ist; ab dann laufen
+     sie hier wie ein Neukunde mit (Termin, aktiv, Qualitätsnachfrage). */
+  AUFTRAEGE.filter(a => !(a.art === 'wechsel' && !a.einfuehrungAm))
+    .forEach(a => { if(a.code && !(a.art === 'wechsel')) nachCode[a.code] = a; else ohneCode.push(a); });
   const liste = [];
 
   angebote.forEach(ang => {
@@ -1430,6 +1489,7 @@ function zeichnen(){
 
   document.getElementById('n-unzu').textContent = LISTE.filter(unzufrieden).length;
   document.getElementById('n-vak').textContent = VAK.objekte.filter(o => o.status === 'offen').length;
+  document.getElementById('n-wechsel').textContent = weAufgaben().length;
   document.getElementById('n-eingang').textContent = LISTE.filter(offenerAuftrag).length;
   document.getElementById('n-monat').textContent =
     monatAlle().filter(e => monatZuDisponieren(e) || monatNachbuchungUeberfaellig(e)).length;
@@ -1462,6 +1522,7 @@ function zeichnen(){
     aktive:     ['Aktive Aufträge', 'Vom Springerteam-Einsatz über den Terminvorschlag bis zur laufenden Reinigung.', seiteAktive],
     unzufrieden:['Unzufriedene Kunden', 'Negative Rückmeldungen, die eine zweite Runde brauchen.', seiteUnzufrieden],
     vakanzen:   ['Vakanzen', 'Objekte mit unbeantworteten Bewerbungen aus dem Stellenportal. Sind alle Bewerbungen beantwortet, verschwindet das Objekt bis zur nächsten Bewerbung.', seiteVakanzen],
+    wechsel:    ['Wechsel der Raumpflegerin', 'Bestehende Kundschaft bei Kündigung, Kundenabgabe oder Unzufriedenheit: Monatsplan einlesen, Kunden informieren, Antworten und Vakanzen verfolgen.', seiteWechsel],
     kalender:   ['Kalender', 'Alle Einführungstermine im Überblick.', seiteKalender],
     verkauf:    ['Neues Angebot', 'Angebot erstellen und alle laufenden Angebote verfolgen.', seiteVerkauf],
     auswertung: ['Auswertung', 'Zahlen zum laufenden Bestand.', seiteAuswertung],
@@ -1796,6 +1857,8 @@ function seiteAnleitung(){
      'Jede negative Rückmeldung landet hier, mit dem Wortlaut. Zuerst anrufen und die Ursache klären, danach die zweite Nachfrage senden.'],
     ['Vakanzen',
      'Jede Auftragserteilung eröffnet automatisch den Gruppenchat in Beekeeper und die Ausschreibung im Stellenportal. Sobald sich eine Mitarbeiterin auf ein Objekt bewirbt, erscheint es hier mit allen Bewerbungen. «Bestätigen» mit Datum und Uhrzeit: der Terminvorschlag geht an die Kundschaft, die Raumpflegerin kommt in den Gruppenchat und erhält die Zusage, das Objekt wird im Stellenportal auf vergeben gesetzt, die übrigen Bewerberinnen erhalten die Absage. «Absagen» schickt einer einzelnen Bewerberin die Absage.'],
+    ['Wechsel Raumpflegerin',
+     'Für bestehende Kundschaft bei Kündigung, Kundenabgabe oder Unzufriedenheit. Monatsplan der bisherigen Raumpflegerin aus Aduna als PDF einlesen — Kunden, Wochentag, Stunden und Rhythmus werden erkannt —, E-Mail-Adressen ergänzen und mit einem Klick alle informieren. Die Kundschaft gibt über den Knopf in der Mail ihre möglichen Tage und die Tageszeit an; damit entsteht die Vakanz im Stellenportal eins zu eins nach ihrem Wunsch und läuft ab dann wie bei einem Neukunden über die Vakanzen, den bestehenden Kundenchat und den Einführungsvorschlag. Ohne Antwort: Erinnerung nach 5 Tagen, Anruf-Aufgabe nach 10 Tagen, oder «Ohne Antwort ausschreiben». Die Ersatzreinigungen in Aduna bleiben Handarbeit: Datum «eingeplant bis» eintragen, 7 Tage vor Ablauf kommt die Erinnerung. Monatliche Kunden erhalten nur die Information, das Springerteam führt weiter.'],
     ['Kalender',
      'Alle Einführungstermine im Monatsraster. Grün heisst bestätigt, gelb heisst vorgeschlagen und noch ohne Zusage.'],
     ['Neues Angebot',
@@ -2748,8 +2811,8 @@ function vakZeile(o){
 
   return '<button class="vak-zeile' + (VAK.offen === String(o.portalId) ? ' on' : '') + (vakOffen(o) && !offenBew.length ? ' erledigt' : '') +
     '" onclick="vakOeffnen(\'' + esc(o.portalId) + '\')">' +
-    '<span><strong>' + esc(o.kunde) + '</strong><span class="vak-sub">' + esc([o.adresse, o.plz].filter(Boolean).join(', ')) +
-      (o.angebotsnr ? ' · Nr. ' + esc(o.angebotsnr) : '') + '</span></span>' +
+    '<span><strong>' + esc(o.kunde) + (o.wechsel ? ' <span class="tag warn" style="margin-left:6px;">Wechsel</span>' : '') + '</strong><span class="vak-sub">' + esc([o.adresse, o.plz].filter(Boolean).join(', ')) +
+      (o.angebotsnr ? ' · Nr. ' + esc(o.angebotsnr) : '') + (o.wechsel && o.bisherigeRaumpflegerin ? ' · bisher ' + esc(o.bisherigeRaumpflegerin) : '') + '</span></span>' +
     '<span class="vak-sub">' + esc(vakEinsatz(o)) + (o.einfuehrungAm ? '<br>Einführung ' + esc(vakZeit(o.einfuehrungAm, o.einfuehrungZeit)) : '') + '</span>' +
     '<span class="vak-bewerber"><span class="vak-fotos">' + fotos + '</span>' + neu + '</span>' +
     '<span>' + tag + '</span><span class="vak-pfeil">›</span></button>';
@@ -2766,12 +2829,15 @@ function vakPanel(){
   const zl = (a, b) => b ? '<div class="vak-zl"><span>' + a + '</span><span>' + esc(b) + '</span></div>' : '';
   const heute = new Date().toISOString().slice(0,10);
 
-  let inhalt = zl('Objekt', [o.adresse, o.plz].filter(Boolean).join(', ')) +
+  let inhalt = (o.wechsel ? '<div class="hinweis warn" style="margin-bottom:12px;"><strong>Wechsel der Raumpflegerin</strong> (' + esc(o.wechselGrund) + ')' +
+      (o.bisherigeRaumpflegerin ? ' · bisher ' + esc(o.bisherigeRaumpflegerin) : '') + (o.wechselStart ? ' · Übernahme ab ' + dat(o.wechselStart) : '') +
+      '<br><strong>Kundenwunsch:</strong> ' + esc(o.kundenwunsch || 'keine Angabe') + '</div>' : '') +
+    zl('Objekt', [o.adresse, o.plz].filter(Boolean).join(', ')) +
     zl('Objekt-Nr.', o.angebotsnr) +
     zl('Einsatz', vakEinsatz(o)) +
     zl('Hinweis', o.info) +
     zl('Stellenportal', vakOffen(o) ? 'Ausgeschrieben seit ' + dat(o.ausgeschriebenAm) : 'Vergeben am ' + dat(o.vergebenAm)) +
-    zl('Gruppenchat', o.imTool === false ? 'Kein Auftrag in diesem Tool' : (o.chatTitel || (o.chatId ? 'Eröffnet' : 'Noch nicht eröffnet'))) +
+    zl('Gruppenchat', o.imTool === false ? 'Kein Auftrag in diesem Tool' : (o.chatTitel || (o.chatId ? 'Eröffnet' : (o.wechsel ? 'Bestehender Kundenchat wird beim Bestätigen gesucht' : 'Noch nicht eröffnet')))) +
     (o.einfuehrungAm ? zl('Einführung', vakZeit(o.einfuehrungAm, o.einfuehrungZeit) +
       (o.einfuehrungBestaetigt ? ' · von der Kundschaft bestätigt' : ' · Vorschlag an die Kundschaft')) : '');
 
@@ -2878,6 +2944,350 @@ async function vakAbsagen(bewerbungId, btn){
     meldung('Absagen fehlgeschlagen: ' + err.message, 'neg');
     btn.disabled = false; btn.textContent = alt;
   }
+}
+
+/* ==========================================================================
+   Wechsel der Raumpflegerin bei bestehender Kundschaft
+   Monatsplan (PDF aus Aduna) einlesen → Kundenkarten → E-Mail je Kundschaft
+   mit Antwortknopf → mit der Antwort entsteht die Vakanz im Stellenportal.
+   Server: lib/wechsel.js (/api/wechsel), Erinnerungen: api/followup.js.
+   ========================================================================== */
+let WE = { faelle: [], stand: null, laedt: false, fehler: '', filter: 'offen', neu: false,
+           grund: 'kuendigung', mitarbeiterin: '', pnr: '', letzter: '', plan: null, kunden: [],
+           vorschau: null, vorschauFuer: -1, sendet: false, erfassen: null };
+const WE_GRUND = { kuendigung: 'Kündigung Mitarbeiterin', kundenabgabe: 'Kundenabgabe', unzufrieden: 'Kundschaft unzufrieden' };
+const WE_TZ = { vormittag: 'Vormittag (08:00 – 12:00 Uhr)', nachmittag: 'Nachmittag (13:00 – 17:00 Uhr)', egal: 'Nach Absprache' };
+
+async function weLaden(leise){
+  if(WE.laedt) return;
+  WE.laedt = true; WE.fehler = '';
+  try{
+    const r = await fetch('/api/wechsel?liste=1', {cache:'no-store'});
+    if(r.status === 401){ abmelden(); return; }
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(d.error || 'Server ' + r.status);
+    WE.faelle = d.faelle || [];
+    WE.stand = d.stand || new Date().toISOString();
+  }catch(e){
+    WE.fehler = e.message || String(e);
+    WE.stand = WE.stand || 'fehler';
+    if(!leise) meldung('Wechselfälle konnten nicht geladen werden: ' + WE.fehler, 'neg');
+  }
+  WE.laedt = false;
+  zeichnen();
+}
+
+const weOffen = f => f.stufe !== 'archiv' && !f.einfuehrungBestaetigt;
+const weWartet = f => weOffen(f) && !f.monatlich && !f.antwortAm;
+const weAufgaben = () => WE.faelle.filter(f => weOffen(f) && (f.anrufAb || f.portalFehler || f.mailFehler ||
+  (f.springerBis && !f.einfuehrungBestaetigt && plusTageIso(f.springerBis, -7) <= heuteIso())));
+function plusTageIso(iso, n){ const d = new Date(iso); if(isNaN(d)) return ''; d.setDate(d.getDate() + n); return d.toISOString().slice(0,10); }
+function heuteIso(){ return new Date().toISOString().slice(0,10); }
+function weLetzterVorschlag(){
+  /* Kündigung: Monatsende; Kundenabgabe: Formulareingang + 2 Monate; unzufrieden: heute */
+  const d = new Date();
+  if(WE.grund === 'kuendigung'){ return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0,10); }
+  if(WE.grund === 'kundenabgabe'){ d.setMonth(d.getMonth() + 2); return d.toISOString().slice(0,10); }
+  return heuteIso();
+}
+
+function seiteWechsel(){
+  if(WE.laedt && !WE.stand) return '<div class="lade">Wechselfälle werden geladen …</div>';
+  if(!WE.stand && !WE.laedt){ weLaden(true); return '<div class="lade">Wechselfälle werden geladen …</div>'; }
+  let h = '';
+  if(WE.fehler){
+    const tipp = /Server 404/.test(WE.fehler) ? ' — die Weiterleitung /api/wechsel fehlt: vercel.json im Hauptverzeichnis aktualisieren.' : '';
+    h += '<div class="hinweis neg" style="margin-bottom:16px;"><strong>Wechselfälle nicht geladen.</strong> ' + esc(WE.fehler) + esc(tipp) +
+         ' <a href="#" onclick="WE.stand=null;weLaden();return false;">Nochmals versuchen</a></div>';
+  }
+  h += WE.neu ? weNeu() : '<div class="btn-row" style="margin-bottom:16px;"><button class="btn primary-action" onclick="weNeuStart()">Neuer Wechsel · Monatsplan einlesen</button></div>';
+  h += weTabelle();
+  if(WE.erfassen) h += weErfassenPanel();
+  return h;
+}
+
+/* ---------- Neuer Wechsel: Grund, Mitarbeiterin, Monatsplan, Kundenliste ---------- */
+function weNeuStart(){
+  WE.neu = true; WE.plan = null; WE.kunden = []; WE.vorschau = null; WE.vorschauFuer = -1;
+  WE.mitarbeiterin = ''; WE.pnr = ''; WE.letzter = weLetzterVorschlag();
+  zeichnen();
+}
+function weAbbrechen(){ WE.neu = false; WE.kunden = []; WE.plan = null; WE.vorschau = null; zeichnen(); }
+function weFeld(k, v){ WE[k] = v; if(k === 'grund' && !WE.plan) { WE.letzter = weLetzterVorschlag(); const f = document.getElementById('we-letzter'); if(f) f.value = WE.letzter; } }
+
+function weNeu(){
+  const rb = (id, txt) => '<label class="we-radio"><input type="radio" name="we-grund" value="' + id + '"' + (WE.grund === id ? ' checked' : '') +
+    ' onchange="weFeld(\'grund\',this.value)"><span>' + txt + '</span></label>';
+  let h = '<div class="card" style="margin-bottom:16px;"><div class="card-head"><div><h2>Neuer Wechsel</h2>' +
+    '<p>Grund wählen, Monatsplan der bisherigen Raumpflegerin einlesen, E-Mail-Adressen ergänzen, Kunden informieren.</p></div>' +
+    '<button class="btn klein secondary" onclick="weAbbrechen()">Abbrechen</button></div><div class="card-body">' +
+    '<div class="feld"><label>Grund</label><div class="we-radios">' + rb('kuendigung', 'Kündigung Mitarbeiterin') + rb('kundenabgabe', 'Kundenabgabe') + rb('unzufrieden', 'Kundschaft unzufrieden') + '</div></div>' +
+    '<div class="feld-reihe">' +
+    '<div class="feld"><label>Bisherige Raumpflegerin <span class="erklaerung">Wird aus dem Monatsplan übernommen</span></label><input type="text" id="we-ma" value="' + esc(WE.mitarbeiterin) + '" placeholder="Nachname, Vorname" oninput="weFeld(\'mitarbeiterin\',this.value)"></div>' +
+    '<div class="feld"><label>Personal-Nr.</label><input type="text" id="we-pnr" value="' + esc(WE.pnr) + '" oninput="weFeld(\'pnr\',this.value)"></div>' +
+    '<div class="feld"><label>Letzter Einsatz <span class="erklaerung">' + (WE.grund === 'kundenabgabe' ? 'Formulareingang + 2 Monate (Kündigungsfrist)' : WE.grund === 'kuendigung' ? 'Ende der Kündigungsfrist' : 'Ab wann das Springerteam übernimmt') + '</span></label><input type="date" id="we-letzter" value="' + esc(WE.letzter) + '" onchange="weFeld(\'letzter\',this.value)"></div>' +
+    '</div>' +
+    '<div class="feld"><label>Monatsplan aus Aduna (PDF) <span class="erklaerung">Mitarbeiterplanung → Monatsplan der Mitarbeiterin als PDF speichern und hier einlesen. Name, Adresse, Wochentag, Stunden und Rhythmus werden automatisch erkannt.</span></label>' +
+    '<div class="we-upload"><input type="file" id="we-pdf" accept="application/pdf" onchange="wePdfLesen(this)">' +
+    (WE.plan ? '<span class="tag pos">Eingelesen: ' + esc(WE.plan.mitarbeiterin || '') + ' · ' + esc(WE.plan.periode || '') + ' · ' + WE.plan.kunden.length + ' Kunden</span>' : '') + '</div>' +
+    '<div id="we-pdf-status" class="cs-mute" style="font-size:var(--cs-fs-sm);margin-top:6px;"></div></div>';
+
+  /* Kundenliste */
+  const fehlt = WE.kunden.filter(k => k.on && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(k.mail || '')).length;
+  const gew = WE.kunden.filter(k => k.on);
+  const ohneOrt = WE.kunden.filter(k => k.on && !/\d{4}\s+\S/.test(k.adresse || '')).length;
+  h += '<h3 style="margin:8px 0 6px;font-size:15px;">Kunden ' + (WE.kunden.length ? '<span class="cs-mute" style="font-weight:normal;font-size:var(--cs-fs-sm);">· ' + gew.length + ' von ' + WE.kunden.length + ' ausgewählt</span>' : '') + '</h3>';
+  if(!WE.kunden.length){
+    h += '<p class="cs-mute" style="margin:0 0 10px;">Noch keine Kunden. Monatsplan einlesen oder unten von Hand hinzufügen.</p>';
+  }else{
+    h += '<div class="we-liste"><div class="we-kopf"><span></span><span>Anrede</span><span>Kunde · Adresse</span><span>Einsatz</span><span>E-Mail</span><span></span></div>' +
+      WE.kunden.map((k, i) => weKundeZeile(k, i)).join('') + '</div>';
+  }
+  h += '<div class="we-add"><input type="text" id="we-na-k" placeholder="Nachname, Vorname"><input type="text" id="we-na-a" placeholder="Strasse Nr., PLZ Ort">' +
+    '<select id="we-na-f"><option value="woechentlich">wöchentlich</option><option value="14-taeglich">alle 2 Wochen</option><option value="monatlich">monatlich</option></select>' +
+    '<input type="text" id="we-na-t" placeholder="Mo · 3" title="Wochentag · Stunden" style="width:90px;"><input type="email" id="we-na-m" placeholder="name@mail.ch">' +
+    '<button class="btn klein secondary" type="button" onclick="weKundeHinzu()">+ Hinzufügen</button></div>';
+  if(WE.kunden.length){
+    h += '<div class="we-sum">' + (fehlt ? '<span class="cs-neg"><strong>' + fehlt + ' E-Mail-Adresse' + (fehlt === 1 ? '' : 'n') + ' fehlt</strong></span>' : '<span class="cs-pos">Alle Adressen vorhanden</span>') +
+      (ohneOrt ? ' · <span class="cs-neg">' + ohneOrt + '× PLZ/Ort fehlt (nötig für die Region im Stellenportal)</span>' : '') +
+      ' · Rhythmus aus den Einsatztagen: 7 Tage = wöchentlich, 14 Tage = alle 2 Wochen, 1 Einsatz = monatlich. Monatliche Kunden erhalten nur die Information (Springerteam, keine Vakanz).</div>';
+    h += '<div class="btn-row" style="margin-top:14px;align-items:center;">' +
+      '<button class="btn secondary" onclick="weVorschau(-1)">Mailvorschau</button>' +
+      '<button class="btn primary-action" ' + (fehlt || !gew.length || WE.sendet || !WE.mitarbeiterin || !WE.letzter ? 'disabled' : '') + ' onclick="weSenden(this)">' + (WE.sendet ? 'Wird gesendet …' : 'Kunden informieren · ' + gew.length + ' E-Mail' + (gew.length === 1 ? '' : 's')) + '</button>' +
+      (!WE.mitarbeiterin || !WE.letzter ? '<span class="cs-mute" style="font-size:var(--cs-fs-sm);">Name der Raumpflegerin und letzter Einsatz sind nötig.</span>' : '') + '</div>';
+    h += '<div class="hinweis" style="margin-top:14px;"><strong>Was beim Senden passiert.</strong> Jede Kundschaft erhält die Information mit dem Knopf «Reinigungstage jetzt angeben», Kopie an putzfrauenservice@clean-service.ch. ' +
+      'Mit der Antwort entsteht die Vakanz im Stellenportal eins zu eins nach Kundenwunsch. Ohne Antwort: Erinnerung nach 5 Tagen, Anruf-Aufgabe nach 10 Tagen. ' +
+      'Die Ersatzreinigungen in Aduna trägst du von Hand ein und vermerkst in der Tabelle unten, bis wann — 7 Tage vor Ablauf kommt die Erinnerung, solange keine feste Raumpflegerin bestätigt ist.</div>';
+  }
+  if(WE.vorschau) h += '<div class="we-vorschau"><div class="we-vk"><strong>Vorschau</strong> · Betreff: ' + esc(WE.vorschau.betreff) + ' <button class="vak-schliessen" onclick="WE.vorschau=null;zeichnen()" aria-label="Schliessen">×</button></div>' +
+    '<iframe title="Mailvorschau" sandbox="" srcdoc="' + esc(WE.vorschau.html).replace(/"/g, '&quot;') + '"></iframe></div>';
+  h += '</div></div>';
+  return h;
+}
+
+function weKundeZeile(k, i){
+  const sel = (v, t) => '<option value="' + v + '"' + (k.freq === v ? ' selected' : '') + '>' + t + '</option>';
+  const an = (v, t) => '<option value="' + v + '"' + ((k.anrede || '') === v ? ' selected' : '') + '>' + t + '</option>';
+  const pr = k.sicher === 'prüfen' || k.sicher === 'unsicher' ? '<span class="we-pr">Bitte prüfen: ' + esc(k.grund || '') + '</span>' : k.sicher === 'manuell' ? '<span class="we-mo">von Hand</span>' : '';
+  return '<div class="we-z' + (k.on ? '' : ' aus') + (k.freq === 'monatlich' ? ' mon' : '') + '">' +
+    '<span><input type="checkbox" ' + (k.on ? 'checked' : '') + ' onchange="WE.kunden[' + i + '].on=this.checked;zeichnen()" title="Informieren"></span>' +
+    '<span><select onchange="WE.kunden[' + i + '].anrede=this.value">' + an('', '–') + an('Frau', 'Frau') + an('Herr', 'Herr') + an('Familie', 'Familie') + '</select></span>' +
+    '<span><input type="text" value="' + esc(k.kunde) + '" oninput="WE.kunden[' + i + '].kunde=this.value" class="we-in"><input type="text" value="' + esc(k.adresse) + '" placeholder="Strasse Nr., PLZ Ort" oninput="WE.kunden[' + i + '].adresse=this.value" class="we-in sub"></span>' +
+    '<span><select onchange="WE.kunden[' + i + '].freq=this.value;zeichnen()">' + sel('woechentlich', 'wöchentlich') + sel('14-taeglich', 'alle 2 Wochen') + sel('monatlich', 'monatlich') + '</select>' +
+      '<span class="vak-sub">' + esc(k.wt || '–') + ' · ' + esc(k.std || '?') + ' Std.' + (k.einsaetze ? ' · ' + k.einsaetze + ' Einsätze' : '') + '</span>' + pr +
+      (k.freq === 'monatlich' ? '<span class="we-mo">Info-Mail ohne Knopf · Springerteam, keine Vakanz</span>' : '') + '</span>' +
+    '<span><input type="email" value="' + esc(k.mail || '') + '" placeholder="E-Mail" class="we-in' + (k.on && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(k.mail || '') ? ' fehlt' : '') + '" oninput="WE.kunden[' + i + '].mail=this.value;this.classList.toggle(\'fehlt\', !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(this.value))"></span>' +
+    '<span><button class="we-x" onclick="WE.kunden.splice(' + i + ',1);zeichnen()" title="Entfernen" aria-label="Entfernen">×</button> <a href="#" class="we-vl" onclick="weVorschau(' + i + ');return false;" title="Mailvorschau für diesen Kunden">Mail</a></span></div>';
+}
+
+function weKundeHinzu(){
+  const g = id => (document.getElementById(id) || {}).value || '';
+  const kunde = g('we-na-k').trim(), adresse = g('we-na-a').trim();
+  if(!kunde){ meldung('Bitte den Namen der Kundschaft eintragen.', 'neg'); return; }
+  const m = g('we-na-t').match(/([A-Za-z]{2})?\D*([\d.,]+)?/) || [];
+  WE.kunden.push({ kunde, adresse, freq: g('we-na-f') || 'woechentlich', wt: m[1] ? m[1].slice(0,1).toUpperCase() + m[1].slice(1,2).toLowerCase() : '', std: m[2] ? parseFloat(m[2].replace(',', '.')) : 0,
+    sicher: 'manuell', grund: '', mail: g('we-na-m').trim(), on: true, einsaetze: 0, anrede: '' });
+  zeichnen();
+}
+
+/* PDF mit pdf.js im Browser lesen, Kunden mit monatsplan.js erkennen */
+let PDFJS_LADEN = null;
+function pdfjsLaden(){
+  if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if(PDFJS_LADEN) return PDFJS_LADEN;
+  PDFJS_LADEN = new Promise((ok, nein) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; ok(window.pdfjsLib); };
+    s.onerror = () => nein(new Error('pdf.js konnte nicht geladen werden'));
+    document.head.appendChild(s);
+  });
+  return PDFJS_LADEN;
+}
+async function wePdfLesen(input){
+  const datei = input.files && input.files[0];
+  const st = document.getElementById('we-pdf-status');
+  if(!datei) return;
+  if(st) st.textContent = 'Monatsplan wird gelesen …';
+  try{
+    const pdfjs = await pdfjsLaden();
+    const daten = new Uint8Array(await datei.arrayBuffer());
+    const doc = await pdfjs.getDocument({ data: daten }).promise;
+    const seiten = [];
+    for(let p = 1; p <= doc.numPages; p++){
+      const page = await doc.getPage(p); const vp = page.getViewport({ scale: 1 }); const tc = await page.getTextContent();
+      seiten.push(tc.items.map(i => ({ s: i.str, x: i.transform[4], y: vp.height - i.transform[5] })));
+    }
+    const plan = monatsplanLesen(seiten);
+    if(!plan.kunden.length) throw new Error('Im PDF wurden keine Kunden erkannt. Ist es der Monatsplan einer Mitarbeiterin aus Aduna?');
+    WE.plan = plan;
+    if(plan.mitarbeiterin) WE.mitarbeiterin = plan.mitarbeiterin;
+    if(plan.pnr) WE.pnr = plan.pnr;
+    /* Bereits von Hand erfasste Kunden behalten */
+    const hand = WE.kunden.filter(k => k.sicher === 'manuell');
+    WE.kunden = plan.kunden.map(k => ({ kunde: k.kunde, adresse: k.adresse, nr: k.nr, freq: k.freq === 'monatlich' ? 'monatlich' : k.freq === 'alle 2 Wochen' ? '14-taeglich' : 'woechentlich',
+      wt: k.wt, std: k.std, sicher: k.sicher, grund: k.grund, einsaetze: k.einsaetze, mail: '', on: true, anrede: '' })).concat(hand);
+    meldung(plan.kunden.length + ' Kunden aus dem Monatsplan ' + (plan.periode || '') + ' erkannt. Bitte E-Mail-Adressen ergänzen.');
+  }catch(e){
+    meldung('Monatsplan nicht gelesen: ' + e.message, 'neg');
+  }
+  zeichnen();
+}
+
+async function weVorschau(i){
+  const k = i >= 0 ? WE.kunden[i] : (WE.kunden.find(x => x.on) || WE.kunden[0] || { kunde: 'Muster, Anna', adresse: 'Musterstrasse 1, 8307 Effretikon', freq: 'woechentlich', wt: 'Mo', std: 3 });
+  try{
+    const r = await fetch('/api/wechsel', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ aktion: 'vorschau', grund: WE.grund, mitarbeiterin: WE.mitarbeiterin, pnr: WE.pnr, letzterEinsatz: WE.letzter, kunde: k }) });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(d.error || 'Server ' + r.status);
+    WE.vorschau = d; WE.vorschauFuer = i; zeichnen();
+    const el = document.querySelector('.we-vorschau'); if(el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }catch(e){ meldung('Vorschau nicht möglich: ' + e.message, 'neg'); }
+}
+
+async function weSenden(btn){
+  const gew = WE.kunden.filter(k => k.on);
+  const mon = gew.filter(k => k.freq === 'monatlich').length;
+  if(!confirm(gew.length + ' Kund' + (gew.length === 1 ? 'in' : 'en') + ' von ' + WE.mitarbeiterin + ' werden jetzt per E-Mail informiert (' + WE_GRUND[WE.grund] + ', letzter Einsatz ' + dat(WE.letzter) + ').' +
+    (mon ? '\n' + mon + ' davon monatlich: nur Information, keine Vakanz.' : '') + '\n\nKopie an putzfrauenservice@clean-service.ch. Fortfahren?')) return;
+  WE.sendet = true; zeichnen();
+  try{
+    const r = await fetch('/api/wechsel', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ aktion: 'starten', grund: WE.grund, mitarbeiterin: WE.mitarbeiterin, pnr: WE.pnr, letzterEinsatz: WE.letzter, bearbeiter: CS_WER,
+        kunden: gew.map(k => ({ kunde: k.kunde, adresse: k.adresse, nr: k.nr || '', freq: k.freq, wt: k.wt, std: k.std, sicher: k.sicher, mail: k.mail, anrede: k.anrede || '' })) }) });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok || !d.ok) throw new Error(d.error || 'Server ' + r.status);
+    let txt = d.gesendet + ' Kund' + (d.gesendet === 1 ? 'in' : 'en') + ' informiert' + (d.info ? ', ' + d.info + ' monatlich nur Info' : '') + '. Vakanzen entstehen, sobald die Antworten eintreffen.';
+    if(d.fehler && d.fehler.length) txt += ' Nicht gesendet: ' + d.fehler.map(f => f.kunde + ' (' + f.grund + ')').join('; ');
+    meldung(txt, d.fehler && d.fehler.length ? 'neg' : '');
+    WE.neu = false; WE.kunden = []; WE.plan = null; WE.vorschau = null; WE.sendet = false;
+    await weLaden(true);
+  }catch(e){
+    WE.sendet = false; zeichnen();
+    meldung('Senden fehlgeschlagen: ' + e.message, 'neg');
+  }
+}
+
+/* ---------- Tabelle der laufenden Wechselfälle ---------- */
+function weTabelle(){
+  const offen = WE.faelle.filter(weOffen), erledigt = WE.faelle.filter(f => !weOffen(f));
+  const liste = WE.filter === 'offen' ? offen : WE.filter === 'erledigt' ? erledigt : WE.faelle;
+  const chip = (id, txt, n) => '<button class="vak-chip" aria-pressed="' + (WE.filter === id) + '" onclick="WE.filter=\'' + id + '\';zeichnen()">' + txt + ' · ' + n + '</button>';
+  let h = '<div class="vak-chips" style="margin-top:4px;">' + chip('offen', 'Laufend', offen.length) + chip('erledigt', 'Abgeschlossen', erledigt.length) + chip('alle', 'Alle', WE.faelle.length) +
+    (weAufgaben().length ? '<span class="tag neg" style="align-self:center;">' + weAufgaben().length + ' zu erledigen</span>' : '') + '</div>';
+  if(!liste.length){
+    return h + '<div class="leer"><h3>' + (WE.filter === 'offen' ? 'Kein laufender Wechsel' : 'Nichts vorhanden') + '</h3>Mit «Neuer Wechsel» liest du den Monatsplan der bisherigen Raumpflegerin ein und informierst alle Kunden mit einem Klick.</div>';
+  }
+  /* Nach Raumpflegerin gruppieren, neuste Gruppe zuoberst */
+  const gruppen = [];
+  liste.forEach(f => { let g = gruppen.find(x => x.id === (f.gruppe || f.id)); if(!g){ g = { id: f.gruppe || f.id, bisher: f.bisher, grundText: f.grundText, letzter: f.letzterEinsatz, faelle: [] }; gruppen.push(g); } g.faelle.push(f); });
+  gruppen.forEach(g => {
+    h += '<div class="card" style="margin-bottom:14px;"><div class="card-head"><div><h2>' + esc(g.bisher || 'Ohne Namen') + '</h2><p>' + esc(g.grundText) + (g.letzter ? ' · letzter Einsatz ' + dat(g.letzter) : '') + ' · ' + g.faelle.length + ' Kund' + (g.faelle.length === 1 ? 'in' : 'en') + '</p></div></div>' +
+      '<div class="card-body eng"><div class="we-tab"><div class="we-tk"><span>Kunde</span><span>Mail</span><span>Antwort der Kundschaft</span><span>Vakanz · Raumpflegerin</span><span>Ersatz in Aduna</span><span></span></div>' +
+      g.faelle.map(weZeile).join('') + '</div></div></div>';
+  });
+  return h;
+}
+
+function weZeile(f){
+  const mail = f.mailFehler ? '<span class="tag neg">nicht gesendet</span><div class="vak-sub">' + esc(f.mailFehler.slice(0,80)) + '</div>'
+    : f.mailAm ? '<div class="vak-sub">gesendet ' + esc(vakSeit(f.mailAm)) + '<br>Kopie an PFS' + (f.erinnerungen ? '<br>' + f.erinnerungen + '× erinnert' : '') + '</div>' : '<span class="tag neutral">keine Mail</span>';
+  let antwort;
+  if(f.monatlich) antwort = '<span class="tag neutral">nur Info · Springerteam</span>';
+  else if(f.antwortAm) antwort = '<span class="tag pos">' + (f.antwortArt === 'telefonisch' ? 'telefonisch erfasst' : f.antwortArt === 'ohneAntwort' ? 'ohne Antwort ausgeschrieben' : 'beantwortet') + '</span>' +
+    '<div class="vak-sub">' + esc((f.wunschTage || []).join('/')) + ' · ' + esc(f.wunschTageszeit) + (f.bemerkung ? '<br>«' + esc(f.bemerkung) + '»' : '') + '</div>';
+  else if(f.anrufAb) antwort = '<span class="tag neg">keine Antwort · anrufen</span><div class="vak-sub">' + (f.telefon ? esc(f.telefon) + ' · ' : '') + 'Anruf-Aufgabe seit ' + dat(f.anrufAb) + '</div>';
+  else if(f.erinnertAm) antwort = '<span class="tag warn">erinnert</span><div class="vak-sub">am ' + dat(f.erinnertAm) + ' · Anruf-Aufgabe ab Tag 10</div>';
+  else antwort = '<span class="tag warn">ausstehend</span><div class="vak-sub">' + (f.tageSeitMail != null ? 'seit ' + f.tageSeitMail + ' Tag' + (f.tageSeitMail === 1 ? '' : 'en') + ' · ' : '') + 'Erinnerung am Tag 5</div>';
+  let vak;
+  if(f.monatlich) vak = '<span class="cs-mute">–</span>';
+  else if(f.einfuehrungBestaetigt) vak = '<span class="tag pos">bestätigt · ' + esc(f.raumpflegerin) + '</span><div class="vak-sub">Einführung ' + esc(vakZeit(f.einfuehrungAm, f.einfuehrungZeit)) + '</div>';
+  else if(f.einfuehrungAm) vak = '<span class="tag pos">' + esc(f.raumpflegerin) + '</span><div class="vak-sub">Terminvorschlag ' + esc(vakZeit(f.einfuehrungAm, f.einfuehrungZeit)) + ' bei der Kundschaft</div>';
+  else if(f.portalId) vak = '<span class="tag">ausgeschrieben</span><div class="vak-sub">seit ' + dat(f.portalAm) + ' · Bewerbungen in den Vakanzen</div>';
+  else if(f.portalFehler) vak = '<span class="tag neg">nicht ausgeschrieben</span><div class="vak-sub">' + esc(f.portalFehler.slice(0,80)) + '</div>';
+  else vak = '<span class="cs-mute">entsteht mit der Antwort</span>';
+  let sp;
+  if(f.monatlich || f.einfuehrungBestaetigt) sp = '<span class="cs-mute">' + (f.einfuehrungBestaetigt ? 'nach Einführung aufräumen' : '–') + '</span>';
+  else sp = '<div class="we-sp"><input type="date" value="' + esc(f.springerBis || '') + '" onchange="weSpringerBis(\'' + esc(f.id) + '\',this.value)" title="Ersatzreinigungen in Aduna eingeplant bis">' +
+    (f.springerBis ? '<span class="vak-sub">' + (plusTageIso(f.springerBis, -7) <= heuteIso() ? '<span class="cs-neg">läuft aus · verlängern</span>' : 'Erinnerung am ' + dat(plusTageIso(f.springerBis, -7))) + '</span>' : '<span class="vak-sub cs-neg">noch nicht eingeplant</span>') + '</div>';
+  const kn = [];
+  if(!f.monatlich && weOffen(f)) kn.push('<a href="' + esc(f.link) + '" target="_blank" rel="noopener">Kundenansicht</a>');
+  if(weWartet(f)){
+    kn.push('<a href="#" onclick="weErfassen(\'' + esc(f.id) + '\');return false;">Telefonisch erfasst</a>');
+    kn.push('<a href="#" onclick="weAktion(\'' + esc(f.id) + '\',\'ohneAntwort\');return false;">Ohne Antwort ausschreiben</a>');
+    if(f.mailAm) kn.push('<a href="#" onclick="weAktion(\'' + esc(f.id) + '\',\'erinnern\');return false;">Erinnern</a>');
+  }
+  if(f.antwortAm && !f.portalId && !f.monatlich) kn.push('<a href="#" onclick="weAktion(\'' + esc(f.id) + '\',\'ohneAntwort\',true);return false;">Nochmals ausschreiben</a>');
+  if(weOffen(f)) kn.push('<a href="#" onclick="weAktion(\'' + esc(f.id) + '\',\'erledigt\');return false;">Erledigt</a>');
+  if(weOffen(f) && !f.portalId) kn.push('<a href="#" class="cs-neg" onclick="weAktion(\'' + esc(f.id) + '\',\'zurueckziehen\');return false;">Löschen</a>');
+  return '<div class="we-tz' + (weOffen(f) ? '' : ' aus') + '">' +
+    '<span><strong>' + esc(f.kunde) + '</strong><span class="vak-sub">' + esc([f.adresse, f.plzOrt].filter(Boolean).join(', ')) + '<br>' + esc(f.rhythmus) + (f.aufwand ? ' · ' + esc(f.aufwand) : '') + (f.tage && !f.antwortAm ? ' · ' + esc(f.tage) : '') + '</span>' +
+      '<span class="vak-sub">' + esc(f.mail) + '</span></span>' +
+    '<span>' + mail + '</span><span>' + antwort + '</span><span>' + vak + '</span><span>' + sp + '</span>' +
+    '<span class="we-kn">' + kn.join('') + '</span></div>';
+}
+
+async function weAktion(id, aktion, erneut){
+  const f = WE.faelle.find(x => x.id === id); if(!f) return;
+  const fragen = {
+    ohneAntwort: erneut ? f.kunde + ': Vakanz jetzt im Stellenportal ausschreiben (' + (f.wunschTage || []).join('/') + ' · ' + f.wunschTageszeit + ')?' : f.kunde + ' hat nicht geantwortet. Vakanz mit dem bisherigen Reinigungstag (' + f.tage + ', Zeit nach Absprache) ausschreiben?',
+    erinnern: 'Erinnerungsmail jetzt an ' + f.kunde + ' (' + f.mail + ') senden?',
+    erledigt: f.kunde + ': Wechselfall abschliessen? Er verschwindet aus der laufenden Liste.',
+    zurueckziehen: f.kunde + ': Wechselfall löschen? Die Kundschaft wird nicht erneut informiert, der Link aus der Mail wird ungültig.'
+  };
+  if(fragen[aktion] && !confirm(fragen[aktion])) return;
+  try{
+    const r = await fetch('/api/wechsel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aktion, id, bearbeiter: CS_WER }) });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok || !d.ok) throw new Error(d.error || 'Server ' + r.status);
+    if(aktion === 'ohneAntwort') meldung(d.portal ? 'Vakanz im Stellenportal eröffnet.' : 'Gespeichert, aber Stellenportal: ' + (d.portalFehler || 'nicht erreichbar'), d.portal ? '' : 'neg');
+    else meldung(aktion === 'erinnern' ? 'Erinnerung gesendet.' : aktion === 'erledigt' ? 'Fall abgeschlossen.' : aktion === 'zurueckziehen' ? 'Fall gelöscht.' : 'Gespeichert.');
+    await weLaden(true);
+    if(aktion === 'ohneAntwort') vakLaden(true);
+  }catch(e){ meldung('Nicht ausgeführt: ' + e.message, 'neg'); }
+}
+async function weSpringerBis(id, bis){
+  try{
+    const r = await fetch('/api/wechsel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aktion: 'springerBis', id, bis, bearbeiter: CS_WER }) });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok || !d.ok) throw new Error(d.error || 'Server ' + r.status);
+    meldung(bis ? 'Ersatzreinigungen eingeplant bis ' + dat(bis) + ' — Erinnerung am ' + dat(plusTageIso(bis, -7)) + ', falls bis dahin keine feste Raumpflegerin bestätigt ist.' : 'Eintrag gelöscht.');
+    await weLaden(true);
+  }catch(e){ meldung('Nicht gespeichert: ' + e.message, 'neg'); }
+}
+
+/* Telefonisch erfasste Antwort */
+function weErfassen(id){ WE.erfassen = { id, tage: [], tz: 'egal', bem: '' }; zeichnen(); }
+function weErfassenPanel(){
+  const f = WE.faelle.find(x => x.id === WE.erfassen.id); if(!f) return '';
+  const e = WE.erfassen;
+  const tage = ['Mo','Di','Mi','Do','Fr','Sa'].map(t => '<label class="we-tag"><input type="checkbox" value="' + t + '"' + (e.tage.includes(t) ? ' checked' : '') +
+    ' onchange="const s=new Set(WE.erfassen.tage);this.checked?s.add(this.value):s.delete(this.value);WE.erfassen.tage=[...s]"><span>' + t + '</span></label>').join('');
+  const tz = [['vormittag','Vormittag'],['nachmittag','Nachmittag'],['egal','Egal']].map(z => '<label class="we-radio"><input type="radio" name="we-tz" value="' + z[0] + '"' + (e.tz === z[0] ? ' checked' : '') + ' onchange="WE.erfassen.tz=this.value"><span>' + z[1] + '</span></label>').join('');
+  return '<div class="vak-schleier" onclick="WE.erfassen=null;zeichnen()"></div><aside class="vak-panel" role="dialog" aria-label="Antwort erfassen">' +
+    '<div class="vak-ph"><div><div class="vak-eyebrow">Telefonisch erfasst</div><h2 style="margin:4px 0 6px;font-size:19px;">' + esc(f.kunde) + '</h2><span class="vak-sub">' + esc([f.adresse, f.plzOrt].filter(Boolean).join(', ')) + ' · ' + esc(f.rhythmus) + '</span></div>' +
+    '<button class="vak-schliessen" onclick="WE.erfassen=null;zeichnen()" aria-label="Schliessen">×</button></div><div class="vak-pb">' +
+    '<div class="feld"><label>Mögliche Reinigungstage <span class="erklaerung">Mehrere möglich</span></label><div class="we-tage">' + tage + '</div></div>' +
+    '<div class="feld"><label>Tageszeit <span class="erklaerung">Eine Auswahl</span></label><div class="we-radios">' + tz + '</div></div>' +
+    '<div class="feld"><label>Bemerkung</label><textarea rows="3" oninput="WE.erfassen.bem=this.value">' + esc(e.bem) + '</textarea></div>' +
+    '<div class="hinweis">Mit dem Speichern entsteht die Vakanz im Stellenportal eins zu eins nach diesen Angaben — gleich wie bei der Antwort über den Knopf in der Mail.</div>' +
+    '<div class="btn-row" style="margin-top:14px;"><button class="btn primary-action" onclick="weErfassenSenden(this)">Speichern und ausschreiben</button><button class="btn secondary" onclick="WE.erfassen=null;zeichnen()">Abbrechen</button></div>' +
+    '</div></aside>';
+}
+async function weErfassenSenden(btn){
+  const e = WE.erfassen; if(!e) return;
+  if(!e.tage.length){ meldung('Bitte mindestens einen Reinigungstag wählen.', 'neg'); return; }
+  btn.disabled = true; btn.textContent = 'Wird gespeichert …';
+  try{
+    const r = await fetch('/api/wechsel', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ aktion: 'telefonisch', id: e.id, tage: e.tage, tageszeit: e.tz, bemerkung: e.bem, bearbeiter: CS_WER }) });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok || !d.ok) throw new Error(d.error || 'Server ' + r.status);
+    meldung(d.portal ? 'Antwort erfasst, Vakanz im Stellenportal eröffnet.' : 'Antwort erfasst, aber Stellenportal: ' + (d.portalFehler || 'nicht erreichbar'), d.portal ? '' : 'neg');
+    WE.erfassen = null;
+    await weLaden(true); vakLaden(true);
+  }catch(ex){ meldung('Nicht gespeichert: ' + ex.message, 'neg'); btn.disabled = false; btn.textContent = 'Speichern und ausschreiben'; }
 }
 
 function seiteUnzufrieden(){
