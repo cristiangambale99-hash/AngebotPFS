@@ -1733,6 +1733,9 @@ function naechsterSchritt(e){
   if(unzufrieden(e))
     return {titel:'Reklamation klären', satz:'Die Kundschaft ist nicht zufrieden. Kontakt aufnehmen, dann zweite Nachfrage senden.', dringend:0, knopf:null};
 
+  if(e.quelle !== 'auftrag' && e.stufe === 'abgesagt')
+    return {titel:'Angebot abgesagt', satz:(e.abgesagtGrund ? e.abgesagtGrund + '. ' : '') + 'Der Link ist nicht mehr gültig. Meldet sich die Kundschaft doch noch, das Angebot wieder aufschalten.',
+            dringend:3, knopf:{text:'Wieder aufschalten', ruf:"angebotReaktivieren('" + e.id + "')"}};
   if(e.quelle !== 'auftrag')
     return {titel:'Auf Antwort warten', satz:'Erinnerungen nach 5 und 30 Tagen laufen automatisch.', dringend:2, knopf:null};
 
@@ -3556,7 +3559,12 @@ function kartenSchritte(e){
   const s = [];
   const auftrag = e.quelle === 'auftrag';
 
-  if(!auftrag){
+  if(!auftrag && e.stufe === 'abgesagt'){
+    s.push(schritt('Angebot wieder aufschalten',
+      'Das Angebot ist abgesagt' + (e.abgesagtGrund ? ' (' + esc(e.abgesagtGrund) + ')' : '') + ' und der Link der Kundschaft funktioniert nicht mehr. ' +
+      'Wieder aufgeschaltet gilt es mit demselben Link erneut 35 Tage, ohne weitere Erinnerungen.',
+      '<button class="btn primary-action" onclick="angebotReaktivieren(\'' + e.id + '\', this)">Wieder aufschalten</button>'));
+  } else if(!auftrag){
     s.push(schritt('Auf Angebot warten',
       'Solange keine Auftragserteilung eingegangen ist, laufen die Erinnerungen nach 5 und 30 Tagen automatisch.',
       '<button class="btn danger" onclick="stufeSetzen(\'' + e.id + '\',\'abgesagt\')">Angebot absagen</button>'));
@@ -3823,6 +3831,31 @@ async function speichern(id, felder, meldungText){
 function inBearbeitung(id){
   speichern(id, {stufe:'bearbeitung', bearbeitungAb: new Date().toISOString()},
     'Fall ist in Bearbeitung, die Frist läuft ab heute.');
+}
+
+async function angebotReaktivieren(id, btn){
+  const e = LISTE.find(x => String(x.id) === String(id));
+  if(!e) return;
+  if(!confirm('Angebot ' + (e.angebotsnr || e.code) + ' von ' + name(e) + ' wieder aufschalten?\n\nDer Link der Kundschaft funktioniert sofort wieder und gilt 35 Tage ab heute.')) return;
+  const alt = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'Wird aufgeschaltet …'; }
+  try{
+    const r = await fetch('/api/offers?aktion=status', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({code: e.code, status:'gesendet', notizNeu:'Angebot wieder aufgeschaltet', bearbeiter: CS_WER})
+    });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(d.error || 'Server ' + r.status);
+    const jetzt = new Date().toISOString();
+    Object.assign(e, { status:'gesendet', stufe: e.erinnerung2 ? 'nachgefasst2' : e.erinnerung1 ? 'nachgefasst1' : 'gesendet', reaktiviertAm: jetzt, abgesagtAm:'', abgesagtGrund:'' });
+    const a = ANGEBOTE && (ANGEBOTE.angebote || []).find(x => x.code === e.code);
+    if(a) Object.assign(a, { status:'gesendet', reaktiviertAm: jetzt, abgesagtAm:'', abgesagtGrund:'' });
+    zeichnen();
+    meldung('Angebot wieder aufgeschaltet. Der Link der Kundschaft funktioniert wieder, gültig bis ' + new Date(Date.now() + 35*86400000).toLocaleDateString('de-CH') + '.');
+  }catch(err){
+    meldung('Nicht aufgeschaltet: ' + err.message, 'neg');
+    if(btn){ btn.disabled = false; btn.textContent = alt; }
+  }
 }
 
 async function stufeSetzen(id, stufe){
