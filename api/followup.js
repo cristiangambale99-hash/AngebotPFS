@@ -156,7 +156,10 @@ export default async function handler(req, res) {
 
     for (const a of alle) {
       const name = [a.vorname, a.nachname].filter(Boolean).join(' ') || a.code;
-      const tageRoh = a.gesendetAm ? Math.floor((jetzt - new Date(a.gesendetAm).getTime()) / 86400000) : null;
+      /* Wurde ein abgelaufenes Angebot in der Verwaltung wieder aufgeschaltet,
+         laeuft die Frist ab diesem Tag neu (ohne erneute Erinnerungen). */
+      const fristAb = a.reaktiviertAm || a.gesendetAm;
+      const tageRoh = fristAb ? Math.floor((jetzt - new Date(fristAb).getTime()) / 86400000) : null;
 
       // Gründe erfassen, damit im Admin sichtbar wird, warum nichts passiert
       let grund = null;

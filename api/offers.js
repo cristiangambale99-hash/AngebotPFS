@@ -88,6 +88,13 @@ async function statusAendern(req, res) {
   const neu = { ...vorhanden };
   delete neu._id;
   if (status) {
+    /* Wieder aufschalten: ein abgesagtes Angebot wird erneut gültig. Die
+       35-Tage-Frist läuft ab heute (api/followup.js zählt ab reaktiviertAm). */
+    if (status === 'gesendet' && vorhanden.status === 'abgesagt') {
+      neu.reaktiviertAm = new Date().toISOString();
+      neu.abgesagtAm = '';
+      neu.abgesagtGrund = '';
+    }
     neu.status = status;
     if (status === 'auftrag' && !neu.auftragAm) neu.auftragAm = new Date().toISOString();
   }
