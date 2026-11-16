@@ -1788,7 +1788,8 @@ function naechsterSchritt(e){
     (tageSeit(e.bearbeitungAb || e.eingegangenAm) || 0) > 14;
   if(wartetLange)
     return {titel:'Feste Raumpflegerin finden',
-            satz:'Seit ' + (tageSeit(e.bearbeitungAb || e.eingegangenAm)) + ' Tagen ohne Zuteilung. Bitte heute lösen.',
+            satz:'Seit ' + (tageSeit(e.bearbeitungAb || e.eingegangenAm)) + ' Tagen ohne Zuteilung. ' +
+                 (e.personalAm ? 'Personalabteilung unterstützt seit ' + datKurzP(e.personalAm) + '.' : 'Bitte heute lösen.'),
             dringend:0, knopf:null};
 
   if(e.stufe === 'bearbeitung' && !e.vorlaufMail && !e.vorlaufAus){
@@ -1900,6 +1901,7 @@ function seiteAnleitung(){
     'Angebot senden und die beiden Erinnerungen danach',
     'Bestätigung der Auftragserteilung an die Kundschaft',
     'Angebot des Springerteams nach sieben Werktagen',
+    'Anfrage an die Personalabteilung, wenn die Kundschaft länger als 7 Tage wartet und das Springerteam abgelehnt hat, mit einer Erinnerung 7 Tage später',
     'Terminvorschlag für die Einführung, sobald du ihn auslöst',
     'Terminbestätigung samt unterschriebenem Vertrag — auch wenn du die Zusage von Hand einträgst',
     'Qualitätsnachfrage und, bei guter Rückmeldung, die Bitte um eine Google-Bewertung',
@@ -1986,6 +1988,7 @@ function istSpringerStart(e){
       || e.springerAntwort === 'ja'
       || e.stufe === 'springer_gewuenscht';
 }
+function datKurzP(iso){ const d = new Date(iso); return isNaN(d) ? '' : d.getDate() + '.' + (d.getMonth()+1) + '.'; }
 function offenerAuftrag(e){
   return e.quelle === 'auftrag' && !['aktiv','archiv','abgesagt'].includes(e.stufe);
 }
@@ -2041,7 +2044,8 @@ function springerMerkmal(e){
   if(e.stufe === 'aktiv') return '';
   if(e.springerAntwort === 'ja') return '<span class="tag pos">Springerteam angenommen</span>';
   if(String(e.springerSofort || '').toLowerCase() === 'ja') return '<span class="tag">Springerteam gewünscht</span>';
-  if(e.springerAntwort === 'nein') return '<span class="tag neutral">Springerteam abgelehnt</span>';
+  if(e.springerAntwort === 'nein') return '<span class="tag neutral">Springerteam abgelehnt</span>' +
+    (e.personalAm ? ' <span class="tag">Personalabteilung angefragt · ' + datKurzP(e.personalAm) + (e.personalErinnertAm ? ', erinnert ' + datKurzP(e.personalErinnertAm) : '') + '</span>' : '');
   if(e.vorlaufMail) return '<span class="tag warn">Springerteam angeboten</span>';
   return '';
 }
