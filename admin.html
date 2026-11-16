@@ -2740,6 +2740,7 @@ async function vakLaden(leise){
     const d = await r.json().catch(() => ({}));
     if(!r.ok) throw new Error(d.error || 'Server ' + r.status);
     VAK.objekte = d.objekte || [];
+    VAK.bkFehler = d.bkFehler || '';
     VAK.nachholen = d.nachholen || [];
     VAK.stand = d.stand || new Date().toISOString();
   }catch(e){
@@ -2786,6 +2787,10 @@ function seiteVakanzen(){
   const liste = offen;
 
   let h = '';
+  if(VAK.bkFehler){
+    h += '<div class="hinweis neg" style="margin-bottom:16px;"><strong>Beekeeper ist nicht erreichbar.</strong> ' + esc(VAK.bkFehler) +
+         ' Zusagen und Absagen werden im Stellenportal gespeichert, die Nachrichten in Beekeeper gehen aber nicht raus, bis das behoben ist.</div>';
+  }
   if(VAK.fehler){
     const tipp = /Server 404/.test(VAK.fehler) ? ' — die Weiterleitung /api/vakanzen fehlt: vercel.json im Hauptverzeichnis aktualisieren und neu deployen.'
                : /STELLEN_SUPABASE/.test(VAK.fehler) ? ' — in Vercel die Variable setzen und neu deployen.' : '';
@@ -2883,7 +2888,7 @@ function vakPanel(){
       '<div class="vak-sub">' +
       (b.personalnummer ? 'Personal-Nr. ' + esc(b.personalnummer) : 'Neue Mitarbeiterin') +
       (b.beekeeperName && b.beekeeperName !== b.name ? ' · in Beekeeper: ' + esc(b.beekeeperName) : '') +
-      (!b.beekeeperId && VAK.beekeeper !== false ? ' · <span class="cs-neg">in Beekeeper nicht gefunden</span>' : '') +
+      (!b.beekeeperId && VAK.beekeeper !== false ? ' · <span class="cs-neg">' + (VAK.bkFehler ? 'Beekeeper nicht erreichbar' : 'in Beekeeper nicht gefunden') + '</span>' : '') +
       (wunsch ? '<br>Wunschtermin ' + esc(wunsch) : '') + '</div></div>' +
       '<span class="vak-zeitpunkt" title="' + esc(datZeit(b.erstellt)) + '">Eingegangen<br>' + esc(vakSeit(b.erstellt)) + '</span></div>';
     if(b.status === 'bestaetigt'){
