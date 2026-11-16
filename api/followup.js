@@ -423,10 +423,133 @@ export default async function handler(req, res) {
       bericht.fehler.push({ code: 'Wechseldurchgang', meldung: (e && e.message) || String(e) });
     }
 
+    /* ======== Sechster Durchgang: Unterstützung der Personalabteilung ========
+       Kundschaft steht mehr als 7 Tage unter «Wartet auf feste Raumpflegerin»
+       und hat das Springerteam abgelehnt: einmal ein Mail an die
+       Personalabteilung (Kopie PFS), 7 Tage später einmal eine Erinnerung,
+       solange keine feste Raumpflegerin zugeteilt ist. */
+    try {
+      const auftraege5 = await alleLesen(AUFTRAG_SAMMLUNG, 500);
+      bericht.personal = await personalDurchlauf(apiKey, auftraege5, nurPruefen);
+    } catch (e) {
+      bericht.fehler.push({ code: 'Personaldurchgang', meldung: (e && e.message) || String(e) });
+    }
+
     return res.status(200).json({ ok: true, probelauf: !!nurPruefen, ...bericht });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
+}
+
+/* ==========================================================================
+   Unterstützung der Personalabteilung
+   ========================================================================== */
+const PERSONAL_MAIL = process.env.PERSONAL_MAIL || 'personal@clean-service.ch';
+const PERSONAL_AB_TAGEN = 7;
+const PERSONAL_ERINNERUNG_TAGE = 7;
+const MONATE_P = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const datLangP = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.getDate() + '. ' + MONATE_P[d.getMonth()] + ' ' + d.getFullYear(); };
+const tageSeitP = iso => { const t = new Date(iso).getTime(); return isNaN(t) ? 0 : Math.floor((Date.now() - t) / 86400000); };
+const escP = t => String(t == null ? '' : t).replace(/[<>&]/g, c => ({ '<':'&lt;', '>':'&gt;', '&':'&amp;' }[c]));
+
+/* Dieselbe Regel wie der Block «Wartet auf feste Raumpflegerin» in der Verwaltung */
+function wartetAufFesteRP(a) {
+  if (String(a.stufe || '') !== 'bearbeitung') return false;
+  if (a.art === 'wechsel') return false;
+  if (a.einfuehrungAm) return false;                       // Terminvorschlag ist draussen
+  const springer = String(a.springerSofort || '').toLowerCase() === 'ja' || a.springerGestartet === true || a.springerAntwort === 'ja';
+  return !springer;
+}
+function personalFaellig(a) {
+  return wartetAufFesteRP(a) && a.springerAntwort === 'nein' &&
+    tageSeitP(a.bearbeitungAb || a.eingegangenAm) > PERSONAL_AB_TAGEN;
+}
+
+async function personalMail(apiKey, a, erinnerung) {
+  const name = [a.vorname, a.nachname].filter(Boolean).join(' ').trim() || a.kundeRoh || 'Kundschaft';
+  const ort = String(a.plzOrt || a.ort || '').replace(/^\d{4}\s*/, '');
+  const seit = a.bearbeitungAb || a.eingegangenAm;
+  const tage = tageSeitP(seit);
+  const zeilen = [
+    ['Kunde', escP(name)],
+    ['Objekt', escP([a.adresse, a.plzOrt || a.ort].filter(Boolean).join(', '))],
+    ['Rhythmus', escP([a.frequenzText || a.frequenz, a.aufwandText].filter(Boolean).join(' · '))],
+    ['Mögliche Tage', escP([a.tage, a.uhrzeit].filter(Boolean).join(' · '))],
+    ['Wartet seit', datLangP(seit) + ' (' + tage + ' Tage)'],
+    erinnerung ? ['Erste Anfrage', datLangP(a.personalAm)] : ['Springerteam', 'abgelehnt' + (a.springerAntwortAm ? ' am ' + datLangP(a.springerAntwortAm) : '')],
+    ['Stellenportal', a.portalId ? 'ausgeschrieben' : 'noch nicht ausgeschrieben']
+  ].filter(([, v]) => v);
+  const betreff = erinnerung
+    ? 'Erinnerung: ' + name + (ort ? ', ' + ort : '') + ' · weiterhin ohne Raumpflegerin'
+    : 'Unterstützung gesucht: ' + name + (ort ? ', ' + ort : '') + ' · seit ' + tage + ' Tagen ohne Raumpflegerin';
+  const titel = erinnerung ? 'Die Kundschaft wartet weiterhin auf eine Raumpflegerin' : 'Wir brauchen eure Unterstützung bei der Besetzung';
+  const satz = erinnerung
+    ? 'Vor einer Woche haben wir euch um Unterstützung bei der Besetzung der folgenden Kundschaft gebeten. Bis heute konnten wir keine feste Raumpflegerin zuteilen, die Kundschaft wartet inzwischen seit ' + tage + ' Tagen. Wir sind weiterhin auf eure Unterstützung angewiesen.'
+    : 'Für die folgende Kundschaft suchen wir seit ' + tage + ' Tagen eine feste Raumpflegerin. Die Stelle ist im Stellenportal ausgeschrieben, bisher ohne passende Bewerbung. Das Springerteam als Übergangslösung hat die Kundschaft abgelehnt. Wir sind deshalb auf eure Unterstützung bei der Suche angewiesen.';
+  const portal = String(process.env.STELLENPORTAL_URL || '').replace(/\/+$/, '');
+  const inhalt = `
+    <p style="margin:0 0 16px;">Liebes Team der Personalabteilung</p>
+    <p style="margin:0 0 16px;">${satz}</p>
+    ${csTabelle(zeilen)}
+    ${portal ? csKnopf('Ausschreibung im Stellenportal ansehen', portal) : ''}`;
+  const text = 'Liebes Team der Personalabteilung\n\n' + satz + '\n\n' +
+    zeilen.map(([k, v]) => k + ': ' + String(v).replace(/&amp;/g, '&')).join('\n') +
+    (portal ? '\n\n' + portal : '') + csSignaturText('de', 'team');
+  const hinweis = erinnerung ? 'Letzte automatische Erinnerung zu dieser Kundschaft aus der Verwaltung PFS.'
+    : 'Automatisch gesendet aus der Verwaltung PFS, weil die Kundschaft seit mehr als 7 Tagen wartet und das Springerteam abgelehnt hat.';
+  const r = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: CS_ABSENDER_TEAM,
+      to: [PERSONAL_MAIL],
+      cc: ['putzfrauenservice@clean-service.ch'],
+      reply_to: 'putzfrauenservice@clean-service.ch',
+      subject: betreff,
+      html: csRahmen(titel, inhalt, hinweis, 'de', 'team'),
+      text,
+      attachments: [{ filename:'logo.png', content: CS_LOGO, content_id:'cslogo', disposition:'inline' }]
+    })
+  });
+  const daten = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(JSON.stringify(daten));
+  return daten;
+}
+
+async function personalDurchlauf(apiKey, alle, nurPruefen) {
+  const bericht = { geprueft: 0, angefragt: 0, erinnert: 0, faelle: [], fehler: [] };
+  for (const a of alle) {
+    if (!wartetAufFesteRP(a)) continue;
+    bericht.geprueft++;
+    const id = a._id || a.id || a.code;
+    if (!id) continue;
+    const neu = () => { const n = { ...a }; delete n._id; return n; };
+    const notiz = (n, text) => {
+      const l = Array.isArray(n.notizen) ? n.notizen.slice() : [];
+      l.push({ text, von: 'automatisch', am: new Date().toISOString() });
+      n.notizen = l.slice(-60);
+    };
+    try {
+      if (!a.personalAm && personalFaellig(a)) {
+        bericht.faelle.push({ id, art: 'anfrage' });
+        if (nurPruefen) { bericht.angefragt++; continue; }
+        await personalMail(apiKey, a, false);
+        const n = neu(); n.personalAm = new Date().toISOString(); notiz(n, 'Unterstützung bei der Personalabteilung angefragt (' + PERSONAL_MAIL + ')');
+        await speichern(AUFTRAG_SAMMLUNG, id, n);
+        bericht.angefragt++;
+      } else if (a.personalAm && !a.personalErinnertAm && tageSeitP(a.personalAm) >= PERSONAL_ERINNERUNG_TAGE) {
+        bericht.faelle.push({ id, art: 'erinnerung' });
+        if (nurPruefen) { bericht.erinnert++; continue; }
+        await personalMail(apiKey, a, true);
+        const n = neu(); n.personalErinnertAm = new Date().toISOString(); notiz(n, 'Erinnerung an die Personalabteilung gesendet');
+        await speichern(AUFTRAG_SAMMLUNG, id, n);
+        bericht.erinnert++;
+      }
+    } catch (e) {
+      bericht.fehler.push({ code: 'Personal ' + id, meldung: String((e && e.message) || e).slice(0, 300) });
+    }
+  }
+  return bericht;
 }
 
 /* Signatur des Nachbuchungslinks — muss mit api/termine.js übereinstimmen */
