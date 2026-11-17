@@ -1765,10 +1765,18 @@ function naechsterSchritt(e){
   }
   if(terminVorgeschlagen(e)){
     const tage = e.einfuehrungVorschlagAm ? tageSeit(e.einfuehrungVorschlagAm) : 0;
+    /* Tag 3: automatische Erinnerung an die Kundschaft (Morgenlauf).
+       Zwei Tage danach ohne Zusage: anrufen. */
+    if(e.einfuehrungErinnertAm && (tageSeit(e.einfuehrungErinnertAm) || 0) >= 2)
+      return {titel:'Kundin anrufen',
+              satz:'Terminvorschlag für den ' + dat(e.einfuehrungAm) + ' seit ' + tage + ' Tagen offen, auch nach der Erinnerung vom ' +
+                   datKurzP(e.einfuehrungErinnertAm) + ' keine Antwort. Anrufen und den Termin telefonisch bestätigen oder abbrechen.',
+              dringend:0, knopf:{text:'Öffnen', ruf:"oeffneFall('" + e.id + "')"}};
     return {titel:'Zusage abwarten',
-            satz:'Terminvorschlag für den ' + dat(e.einfuehrungAm) + ' ist draussen' +
-                 (tage > 7 ? ', seit ' + tage + ' Tagen ohne Antwort — nachfassen.' : ', Zusage steht aus.'),
-            dringend: tage > 7 ? 0 : 2, knopf:null};
+            satz:'Terminvorschlag für den ' + dat(e.einfuehrungAm) + ' ist draussen, Zusage steht aus. ' +
+                 (e.einfuehrungErinnertAm ? 'Erinnerung am ' + datKurzP(e.einfuehrungErinnertAm) + ' gesendet.'
+                                          : 'Ohne Antwort geht nach 3 Tagen automatisch eine Erinnerung raus.'),
+            dringend:2, knopf:null};
   }
 
   if(istSpringerStart(e) && e.stufe !== 'aktiv')
@@ -1891,7 +1899,8 @@ function seiteAnleitung(){
     ['7 Werktage', 'nach «In Bearbeitung»', 'Das Springerteam wird der Kundschaft automatisch angeboten — ausser es steht bereits ein Einführungstermin.'],
     ['14 Tage', 'ohne feste Zuteilung', 'Der Fall wird rot: «Feste Raumpflegerin finden».'],
     ['1 Tag', 'vor der Einführung', 'Stichtag für die Admin-Checkliste. Alle sieben Punkte müssen erledigt sein.'],
-    ['7 Tage', 'nach dem Terminvorschlag', 'Ohne Zusage wird der Fall rot und gehört nachgefasst.'],
+    ['3 Tage', 'nach dem Terminvorschlag', 'Ohne Zusage geht automatisch eine Erinnerung an die Kundschaft. Liegt der Termin früher, spätestens am Vortag.'],
+    ['2 Tage', 'nach der Erinnerung', 'Immer noch keine Zusage: Der Fall wird rot mit «Kundin anrufen».'],
     ['14 Tage / 4 Wochen / 2 Monate', 'nach der ersten Reinigung', 'Die Qualitätsnachfrage geht hinaus, je nach Rhythmus wöchentlich, 14-täglich oder monatlich. Solange das Springerteam führt, ruht sie.'],
     ['7 Tage', 'nach der Qualitätsnachfrage', 'Ohne Rückmeldung wandert der Auftrag ins Archiv mit dem Merkmal «Kein Feedback erhalten».'],
     ['5 und 30 Tage', 'nach dem Angebot', 'Erinnerungen an die Kundschaft. Nach 35 Tagen gilt das Angebot als abgesagt.']
@@ -1903,6 +1912,7 @@ function seiteAnleitung(){
     'Angebot des Springerteams nach sieben Werktagen',
     'Anfrage an die Personalabteilung, wenn die Kundschaft länger als 7 Tage wartet und das Springerteam abgelehnt hat, mit einer Erinnerung 7 Tage später',
     'Terminvorschlag für die Einführung, sobald du ihn auslöst',
+    'Erinnerung zum Terminvorschlag nach 3 Tagen ohne Zusage',
     'Terminbestätigung samt unterschriebenem Vertrag — auch wenn du die Zusage von Hand einträgst',
     'Qualitätsnachfrage und, bei guter Rückmeldung, die Bitte um eine Google-Bewertung',
     'Archivierung nach sieben Tagen ohne Rückmeldung',
@@ -1925,7 +1935,7 @@ function seiteAnleitung(){
     ['Was steht im täglichen Mail?',
      'Zuoberst vier Zahlen, dann die neuen Auftragserteilungen, die Einführungen von heute bis übermorgen mit dem Stand der Checkliste, die Reklamationen, ausstehende Zusagen und Fälle ohne feste Zuteilung. Leere Blöcke erscheinen nicht.'],
     ['Wer steht als Absender in den Mails?',
-     'Im Posteingang der Kundschaft immer «Clean Service Scaramuzzo AG». Unterschrieben ist bis und mit Angebot von Cristian Gambale, ab der Auftragserteilung vom Admin-Team.'],
+     'Im Posteingang der Kundschaft immer «Clean Service Scaramuzzo AG». Unterschrieben sind nur das Angebot und die Nachfragen dazu von Cristian Gambale, alle übrigen Mails mit «Admin Putzfrauenservice» ohne Direktnummer.'],
     ['Ich habe etwas falsch angeklickt — ist das schlimm?',
      'Nein. Statuswechsel lassen sich im Fall unter «Weitere Möglichkeiten» korrigieren, Häkchen einfach wieder entfernen. Nur versendete Mails lassen sich nicht zurückholen.']
   ];
@@ -2025,7 +2035,8 @@ function terminVorgeschlagen(e){
   return e.stufe !== 'abgesagt';
 }
 function einfuehrungMerkmal(e){
-  if(terminVorgeschlagen(e)) return '<span class="tag warn">Einführungstermin vorgeschlagen</span>';
+  if(terminVorgeschlagen(e)) return '<span class="tag warn">Einführungstermin vorgeschlagen</span>' +
+    (e.einfuehrungErinnertAm ? ' <span class="tag">Erinnert am ' + datKurzP(e.einfuehrungErinnertAm) + '</span>' : '');
   if(e.einfuehrungBestaetigt) return '<span class="tag pos">Einführungstermin bestätigt</span>';
   return '';
 }
@@ -3523,6 +3534,7 @@ function kartenVerlauf(e){
   add(e.vorlaufMail, 'Nachfrage zum Springerteam gesendet', true);
   add(e.springerAntwortAm, 'Antwort der Kundschaft: ' + (e.springerAntwort === 'ja' ? 'Springerteam gewünscht' : 'kein Springerteam'), true);
   add(e.einfuehrungVorschlagAm, 'Terminvorschlag für die Einführung gesendet', true);
+  add(e.einfuehrungErinnertAm, 'Erinnerung zum Einführungstermin an die Kundschaft gesendet', true);
   add(e.einfuehrungBestaetigt, 'Einführungstermin von der Kundschaft bestätigt', true);
   add(e.vertragSigniertAm, 'Vertrag unterschrieben', true);
   add(e.festStartAm, 'Feste Raumpflegerin übernommen' + (e.raumpflegerin ? ': ' + esc(e.raumpflegerin) : ''), true);

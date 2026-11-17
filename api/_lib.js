@@ -93,7 +93,7 @@ async function sendMail({ to, subject, text, attachments, kind, objectId, S, lan
   const plain = String(text).replace(/\[\[BTN:([^|\]]+)\|(https?:\/\/[^|\]\s]+)(?:\|[^\]]*)?\]\]/g, '$1: $2').replace(MDL, '$1: $2');
   const k = String(kind || ''), copy = nocopy ? false : /^cal/.test(k) ? S.bccBes !== 'nein' : /^(nf\d|re6)/.test(k) ? S.bccNach !== 'nein' : true;
   const payload = { from: FROM, to: Array.isArray(to) ? to : [to], reply_to: RT, subject, html, text: plain + sigText(S, lang, FROM) };
-  if (copy) payload.bcc = copyTo ? [].concat(copyTo) : [RT];   /* Kopie: Hotelofferten an unterhalt@, sonst an die Antwortadresse */
+  if (copy) payload.bcc = copyTo ? [].concat(copyTo) : [RT];   /* Kopie: Hotelofferten an hotelservice@, sonst an die Antwortadresse */
   const att = (attachments && attachments.length ? attachments.slice() : []); if (inl) att.push(inl);
   if (att.length) payload.attachments = att;
   let id = null, status = 'ok', err = null;
@@ -119,5 +119,5 @@ async function assetBytes(name) {
 }
 const HOTEL_RT = 'Clean Service Hotelservice <hotelservice@clean-service.ch>';
 const HOTEL_FROM = 'Clean Service Hotelservice <hotelservice@clean-service.ch>';
-const HOTEL_CC = 'unterhalt@clean-service.ch';   /* Kopie jeder versendeten Hotelofferte */
+const HOTEL_CC = 'hotelservice@clean-service.ch';   /* Kopie jeder versendeten Hotelofferte: im eigenen Hotelservice-Postfach */
 module.exports = { MS_ON, msToken, MS_G, esc, rpc, makeToken, okToken, bearer, guard, body, sendMail, settings, assetBytes, E, HOTEL_RT, HOTEL_CC, HOTEL_FROM };

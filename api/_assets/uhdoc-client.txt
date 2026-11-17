@@ -1,6 +1,6 @@
 /* Offerte Unterhaltsreinigung im weichen Layout. Läuft im Server-Chromium: misst Raumbuch und Leistungsverzeichnis
    mit denselben Schriften, die im PDF landen, und setzt die Seiten. Eingaben: window.D (Daten), window.A (Bilder, Icons). */
-(function () {
+(async function () {
 const e = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const MONL = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 const fmtD = s => { if (!s) return ''; const [y, m, d] = String(s).split('-').map(Number); return d + '. ' + MONL[m - 1] + ' ' + y; };
@@ -34,7 +34,8 @@ const recV = vars.length ? (vars.find(v => v.rec) || vars[0]) : null;
 const monthly = recV ? recV.m : c.monthly;
 const ol = D.ol || 'Sergio Da Silva', adm = D.adm || 'Sebastian Hidegh', ap = D.ap || { name: 'Mirco Scaramuzzo', rolle: 'Inhaber und Geschäftsführer' };
 const zeit = D.zeitTxt || '';
-const tage = (D.daysTxt || (D.days || []).join(', '));
+const ZM = !!(D.zgrp && (D.zl || []).length > 1);
+const tage = D.zgrp ? '' : (D.daysTxt || (D.days || []).join(', '));
 const annU = D.annUrl || 'https://offertplattform-uh.vercel.app';
 const KICK = !!D.kick;
 
@@ -68,7 +69,7 @@ const cover = '<section class="pg"><div style="position:absolute;left:0;right:0;
 const strasse = String(D.adresse || '').split(',')[0];
 const letterAuto = MODE === 'contract'
   ? 'Herzlichen Dank für Ihren Auftrag und das Vertrauen in unsere Arbeit.\n\nSie haben die Auftragserteilung online retourniert. Dieses Dokument ist Ihr Reinigungsvertrag: die Offerte mit allen Beilagen, ergänzt um die unterzeichnete Vertragsseite am Schluss.\n\nWir freuen uns auf die Zusammenarbeit und darauf, ' + W[0].replace(/^Ihr(e)?/, m => m === 'Ihre' ? 'Ihre' : 'Ihr') + (strasse ? ' an der ' + strasse : '') + ' vom ersten Tag an sauber und zuverlässig zu betreuen.'
-  : 'Herzlichen Dank für Ihre Anfrage und das damit verbundene Vertrauen.\n\nFür ' + W[0] + (strasse ? ' an der ' + strasse : '') + ' haben wir die Unterhaltsreinigung genau auf Ihre Räume, Flächen und ' + W[2] + ' abgestimmt.' + (zeit ? ' Unsere Teams reinigen ' + zeit + ', ohne dass Ihr Betrieb gestört wird.' : '') + '\n\nSie bezahlen eine feste monatliche Pauschale, haben mit ' + ol + ' einen festen Objektleiter und erhalten über unsere digitale Rapportierung jederzeit Einblick in die geleisteten Arbeiten. Grundlage sind unsere ISO-zertifizierten Prozesse (ISO 9001, 14001 und 45001) und über ' + (yrs - 2) + ' Jahre Erfahrung.\n\nDen Auftrag erteilen Sie bequem online über den Knopf auf der letzten Seite. Für Rückfragen, einen Augenschein vor Ort oder ein persönliches Gespräch stehe ich Ihnen jederzeit gerne zur Verfügung.';
+  : 'Herzlichen Dank für Ihre Anfrage und das damit verbundene Vertrauen.\n\nFür ' + W[0] + (strasse ? ' an der ' + strasse : '') + ' haben wir die Unterhaltsreinigung genau auf Ihre Räume, Flächen und ' + W[2] + ' abgestimmt.' + (zeit && !ZM ? ' Unsere Teams reinigen ' + zeit + ', ohne dass Ihr Betrieb gestört wird.' : '') + '\n\nSie bezahlen eine feste monatliche Pauschale, haben mit ' + ol + ' einen festen Objektleiter und erhalten über unsere digitale Rapportierung jederzeit Einblick in die geleisteten Arbeiten. Grundlage sind unsere ISO-zertifizierten Prozesse (ISO 9001, 14001 und 45001) und über ' + (yrs - 2) + ' Jahre Erfahrung.\n\nDen Auftrag erteilen Sie bequem online über den Knopf auf der letzten Seite. Für Rückfragen, einen Augenschein vor Ort oder ein persönliches Gespräch stehe ich Ihnen jederzeit gerne zur Verfügung.';
 const lt = String(D.letter || letterAuto).split(/\n{2,}/).map(p => '<p style="margin:0 0 3.6mm">' + e(p).replace(/\n/g, '<br>') + '</p>').join('');
 const anr = D.anrede === 'Frau' ? 'Frau ' : D.anrede === 'Herr' ? 'Herr ' : '';
 const letter = '<section class="pg" style="background:#fff url(' + A.LH + ') 0 0/100% 100% no-repeat"><div class="hd"><div class="m"><b>02&nbsp;&nbsp;' + (MODE === 'contract' ? 'Auftragsbestätigung' : 'Begleitbrief') + '</b><br>Offerte ' + e(D.nrTxt) + ' · ' + e(D.firma) + '</div></div>'
@@ -128,34 +129,49 @@ function lvPages(intro, cont) {
   pages.push(cols);
   return pages.map((cs, i) => (i ? cont : intro) + '<div class="alv">' + cs.map(cc => '<div class="alv1">' + cc.join('') + '</div>').join('') + (cs.length < 2 ? '<div></div>' : '') + '</div>');
 }
-function legende() {
-  const sec = (t, rows, w) => '<div class="lgs"><h2>' + t + '</h2>' + tbl(w, rows) + '</div>';
-  return sec('Verwendete Reinigungsgruppen', [['Code', 'Bezeichnung']].concat(D.used.map(([a, b]) => [e(a), e(b)])), [22, 0])
-    + (D.dispo.length ? sec('Verwendete Dispositionspläne', [['Code', 'Bezeichnung', 'Weitere Informationen']].concat(D.dispo.map(([a, b, x]) => [e(a), e(b), e(x)])), [22, 0, 60]) : '')
-    + (D.bod.length ? sec('Verwendete Bodenbeläge', [['Code', 'Bezeichnung']].concat(D.bod.map(([a, b]) => [e(a), e(b)])), [22, 0]) : '');
+function legendePages(intro, cont) {
+  const hd = ['Code', 'Bezeichnung'];
+  const secs = [['Verwendete Reinigungsgruppen', hd, D.used.map(([a, b]) => [e(a), e(b)]), [22, 0]],
+    ['Verwendete Dispositionspläne', ['Code', 'Bezeichnung', 'Weitere Informationen'], D.dispo.map(([a, b, x]) => [e(a), e(b), e(x)]), [22, 0, 60]],
+    ['Verwendete Bodenbeläge', hd, D.bod.map(([a, b]) => [e(a), e(b)]), [22, 0]]].filter(x => x[2].length);
+  const mk = (t, h, rows, w, cn) => '<div class="lgs"><h2>' + t + (cn ? ' <i style="font-weight:400;font-size:.7em;color:#767676">Fortsetzung</i>' : '') + '</h2>' + tbl(w, [h].concat(rows)) + '</div>';
+  const out = []; let body = '', pre = intro, cap = AREA - 6 - meas(intro);
+  const flush = () => { out.push(pre + body); body = ''; pre = cont; cap = AREA - 6 - meas(cont); };
+  secs.forEach(([t, h, all, w]) => {
+    let rows = all.slice(), cn = false;
+    while (rows.length) {
+      let n = 0; while (n < rows.length && meas(body + mk(t, h, rows.slice(0, n + 1), w, cn)) <= cap) n++;
+      if (n === 0) { if (body) { flush(); continue; } n = 1; }
+      body += mk(t, h, rows.slice(0, n), w, cn); rows = rows.slice(n);
+      if (rows.length) { flush(); cn = true; }
+    }
+  });
+  out.push(pre + body);
+  return out;
 }
 
 /* ---------- Inhaltsseiten ---------- */
 const pages = []; const P = (ch, h) => pages.push([ch, h]);
 const nRooms = D.rb.reduce((a, f) => a + (f.rooms || []).length, 0);
 const kp = [['Preis', chfU(monthly), 'Feste Monatspauschale exkl. MwSt.' + (wash > 0 && !recV ? ', inkl. Tücherservice' : '') + (vars.length ? ', empfohlene Variante «' + e(recV.n) + '»' : '. ' + chfU(c.annual) + ' pro Jahr.')],
-  ['Einsatzzeiten', zeit ? e(zeit) : e(D.days.length + '× pro Woche'), e(tage) + ', ausserhalb Ihrer ' + W[2] + '. Ihr Betrieb läuft ungestört.'],
+  ['Einsatzzeiten', D.zgrp ? e(D.daysTxt || (D.days || []).join(', ')) : zeit ? e(zeit) : e(D.days.length + '× pro Woche'), (ZM ? 'Zeiten je Tag gemäss Objektangaben, ausserhalb' : D.zgrp ? e(zeit) + ', ausserhalb' : tage ? e(tage) + ', ausserhalb' : 'Ausserhalb') + ' Ihrer ' + W[2] + '. Ihr Betrieb läuft ungestört.'],
   ['Reaktionszeit', '2 h', 'Beanstandungen beantwortet die Objektleitung innert 2 Stunden, Behebung innert 24 Stunden.'],
   ['Ansprechpartner', '1 Person', e(ol) + ' ist Ihr fester Objektleiter, mit namentlicher Stellvertretung.'],
   ['Vertrag', '3 Monate', 'Unbefristet, kündbar auf Monatsende. Preisbindung für ein Jahr.'],
   ['Erfahrung', yrs + ' Jahre', 'Seit 1984 in der Reinigung, ISO 9001, 14001 und 45001 zertifiziert.']];
-const toc = ['Ausgangslage und Objekt', 'Reinigungskonzept', 'Qualität und Nachhaltigkeit', 'Ihr Team', 'Start in vier Schritten', 'Preise', 'Raumbuch', 'Leistungsverzeichnis', 'Legende', 'Konditionen auf einen Blick', 'Nachweise und Zertifikate', MODE === 'contract' ? 'Reinigungsvertrag' : 'Auftragserteilung'];
+const toc = ['Ausgangslage und Objekt', 'Reinigungskonzept', 'Qualität und Nachhaltigkeit', 'Ihr Team', 'Start in vier Schritten', 'Preise', 'Raumbuch', 'Leistungsverzeichnis', 'Legende'].concat((D.plans || []).length ? ['Grundrissplan'] : [], ['Konditionen auf einen Blick', 'Nachweise und Zertifikate', MODE === 'contract' ? 'Reinigungsvertrag' : 'Auftragserteilung']);
 P('Auf einen Blick', '<div class="eb">Ihr Angebot auf einen Blick</div><h1>Auf einen Blick</h1><p class="lead" style="margin-bottom:6mm">Wir übernehmen die Unterhaltsreinigung ' + W[1] + (D.adresse ? ' an der ' + e(D.adresse) : '') + '. Gereinigt wird ausserhalb Ihrer ' + W[2] + ' nach festem Plan, Sie haben einen festen Ansprechpartner und bezahlen eine transparente Monatspauschale.</p><div class="kpis">' + kp.map(([l, a, b]) => '<div class="kpi"><small>' + l + '</small><b>' + a + '</b><span>' + b + '</span></div>').join('') + '</div><div class="sec"><h2>Inhalt</h2><div class="toc">__TOC__</div></div>');
 const bez = [...new Set(D.rb.flatMap(f => (f.rooms || []).map(r => r.bez)).filter(Boolean))];
 const bezTxt = bez.length > 1 ? bez.slice(0, 6).join(', ').replace(/, ([^,]*)$/, ' und $1') + (bez.length > 6 ? ' und weiteren Räumen' : '') : (bez[0] || 'Räumen');
 P('Ausgangslage', '<div class="eb">Ausgangslage und Objekt</div><h1>' + W[5] + '</h1><div class="quote">' + W[4] + '</div><p class="lead" style="margin-bottom:6mm">' + W[0] + ' umfasst ' + n2(c.area, 0) + ' m² mit ' + e(bezTxt) + '. Ziel ist eine konstant hohe Sauberkeit bei planbaren Kosten und ohne Störung des Alltags.</p>'
   + '<div class="pillars">' + [['Verlässlich nach Plan', 'Gereinigt wird nach festem Tourenplan. ' + W[3] + ' finden jeden Tag gepflegte Räume vor.'], ['Feste Monatspauschale', 'Sie bezahlen einen fixen Betrag pro Monat. Sonderreinigungen offerieren wir vorgängig separat.'], ['Werterhalt mit System', 'Material- und flächengerechte Pflege schützt Böden und Oberflächen und verlängert ihre Lebensdauer.']].map(([t, d]) => '<div class="pillar"><h3>' + t + '</h3><div style="font-size:8.2pt">' + d + '</div></div>').join('') + '</div>'
-  + '<div class="sec"><h2>Objektangaben</h2>' + tbl([58, 0], [['Angabe', 'Detail'], ['Objekt', e(D.objekt || objKurz) + ', ' + n2(c.area, 0) + ' m² in ' + nRooms + ' Räumen'], ['Adresse', e(D.adresse)], ['Ansprechpartner', e([D.kontakt, D.email].filter(Boolean).join(', ') || '–')], ['Reinigungsart', 'Unterhaltsreinigung'], ['Reinigungszeiten', e([tage, zeit].filter(Boolean).join(' ') || 'Nach Vereinbarung')], ['Vertragsbeginn', e(D.start || 'Nach Vereinbarung') + ', unbefristet']]) + '</div>');
+  + '<div class="sec"><h2>Objektangaben</h2>' + tbl([58, 0], [['Angabe', 'Detail'], ['Objekt', e(D.objekt || objKurz) + ', ' + n2(c.area, 0) + ' m² in ' + nRooms + ' Räumen'], ['Adresse', e(D.adresse)], ['Ansprechpartner', e([D.kontakt, D.email].filter(Boolean).join(', ') || '–')], ['Reinigungsart', 'Unterhaltsreinigung'], ['Reinigungszeiten', ZM ? D.zl.map(e).join('<br>') : e([tage, zeit].filter(Boolean).join(' ') || 'Nach Vereinbarung')], ['Vertragsbeginn', e(D.start || 'Nach Vereinbarung') + ', unbefristet']]) + '</div>');
 const org = [['user', 'Organisationsstruktur', 'Gesamtprojektleitung für Vertrag und Eskalation, Objektleiter für Führung vor Ort und Qualität, eingespieltes Reinigungsteam und eigenes Spezialteam.'], ['cal', 'Einsatzplanung', 'Individueller Tourenplan nach ' + W[2] + ', Flächen und Frequenzen, abgestimmt mit Ihnen und inklusive Stellvertretungsreserve.'], ['key', 'Objektverständnis', 'Vor dem Start besichtigen wir das Objekt gemeinsam. Besonderheiten wie sensible oder repräsentative Bereiche halten wir fest.'], ['shield', 'Vertretungsregelung', 'Namentliche Stellvertretung der Objektleitung. Bei Ausfällen Umverteilung im Team oder eingewiesenes Reservepersonal.'], ['chart', 'Digitale Rapportierung', 'Tages-, Monats- und Ereignisrapport mit Fotos. Alle Einsätze und Kontrollen sind für Sie jederzeit einsehbar.'], ['check', 'Sonderreinigungen', 'Grund-, Fenster- und Ereignisreinigungen führt unser Spezialteam mit eigenem Maschinenpark aus, Abnahme gemeinsam mit Ihnen.']];
 P('Reinigungskonzept', '<div class="eb">Reinigungskonzept</div><h1>So organisieren wir<br>Ihre Reinigung</h1><div class="org">' + org.map(([k, t, d]) => '<div class="it"><h3>' + ic(k) + t + '</h3><p>' + d + '</p></div>').join('') + '</div><div class="sec"><h2>Eskalation in drei Stufen</h2>' + tbl([44, 0, 40], [['Stufe', 'Situation', 'Reaktionszeit'], ['1 · Mitarbeitende', 'Kleinere Mängel, Meldung via App', 'innert 1 Stunde'], ['2 · Objektleitung', 'Qualitätsmängel, Beanstandung', 'Rückmeldung innert 2 Std.'], ['3 · Projektleitung', 'Wiederholte Mängel, Vertragsfragen', 'Massnahmenplan innert 24 Std.']]) + '</div>');
 P('Qualität und Nachhaltigkeit', '<div class="eb">Qualität und Nachhaltigkeit</div><h1>Messbare Qualität,<br>bewusst nachhaltig</h1><p class="lead" style="margin-bottom:5mm">Unser Qualitätssystem stützt sich auf definierte Eigenkontrollen, digitale Nachweise und ein strukturiertes Reklamationsmanagement, zertifiziert nach ISO 9001, 14001 und 45001.</p><div class="kpis" style="grid-template-columns:repeat(4,1fr)">' + [['Abzeichnung', '> 98 %', 'Tageschecklisten digital abgezeichnet'], ['Reklamationen', '< 2', 'pro Monat als Zielwert'], ['Mängelbehebung', '< 24 h', 'dokumentiert mit Zeitstempel'], ['Schulung', '100 %', 'des eingesetzten Personals']].map(([l, a, b]) => '<div class="kpi"><small>' + l + '</small><b>' + a + '</b><span>' + b + '</span></div>').join('') + '</div>'
   + '<div class="sec"><h2>Eigenkontrollen</h2>' + tbl([62, 30, 0], [['Prüfpunkt', 'Frequenz', 'Nachweis'], ['Ausführung gemäss Leistungsverzeichnis', 'täglich', 'Digitale Abzeichnung mit Zeitstempel'], ['Begehung aller Bereiche', 'wöchentlich', 'Begehungsprotokoll mit Mängelliste'], ['Materialkontrolle', 'monatlich', 'Liste mit Chargennummer und Datum'], ['Kundenbesprechung', 'quartalsweise', 'Protokoll mit Massnahmenplan'], ['Auswertung Qualitätskennzahlen', 'jährlich', 'Schriftlicher Bericht an Sie']]) + '</div><div class="sec"><h2>Nachhaltigkeit</h2>' + tbl([42, 0], [['Bereich', 'Umsetzung'], ['Reinigungsmittel', 'Mind. 70 % mit EU Ecolabel, biologisch abbaubar, chlor- und phosphatfrei'], ['Mikroplastik', 'Mikrofasertücher aus recycelten PET-Flaschen'], ['Verpackung', 'Konzentrate in Nachfüllbehältern statt Einwegflaschen'], ['Geräte', 'Numatic-Geräte mit Rezyklatanteil, regelmässig gewartet']]) + '</div>');
-const team = [[ol, 'Objektleiter, Hauptverantwortung', ol === 'Sergio Da Silva' ? '20 Jahre Erfahrung · DE, EN, IT, PT, ES' : 'Ihr Ansprechpartner vor Ort'], [adm, 'Sachbearbeiter Innendienst', adm === 'Sebastian Hidegh' ? '3 Jahre Erfahrung · DE, EN, ES' : adm === 'Diogo Pereira' ? '3 Jahre Erfahrung · DE, EN, PT' : 'Planung, Verrechnung, Termine'], ['Mirco Scaramuzzo', 'Inhaber und Geschäftsführer', 'Offerte, Vertrag und Eskalation']].filter((x, i, a) => a.findIndex(y => y[0] === x[0]) === i);
+const gf = D.gf || 'Mirco Scaramuzzo';
+const team = [[ol, 'Objektleiter, Hauptverantwortung', D.olX || (ol === 'Sergio Da Silva' ? '20 Jahre Erfahrung · DE, EN, IT, PT, ES' : 'Ihr Ansprechpartner vor Ort')], [adm, 'Sachbearbeiter Innendienst', D.admX || (adm === 'Sebastian Hidegh' ? '3 Jahre Erfahrung · DE, EN, ES' : adm === 'Diogo Pereira' ? '3 Jahre Erfahrung · DE, EN, PT' : 'Planung, Verrechnung, Termine')], [gf, gf === 'Mirco Scaramuzzo' ? 'Inhaber und Geschäftsführer' : 'Geschäftsführung, Gesamtverantwortung', D.gfX || 'Offerte, Vertrag und Eskalation']].filter((x, i, a) => a.findIndex(y => y[0] === x[0]) === i);
 const refs = (D.refs || []).filter(r => r && r.k).slice(0, 3);
 const refsR = refs;   /* keine Standard-Referenz mehr: ohne gewählte Referenz entfällt der Abschnitt */
 P('Ihr Team', '<div class="eb">Ihr Team</div><h1>Feste Gesichter<br>für Ihr Objekt</h1><div class="refs" style="margin-top:2mm">' + team.map(([a, b, x]) => '<div><b>' + e(a) + '</b>' + e(b) + '<br><span style="color:#767676">' + e(x) + '</span></div>').join('') + '</div><div class="sec"><h2>Personalstabilität</h2>' + tbl([50, 0], [['Kennzahl', 'Wert'], ['Fluktuationsrate', 'Unter 15 % pro Jahr, Branchenschnitt ca. 25 bis 30 %'], ['Einarbeitung', 'Mindestens 3 begleitete Schichten vor dem ersten Soloeinsatz'], ['Personalwechsel', 'Sie werden vor jedem Einsatz einer neuen Person schriftlich informiert']]) + '</div><div class="sec"><h2>Ausbildung</h2><p style="margin:0">Seit 20 Jahren bilden wir ununterbrochen Lernende aus, aktuell drei Kaufleute EFZ. Mit der eigenen Clean Service Academy schulen wir alle Reinigungskräfte laufend weiter.</p></div>' + (refsR.length ? '<div class="sec"><h2>Referenzen aus der Unterhaltsreinigung</h2><div class="refs">' + refsR.map(r => { const [a, ...b] = String(r.s || '').split(','); return '<div><b>' + e(r.k) + '</b>' + e(a.trim()) + (b.length ? '<br>' + e(b.join(',').trim()) : '') + '</div>'; }).join('') + '</div></div>' : ''));
@@ -181,7 +197,10 @@ raumbuchPages('<div class="eb">Raumbuch</div><h1 style="font-size:18pt;margin-bo
   '<div class="eb" style="margin-bottom:4mm">Raumbuch · Fortsetzung</div>',
   '<div class="box" style="margin-top:6mm"><b>Reinigungszeiten.</b> ' + e([tage, zeit].filter(Boolean).join(' ') || 'Nach Vereinbarung') + '. Änderungen der Nutzung oder Flächen passen wir gemeinsam mit Ihnen an.</div>').forEach(h => P('Raumbuch', h));
 lvPages('<div class="eb">Leistungsverzeichnis</div><h1 style="font-size:17pt;margin-bottom:2.5mm">Was wir in jedem Raum erledigen</h1><p class="note" style="margin:0 0 4mm">Je Reinigungsgruppe die Leistungen nach Kategorie. Code = Häufigkeit (5x = fünfmal pro Woche, M = monatlich, B = bei Bedarf), daneben die Ausführungen pro Woche, Monat und Jahr.</p>', '<div class="eb" style="margin-bottom:4mm">Leistungsverzeichnis · Fortsetzung</div>').forEach(h => P('Leistungsverzeichnis', h));
-P('Legende', '<div class="eb">Legende</div><h1 style="font-size:18pt;margin-bottom:2.5mm">Codes und Begriffe</h1><p class="note" style="margin:0 0 5mm">Erklärung der im Raumbuch und Leistungsverzeichnis verwendeten Reinigungsgruppen, Dispositionspläne und Bodenbeläge.</p>' + legende());
+legendePages('<div class="eb">Legende</div><h1 style="font-size:18pt;margin-bottom:2.5mm">Codes und Begriffe</h1><p class="note" style="margin:0 0 5mm">Erklärung der im Raumbuch und Leistungsverzeichnis verwendeten Reinigungsgruppen, Dispositionspläne und Bodenbeläge.</p>', '<div class="eb" style="margin-bottom:4mm">Legende, Fortsetzung</div>').forEach(h => P('Legende', h));
+const PD = (await Promise.all((D.plans || []).map(src => new Promise(r => { const im = new Image(); im.onload = () => r({ src, w: im.naturalWidth, h: im.naturalHeight }); im.onerror = () => r(null); im.src = src; })))).filter(Boolean);
+PD.forEach((pl, i) => { const t = 'Grundrissplan' + (PD.length > 1 ? ' ' + (i + 1) + ' von ' + PD.length : ''), ls = pl.w > pl.h * 1.1;
+  P('Grundrissplan', '<div class="eb">Grundrissplan</div><h1 style="font-size:18pt;margin-bottom:2mm">' + t + '</h1><div style="position:relative;height:186mm;width:190mm;margin-left:-15mm"><img src="' + e(pl.src) + '" alt="" style="position:absolute;left:50%;top:50%;' + (ls ? 'transform:translate(-50%,-50%) rotate(90deg);max-width:186mm;max-height:190mm' : 'transform:translate(-50%,-50%);max-width:190mm;max-height:186mm') + '"></div>'); });
 const KF = [['Vertrag', 'Unbefristet', 'Werkvertrag nach Art. 363 ff. OR'], ['Kündigung', '3 Monate', 'Schriftlich auf Monatsende'], ['Preisbindung', '1 Jahr', 'Fest ab Vertragsbeginn'], ['Zahlung', '30 Tage netto', 'Verrechnung monatlich, jeweils anfangs Monat'], ['Gültigkeit', '6 Monate', 'Ab Offertdatum'], ['Reklamation', 'Rückmeldung in 2 Std.', 'Behebung innert 24 Stunden'], ['Versicherung', 'CHF 5 Mio.', 'Betriebshaftpflicht bei der Allianz Suisse'], ['Vertraulichkeit', 'Garantiert', 'Alle Informationen werden vertraulich behandelt']];
 const agbBox = D.agbUrl
   ? '<div class="agbl"><div><small>Vollständige Allgemeine Geschäftsbedingungen</small><a href="' + e(D.agbUrl) + '" target="_blank">AGB Unterhaltsreinigung öffnen (PDF)</a></div><span>Integrierender Bestandteil dieser Offerte</span></div>'
@@ -199,9 +218,10 @@ const tk = { 'Ausgangslage und Objekt': 'Ausgangslage', 'Konditionen auf einen B
 const tocH = toc.map(t => { const k = tk[t] || t; return first[k] ? '<div>' + t + '<span>' + String(first[k]).padStart(2, '0') + '</span></div>' : ''; }).join('');
 const html = cover + letter + pages.map(([ch, h], i) => page('<div class="in">' + h.replace('__TOC__', tocH).replace(/__RB__/g, first['Raumbuch']) + '</div>', i + 3, ch)).join('');
 document.getElementById('root').innerHTML = html;
+
 if (MEAS) MEAS.remove();
 /* Kontrolle: Inhalt, der über den Inhaltsbereich hinausläuft */
 const over = [...document.querySelectorAll('.pg')].map((pg, i) => { const inn = pg.querySelector('.in'); if (!inn) return null; const lim = inn.getBoundingClientRect().bottom; const mx = [...inn.querySelectorAll('*')].reduce((m, el) => Math.max(m, el.getBoundingClientRect().bottom), 0); return mx > lim + 2 ? { p: i + 1, mm: Math.round((mx - lim) * 25.4 / 96) } : null; }).filter(Boolean);
 window.__info = { pages: document.querySelectorAll('.pg').length, over };
 window.__done = true;
-})();
+})().catch(e => { window.__err = String(e && e.stack || e); window.__done = true; });

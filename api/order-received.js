@@ -364,7 +364,7 @@ export default async function handler(req, res) {
           L.vertrag + '\n' + vertragLink + '\n\n' +
           L.schluss + '\n\n' +
           (eckdaten.length ? eckdaten.map(([k, v]) => `${k}: ${String(v).replace(/<br>/g, '; ')}`).join('\n') + '\n\n' : '') +
-          `${L.gruss}\n${CS_TEAM_NAME}\n${CS_TEAM_ROLLE}\n\n` +
+          `${L.gruss}\n${CS_TEAM_NAME}\n\n` +
           'Clean Service Scaramuzzo AG · Industriestrasse 5 · 8307 Effretikon\nT 0844 355 355 · clean-service.ch';
 
         try {
@@ -684,7 +684,7 @@ const CS_FARBE = '#2BB6B7', CS_DUNKEL = '#12797A', CS_TEXT = '#333333', CS_GRAU 
 const CS_ROLLE = { de:'Bereichsleiter Putzfrauenservice', en:'Head of Putzfrauenservice' };
 /* Ab der Auftragserteilung zeichnet das Admin-Team des Putzfrauenservice,
    davor Cristian Gambale. */
-const CS_TEAM_NAME = 'Putzfrauenservice · Admin-Team';
+const CS_TEAM_NAME = 'Admin Putzfrauenservice';
 const CS_TEAM_ROLLE = 'Clean Service Scaramuzzo AG';
 const CS_TEAM_TEL = '0844 355 355';
 const CS_ABSENDER_TEAM = 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>';
@@ -697,9 +697,7 @@ function csSignatur(spr){
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin-top:26px;">
     <tr><td style="padding-top:18px;border-top:2px solid ${CS_FARBE};">
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.55;color:${CS_TEXT};">
-        <strong>${CS_TEAM_NAME}</strong><br>
-        ${CS_TEAM_ROLLE}<br>
-        ${CS_TEAM_TEL}
+        <strong>${CS_TEAM_NAME}</strong>
       </div>
       <div style="border-top:1px solid #D8D8D8;margin:12px 0;width:220px;"></div>
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:12px;line-height:1.55;color:${CS_GRAU};">
@@ -766,8 +764,6 @@ function csKnopf(text, link){
 function csSignaturText(){
   return '\n\nFreundliche Grüsse\n\n' +
     CS_TEAM_NAME + '\n' +
-    'Bereichsleiter Putzfrauenservice\n' +
-    'Direkt 052 557 02 08 / 076 822 00 16\n' +
     '---------------------------------\n' +
     'Clean Service Scaramuzzo AG\n' +
     'Industriestrasse 5\n' +

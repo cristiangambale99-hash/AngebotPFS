@@ -435,6 +435,18 @@ export default async function handler(req, res) {
       bericht.fehler.push({ code: 'Personaldurchgang', meldung: (e && e.message) || String(e) });
     }
 
+    /* ======== Siebter Durchgang: Erinnerung zum Einführungstermin ========
+       Terminvorschlag ohne Bestätigung: nach 3 Tagen einmal eine Erinnerung
+       an die Kundschaft (Bcc PFS). Liegt der Termin näher, spätestens am
+       Vortag. Ein neuer Vorschlag oder ein Abbruch setzt die Erinnerung
+       zurück (lib/einfuehrung.js). */
+    try {
+      const auftraege6 = await alleLesen(AUFTRAG_SAMMLUNG, 500);
+      bericht.einfuehrung = await einfuehrungDurchlauf(apiKey, auftraege6, nurPruefen);
+    } catch (e) {
+      bericht.fehler.push({ code: 'Einführungsdurchgang', meldung: (e && e.message) || String(e) });
+    }
+
     return res.status(200).json({ ok: true, probelauf: !!nurPruefen, ...bericht });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -550,6 +562,155 @@ async function personalDurchlauf(apiKey, alle, nurPruefen) {
     }
   }
   return bericht;
+}
+
+/* ==========================================================================
+   Erinnerung zum Einführungstermin
+   ========================================================================== */
+const EINF_ERINNERUNG_TAGE = 3;
+const EINF_BASIS = 'https://angebot-pfs.vercel.app';
+
+/* Muss mit sigEin() in lib/einfuehrung.js übereinstimmen */
+function sigEinfuehrung(id) {
+  const g = process.env.EINFUEHRUNG_SECRET || process.env.ANTWORT_SECRET
+         || process.env.CRON_SECRET || 'cs-pfs';
+  return crypto.createHmac('sha256', g).update(String(id) + '.e').digest('hex').slice(0, 20);
+}
+
+/* Tage zwischen zwei Kalenderdaten (YYYY-MM-DD) */
+function tageZwischen(von, bis) {
+  const a = Date.parse(String(von).slice(0, 10) + 'T00:00:00Z');
+  const b = Date.parse(String(bis).slice(0, 10) + 'T00:00:00Z');
+  return (isNaN(a) || isNaN(b)) ? 0 : Math.round((b - a) / 86400000);
+}
+
+/* Prüft einen Auftrag; gibt den Grund zurück, warum (noch) keine Erinnerung
+   rausgeht, oder null, wenn sie heute fällig ist. */
+function einfuehrungErinnerungGrund(a, heute) {
+  if (!a.einfuehrungAm) return 'kein Terminvorschlag';
+  if (a.einfuehrungBestaetigt) return 'bereits bestätigt';
+  if (!a.einfuehrungVorschlagAm) return 'Vorschlag ohne Datum';
+  if (a.einfuehrungErinnertAm) return 'bereits erinnert';
+  if (a.einfuehrungErinnerungAus) return 'Erinnerung abgeschaltet';
+  if (['abgesagt', 'archiv'].includes(String(a.stufe || ''))) return 'Auftrag ' + a.stufe;
+  const mail = a.mail || a.email || '';
+  if (!mail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) return 'keine gültige Adresse';
+  const bisTermin = tageZwischen(heute, a.einfuehrungAm);
+  if (bisTermin < 1) return 'Termin ist heute oder vorbei';
+  const seitVorschlag = tageZwischen(a.einfuehrungVorschlagAm, heute);
+  if (seitVorschlag >= EINF_ERINNERUNG_TAGE) return null;
+  /* Termin liegt nah: spätestens am Vortag erinnern, frühestens einen Tag
+     nach dem Vorschlag, damit nicht am selben Tag zwei Mails eintreffen. */
+  if (bisTermin <= 1 && seitVorschlag >= 1) return null;
+  return 'noch nicht fällig';
+}
+
+async function einfuehrungDurchlauf(apiKey, alle, nurPruefen) {
+  const heute = new Date().toISOString().slice(0, 10);
+  const bericht = { geprueft: 0, erinnert: 0, faelle: [], fehler: [] };
+  for (const a of alle) {
+    if (!a.einfuehrungAm || a.einfuehrungBestaetigt) continue;
+    bericht.geprueft++;
+    const id = a._id || a.id || a.code;
+    if (!id) continue;
+    if (einfuehrungErinnerungGrund(a, heute)) continue;
+    bericht.faelle.push({ id });
+    if (nurPruefen) { bericht.erinnert++; continue; }
+    try {
+      await einfuehrungErinnerungMail(apiKey, a, id);
+      const n = { ...a }; delete n._id;
+      n.einfuehrungErinnertAm = new Date().toISOString();
+      const l = Array.isArray(n.notizen) ? n.notizen.slice() : [];
+      l.push({ text: 'Erinnerung zum Einführungstermin an die Kundschaft gesendet', von: 'automatisch', am: n.einfuehrungErinnertAm });
+      n.notizen = l.slice(-60);
+      await speichern(AUFTRAG_SAMMLUNG, id, n);
+      bericht.erinnert++;
+    } catch (e) {
+      bericht.fehler.push({ code: 'Einführung ' + id, meldung: String((e && e.message) || e).slice(0, 300) });
+    }
+  }
+  return bericht;
+}
+
+function einfDatum(iso, en) {
+  const d = new Date(String(iso).slice(0, 10) + 'T12:00:00Z');
+  if (isNaN(d.getTime())) return '';
+  const tag = (en ? ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+                  : ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'])[d.getUTCDay()];
+  return tag + ', ' + d.toLocaleDateString(en ? 'en-GB' : 'de-CH', { day:'2-digit', month:'long', year:'numeric', timeZone:'UTC' });
+}
+
+async function einfuehrungErinnerungMail(apiKey, a, id) {
+  const EN = String(a.sprache || 'de').toLowerCase() === 'en';
+  const spr = EN ? 'en' : 'de';
+  const mail = a.mail || a.email;
+  const nn = a.nachname || '';
+  const anrede = EN
+    ? (a.anrede === 'Herr' ? 'Dear Mr ' + nn : a.anrede === 'Frau' ? 'Dear Mrs ' + nn
+      : 'Dear ' + [a.vorname, nn].filter(Boolean).join(' '))
+    : (a.anrede === 'Herr' ? 'Sehr geehrter Herr ' + nn : a.anrede === 'Frau' ? 'Sehr geehrte Frau ' + nn
+      : 'Guten Tag ' + [a.vorname, nn].filter(Boolean).join(' '));
+  const pflegerin = escP(a.raumpflegerin || '');
+  const wann = einfDatum(a.einfuehrungAm, EN) +
+    (a.einfuehrungZeit ? (EN ? ', at ' : ', um ') + escP(a.einfuehrungZeit) + (EN ? '' : ' Uhr') : '');
+  const objekt = escP([a.adresse, a.plzOrt || a.ort].filter(Boolean).join(', '));
+  const linkJa = EINF_BASIS + '/api/einfuehrung?id=' + encodeURIComponent(id) +
+                 '&sig=' + sigEinfuehrung(id) + '&spr=' + spr;
+  const nah = tageZwischen(new Date().toISOString().slice(0, 10), a.einfuehrungAm) <= 1;
+  const wer = pflegerin || (EN ? 'your cleaner' : 'Ihre Raumpflegerin');
+
+  const L = EN ? {
+    betreff: 'Reminder: please confirm your introduction appointment',
+    titel: 'Reminder: your introduction appointment',
+    a1: (nah ? 'A few days ago' : 'Three days ago') + ' we proposed a date for the introduction of your cleaner. As we have not yet heard back from you, we would like to remind you of it.',
+    a2: 'So that we can firmly reserve the appointment for you and schedule both ' + wer + ' and our supervisor, we kindly ask you for a short confirmation.',
+    a3: 'One click confirms the appointment:',
+    knopf: 'Confirm appointment',
+    a4: 'If the date does not suit you, simply reply to this e-mail or call us on 0844 355 355. We will gladly find another time.',
+    a5: 'We look forward to working with you and thank you for your trust.',
+    k1: 'Cleaner', k2: 'Introduction and first clean', k3: 'Property'
+  } : {
+    betreff: 'Erinnerung: Bitte bestätigen Sie Ihren Einführungstermin',
+    titel: 'Erinnerung: Ihr Einführungstermin',
+    a1: (nah ? 'Vor wenigen Tagen' : 'Vor drei Tagen') + ' haben wir Ihnen den Termin für die Einführung Ihrer Raumpflegerin vorgeschlagen. Da wir noch keine Rückmeldung von Ihnen erhalten haben, erinnern wir Sie gerne nochmals daran.',
+    a2: 'Damit wir den Termin verbindlich für Sie reservieren und sowohl ' + wer + ' als auch unseren Vorarbeiter fest einplanen können, bitten wir Sie um eine kurze Bestätigung.',
+    a3: 'Mit einem Klick bestätigen Sie den Termin:',
+    knopf: 'Termin bestätigen',
+    a4: 'Sollte der Termin nicht passen, antworten Sie einfach auf diese E-Mail oder rufen Sie uns unter 0844 355 355 an. Wir finden gerne einen anderen Zeitpunkt.',
+    a5: 'Wir freuen uns auf die Zusammenarbeit und danken Ihnen herzlich für Ihr Vertrauen.',
+    k1: 'Raumpflegerin', k2: 'Einführung und erste Reinigung', k3: 'Objekt'
+  };
+  const inhalt = `
+    <p style="margin:0 0 16px;">${anrede}</p>
+    <p style="margin:0 0 16px;">${L.a1}</p>
+    <p style="margin:0 0 16px;">${L.a2}</p>
+    ${csTabelle([[L.k1, pflegerin], [L.k2, wann], [L.k3, objekt]])}
+    <p style="margin:0 0 14px;">${L.a3}</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;"><tr><td style="background:${CS_FARBE};"><a href="${linkJa}" style="display:inline-block;padding:13px 28px;font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:bold;color:#FFFFFF;text-decoration:none;">${L.knopf}</a></td></tr></table>
+    <p style="margin:0 0 16px;">${L.a4}</p>
+    <p style="margin:0;">${L.a5}</p>`;
+  const text = anrede + '\n\n' + L.a1 + '\n\n' + L.a2 + '\n\n' +
+    L.k1 + ': ' + (a.raumpflegerin || '') + '\n' + L.k2 + ': ' + wann.replace(/&amp;/g, '&') + '\n' +
+    L.k3 + ': ' + [a.adresse, a.plzOrt || a.ort].filter(Boolean).join(', ') + '\n\n' +
+    L.a3 + '\n' + linkJa + '\n\n' + L.a4 + '\n\n' + L.a5 + csSignaturText(spr, 'team');
+
+  const r = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: CS_ABSENDER_TEAM,
+      to: [mail],
+      bcc: ['putzfrauenservice@clean-service.ch'],
+      reply_to: 'putzfrauenservice@clean-service.ch',
+      subject: L.betreff,
+      html: csRahmen(L.titel, inhalt, '', spr, 'team'),
+      text,
+      attachments: [{ filename:'logo.png', content: CS_LOGO, content_id:'cslogo', disposition:'inline' }]
+    })
+  });
+  const daten = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(JSON.stringify(daten));
+  return daten;
 }
 
 /* Signatur des Nachbuchungslinks — muss mit api/termine.js übereinstimmen */
@@ -1090,7 +1251,7 @@ const CS_FARBE = '#2BB6B7', CS_DUNKEL = '#12797A', CS_TEXT = '#333333', CS_GRAU 
 const CS_ROLLE = { de:'Bereichsleiter Putzfrauenservice', en:'Head of Putzfrauenservice' };
 /* Bis und mit Angebot zeichnet Cristian Gambale, ab der Auftragserteilung
    das Admin-Team des Putzfrauenservice. */
-const CS_TEAM_NAME = 'Putzfrauenservice · Admin-Team';
+const CS_TEAM_NAME = 'Admin Putzfrauenservice';
 const CS_TEAM_ROLLE = { de:'Clean Service Scaramuzzo AG', en:'Clean Service Scaramuzzo AG' };
 const CS_TEAM_TEL = '0844 355 355';
 const CS_ABSENDER_TEAM = 'Clean Service Scaramuzzo AG <putzfrauenservice@clean-service.ch>';
@@ -1103,9 +1264,8 @@ function csSignatur(spr, wer){
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin-top:26px;">
     <tr><td style="padding-top:18px;border-top:2px solid ${CS_FARBE};">
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.55;color:${CS_TEXT};">
-        <strong>${team ? CS_TEAM_NAME : 'Cristian Gambale'}</strong><br>
-        ${team ? CS_TEAM_ROLLE[s] : CS_ROLLE[s]}<br>
-        ${team ? CS_TEAM_TEL : 'Direkt 052 557 02 08 / 076 822 00 16'}
+        ${team ? '<strong>' + CS_TEAM_NAME + '</strong>'
+               : '<strong>Cristian Gambale</strong><br>' + CS_ROLLE[s] + '<br>Direkt 052 557 02 08 / 076 822 00 16'}
       </div>
       <div style="border-top:1px solid #D8D8D8;margin:12px 0;width:220px;"></div>
       <div style="font-family:Verdana,Geneva,sans-serif;font-size:12px;line-height:1.55;color:${CS_GRAU};">
@@ -1173,9 +1333,8 @@ function csSignaturText(spr, wer){
   const s = spr === 'en' ? 'en' : 'de';
   const team = wer === 'team';
   return '\n\n' + (s === 'en' ? 'Kind regards' : 'Freundliche Grüsse') + '\n\n' +
-    (team ? CS_TEAM_NAME : 'Cristian Gambale') + '\n' +
-    (team ? CS_TEAM_ROLLE[s] : CS_ROLLE[s]) + '\n' +
-    (team ? CS_TEAM_TEL : 'Direkt 052 557 02 08 / 076 822 00 16') + '\n' +
+    (team ? CS_TEAM_NAME + '\n'
+          : 'Cristian Gambale\n' + CS_ROLLE[s] + '\nDirekt 052 557 02 08 / 076 822 00 16\n') +
     '---------------------------------\n' +
     'Clean Service Scaramuzzo AG\n' +
     'Industriestrasse 5\n' +
