@@ -3676,7 +3676,7 @@ function kartenSchritte(e){
         (istSpringerStart(e) ? 'Aktivieren' : 'Auf aktiv setzen') + '</button>'));
   }
 
-  if(auftrag && (e.stufe === 'aktiv' || e.qualitaetAm)){
+  if(auftrag && e.stufe !== 'abgesagt' && (e.stufe === 'aktiv' || e.qualitaetAm)){
     const stand = e.qualitaetAntwort
       ? 'Die Kundschaft hat mit «' + esc(QUALITAET_LABEL[e.qualitaetAntwort] || e.qualitaetAntwort) + '» geantwortet.'
       : e.qualitaetMail
@@ -3712,10 +3712,20 @@ function kartenSchritte(e){
 
   if(auftrag && !['abgesagt','archiv'].includes(e.stufe)){
     s.push(schritt('Auftrag absagen',
-      'Nur wenn die Kundschaft abspringt. Der Fall verschwindet damit aus «Zu erledigen».',
+      'Nur wenn die Kundschaft den ganzen Auftrag nicht mehr will. Der Fall verschwindet damit aus «Zu erledigen».' +
+      (e.einfuehrungAm ? ' Um nur den Einführungstermin abzusagen, oben «Termin abbrechen» wählen.' : ''),
       '<button class="btn danger" onclick="stufeSetzen(\'' + e.id + '\',\'abgesagt\')">Auftrag absagen</button>'));
   }
 
+  /* Abgesagt oder archiviert: immer zuoberst «Wieder öffnen» anbieten, auch
+     wenn noch andere Kästchen (z. B. Qualitätsnachfrage) angezeigt würden.
+     Termin, Raumpflegerin und Verlauf bleiben dabei erhalten. */
+  if(auftrag && ['abgesagt','archiv'].includes(e.stufe)){
+    s.unshift(schritt('Wieder öffnen',
+      'Falls der Fall versehentlich ' + (e.stufe === 'abgesagt' ? 'abgesagt' : 'archiviert') + ' wurde. Er geht mit allen Angaben zurück auf den Stand vorher' +
+      (e.einfuehrungAm ? ', inklusive Terminvorschlag für den ' + dat(e.einfuehrungAm) : '') + '.',
+      '<button class="btn primary-action" onclick="wiederOeffnen(\'' + e.id + '\')">Wieder öffnen</button>'));
+  }
   if(!s.length){
     s.push(schritt('Abgeschlossen', 'Für diesen Fall ist im aktuellen Status nichts mehr zu tun.',
       '<button class="btn" onclick="stufeSetzen(\'' + e.id + '\',\'bearbeitung\')">Wieder öffnen</button>'));
@@ -3879,10 +3889,26 @@ async function angebotReaktivieren(id, btn){
   }
 }
 
+/* Versehentlich abgesagt oder archiviert: zurück auf den Stand vorher.
+   Mit Terminvorschlag → In Bearbeitung (Block «Einführungstermin vorgeschlagen»),
+   mit erfolgter erster Reinigung bzw. Springerteam → aktiv, sonst In Bearbeitung. */
+function wiederOeffnen(id){
+  const e = LISTE.find(x => String(x.id) === String(id));
+  if(!e) return;
+  const aktiv = !e.einfuehrungAm && (e.springerGestartet === true || !!e.erstReinigung);
+  const stufe = aktiv ? 'aktiv' : 'bearbeitung';
+  const felder = {stufe};
+  if(stufe === 'bearbeitung' && !e.bearbeitungAb) felder.bearbeitungAb = new Date().toISOString();
+  speichern(id, felder, 'Wieder geöffnet, Fall steht wieder auf ' + stufeDef(stufe).label + '.');
+}
+
 async function stufeSetzen(id, stufe){
   const e = LISTE.find(x => String(x.id) === String(id));
   if(!e) return;
-  if(['abgesagt','archiv'].includes(stufe) &&
+  if(stufe === 'abgesagt' && e.quelle === 'auftrag' && e.einfuehrungAm &&
+     !confirm('Den ganzen Auftrag von ' + name(e) + ' absagen?\n\nUm nur den Einführungstermin am ' + dat(e.einfuehrungAm) +
+              ' abzusagen, bitte «Abbrechen» und dann «Termin abbrechen» wählen.')) return;
+  else if(['abgesagt','archiv'].includes(stufe) && !(stufe === 'abgesagt' && e.quelle === 'auftrag' && e.einfuehrungAm) &&
      !confirm('Fall wirklich auf «' + stufeDef(stufe).label + '» setzen?')) return;
 
   if(e.quelle !== 'auftrag'){
